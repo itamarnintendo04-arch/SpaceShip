@@ -2,7 +2,8 @@ name: Build SpaceShip apps
 
 # Every push: Android + Windows + Linux.
 # macOS runners cost 10x minutes on private repos, so iOS and macOS builds run when started
-# manually (Actions -> Build SpaceShip apps -> Run workflow, tick "Apple") or on a v* tag.
+# manually (Actions -> Build SpaceShip apps -> Run workflow, tick "Apple"), on a v* tag,
+# or when the commit message contains [apple].
 on:
   push:
     branches: ['**']
@@ -82,7 +83,7 @@ jobs:
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "macos-latest" ] && [ "${{ inputs.apple }}" != "true" ] && [[ "${{ github.ref }}" != refs/tags/v* ]]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
+          if [ "${{ matrix.os }}" = "macos-latest" ] && [ "${{ inputs.apple }}" != "true" ] && [[ "${{ github.ref }}" != refs/tags/v* ]] && [ "${{ contains(github.event.head_commit.message, '[apple]') }}" != "true" ]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v5
         if: steps.gate.outputs.skip != '1'
       - uses: actions/setup-node@v5
@@ -108,7 +109,7 @@ jobs:
 
   ios:
     needs: release
-    if: inputs.apple == true || startsWith(github.ref, 'refs/tags/v')
+    if: inputs.apple == true || startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[apple]')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5

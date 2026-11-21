@@ -23,7 +23,7 @@
 | macOS | `SpaceShip-…-mac.dmg` | בפעם הראשונה: קליק ימני → Open |
 | iPhone / iPad | `SpaceShip-iOS-unsigned.ipa` | דרך Sideloadly או AltStore (בלי חשבון Apple Developer אי אפשר להתקין ישירות) |
 
-גרסאות macOS ו-iOS נבנות ידנית (Actions → Build SpaceShip apps → Run workflow) או בתגית `v*`, כי בריפו פרטי דקות של Mac עולות פי 10.
+גרסאות macOS ו-iOS נבנות ידנית (Actions → Build SpaceShip apps → Run workflow), בתגית `v*` או כשבהודעת ה-commit יש `[apple]`, כי בריפו פרטי דקות של Mac עולות פי 10.
 
 ## במחשב — גרסה משוכללת
 - **2 שחקנים על מחשב אחד**: שחקן 1 עם WASD, שחקן 2 עם החצים (או שני ג'ויסטיקים).
