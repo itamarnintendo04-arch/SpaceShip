@@ -28,6 +28,15 @@
     if (!user.offline) { clearTimeout(save.t); save.t = setTimeout(() => Net.save(user, user.data, user.data.best).catch(e => console.warn('save', e)), 800); }
   };
   const saveSettings = () => store.set('ss_settings', settings);
+  // Login keys saved on this device (one per account) - tap one on the login screen to sign in again.
+  const savedAccounts = () => store.get('ss_accounts', []).filter(a => a && a.id && a.secret);
+  function rememberAccount(u) {
+    if (!u || u.offline) return;
+    const list = savedAccounts().filter(a => a.id !== u.id);
+    list.unshift({ id: u.id, secret: u.secret, handle: u.handle, name: u.name, avatar: u.avatar });
+    store.set('ss_accounts', list.slice(0, 6));
+  }
+  if (user && !user.offline) rememberAccount(user);
   Sfx.on = settings.sound;
 
   // ---------- helpers ----------
@@ -44,6 +53,14 @@
     if (m.includes('bad_handle')) return 'שם משתמש: 3-20 תווים, אותיות אנגלית קטנות, מספרים, _ או .';
     if (m.includes('code_not_found')) return 'הקוד לא נמצא';
     if (m.includes('self')) return 'זה הקוד שלך 🙂';
+    if (m.includes('bad_login')) return '@ או טוקן לא נכונים';
+    if (m.includes('bad_code') || m.includes('code_expired')) return 'הקוד לא נכון או שפג תוקפו';
+    if (m.includes('bad_email')) return 'כתובת אימייל לא תקינה';
+    if (m.includes('email_taken')) return 'האימייל הזה כבר מחובר למשתמש אחר';
+    if (m.includes('email_set')) return 'למשתמש עם אימייל אין טוקן';
+    if (m.includes('too_soon')) return 'חכה חצי דקה ונסה שוב';
+    if (m.includes('smtp_not_configured')) return 'שליחת מיילים עוד לא הוגדרה בשרת';
+    if (m.includes('send_failed')) return 'לא הצלחנו לשלוח מייל, נסה שוב';
     if (m.includes('oauth_not_configured')) return 'ההתחברות עם CutVid עוד לא הופעלה';
     if (m.includes('oauth_denied')) return 'ביטלת את ההתחברות עם CutVid';
     if (m.includes('oauth_failed')) return 'ההתחברות עם CutVid נכשלה, נסה שוב';
@@ -133,9 +150,10 @@
     try {
       const r = cvPending ? (await Net.cutvidCall({ action: 'register', token: cvPending.token, handle: h, name, avatar: regAvatar })).profile : await Net.register(h, name, regAvatar);
       const data = user && user.offline ? user.data : defData();
-      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined };
+      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, has_token: !!r.token };
       cvPending = null;
-      save(); afterLogin(); show('menu'); history = []; toast('ברוך הבא ' + at(r.handle) + '!');
+      save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast('ברוך הבא ' + at(r.handle) + '!');
+      if (r.token) showToken(r.token, true);
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
@@ -172,8 +190,7 @@
     closeModal();
     if (res.profile) {
       const r = res.profile;
-      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, cutvid: res.email || email, data: Object.assign(defData(), r.data || {}) };
-      store.set('ss_user', user); afterLogin(); history = []; show('menu'); toast('ברוך הבא ' + at(r.handle) + '!');
+      finishLogin(r, { cutvid: res.email || email });
     } else { cvPending = { token, email: res.email || email }; show('register', false); }
   }
   async function cutvidLink(token, email) {
@@ -181,6 +198,86 @@
     user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast('החשבון קושר ל-CutVid ✓');
   }
   $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
+
+  // ---------- existing account: saved login key, @ + token, or @ + email code ----------
+  function finishLogin(r, extra) {
+    user = Object.assign({ id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code,
+      email: r.email || null, has_token: !!r.has_token, data: Object.assign(defData(), r.data || {}) }, extra || {});
+    store.set('ss_user', user); rememberAccount(user); Net.stopPresence(); afterLogin();
+    closeModal(); history = []; show('menu'); toast('ברוך הבא ' + at(r.handle) + '! ההתקדמות סונכרנה');
+  }
+  let loginMethod = 'token', codeSent = false;
+  $('#r-tabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-rt]'); if (!b) return;
+    $$('#r-tabs .tab').forEach(t => t.classList.toggle('on', t === b));
+    $('#r-new').classList.toggle('hidden', b.dataset.rt !== 'new'); $('#r-login').classList.toggle('hidden', b.dataset.rt !== 'login');
+    if (b.dataset.rt === 'login') renderSaved();
+  });
+  $('#l-method').addEventListener('click', e => {
+    const b = e.target.closest('[data-lm]'); if (!b) return;
+    loginMethod = b.dataset.lm; codeSent = false;
+    $$('#l-method button').forEach(x => x.classList.toggle('on', x === b));
+    $('#l-token-box').classList.toggle('hidden', loginMethod !== 'token'); $('#l-email-box').classList.toggle('hidden', loginMethod !== 'email');
+    $('#l-code-row').classList.add('hidden'); $('#l-go').textContent = loginMethod === 'email' ? 'שלח לי קוד' : 'כניסה'; $('#l-status').textContent = '';
+  });
+  $('#l-handle').addEventListener('input', e => { const v = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''); if (v !== e.target.value) e.target.value = v; });
+  function renderSaved() {
+    const list = savedAccounts();
+    $('#l-saved').innerHTML = list.length ? `<div class="lbl">מפתחות התחברות שמורים במכשיר</div><div class="saved-acc">${list.map(a =>
+      `<button class="person" data-acc="${esc(a.id)}"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><small>@${esc(a.handle)}</small></div><span class="chip">כניסה</span></button>`).join('')}</div><div class="or"><span>או</span></div>` : '';
+  }
+  $('#l-saved').addEventListener('click', async e => {
+    const b = e.target.closest('[data-acc]'); if (!b) return;
+    const a = savedAccounts().find(x => x.id === b.dataset.acc); const st = $('#l-status');
+    st.className = 'status'; st.textContent = 'מתחבר...';
+    try { const r = await Net.login(a.id, a.secret); finishLogin(Object.assign(r, { secret: a.secret })); }
+    catch (er) {
+      st.className = 'status err'; st.textContent = errText(er);
+      if (String(er.message).includes('unauthorized')) { store.set('ss_accounts', savedAccounts().filter(x => x.id !== a.id)); renderSaved(); }
+    }
+  });
+  $('#l-go').addEventListener('click', async () => {
+    Sfx.init();
+    const h = $('#l-handle').value.trim(), st = $('#l-status'), btn = $('#l-go');
+    if (h.length < 3) { st.className = 'status err'; st.textContent = 'כתוב את שם המשתמש (@)'; return; }
+    btn.disabled = true; st.className = 'status'; st.textContent = 'רגע...';
+    try {
+      if (loginMethod === 'token') {
+        const t = $('#l-token').value.trim();
+        if (t.replace(/[^a-z0-9]/gi, '').length < 12) throw new Error('bad_login');
+        finishLogin(await Net.loginToken(h, t));
+      } else if (!codeSent) {
+        const em = $('#l-email').value.trim();
+        if (!/^\S+@\S+\.\S+$/.test(em)) throw new Error('bad_email');
+        await Net.emailLoginStart(h, em);
+        codeSent = true; $('#l-code-row').classList.remove('hidden'); btn.textContent = 'כניסה';
+        st.className = 'status ok'; st.textContent = 'אם @ והאימייל מתאימים — שלחנו קוד למייל'; $('#l-code').focus();
+      } else {
+        const r = await Net.emailLoginConfirm(h, $('#l-code').value.trim());
+        if (!r || r.error) throw new Error('bad_code');
+        finishLogin(r);
+      }
+    } catch (e) { st.className = 'status err'; st.textContent = errText(e); }
+    finally { btn.disabled = false; }
+  });
+
+  // The login token is shown in full only here. It signs in on other devices together with the @handle.
+  function showToken(token, first) {
+    modal(`<h2>${first ? 'הטוקן הסודי שלך' : 'טוקן חדש'}</h2>
+      <p class="muted small">כדי להיכנס למשתמש <b dir="ltr">@${esc(user.handle)}</b> ממכשיר אחר מזינים את ה-@ ואת הטוקן. ההתקדמות מסתנכרנת אוטומטית.</p>
+      <div class="token-box" id="t-val">${esc(token)}</div>
+      <div class="row center"><button class="chip" id="t-copy">${Art.icon('copy')}העתק</button><button class="chip" id="t-share">${Art.icon('send')}שתף</button><button class="chip" id="t-file">שמור כקובץ</button></div>
+      <div class="warn">⚠️ שמור אותו במקום בטוח (מנהל סיסמאות, צילום מסך, פתק). לא נוכל להציג אותו שוב, ומי שיש לו את הטוקן יכול להיכנס למשתמש.${first ? '<br>רוצה בלי טוקן? הגדר אימייל בפרופיל.' : ''}</div>
+      <label class="check"><input type="checkbox" id="t-ok"> שמרתי את הטוקן</label>
+      <button class="btn primary" id="t-done" disabled>המשך</button>`, m => {
+      const text = `SpaceShip\n@${user.handle}\n${token}`;
+      m.querySelector('#t-copy').onclick = () => copy(token);
+      m.querySelector('#t-share').onclick = () => share(text);
+      m.querySelector('#t-file').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text + '\n'], { type: 'text/plain' })); a.download = `SpaceShip-${user.handle}-token.txt`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+      m.querySelector('#t-ok').onchange = e => { m.querySelector('#t-done').disabled = !e.target.checked; };
+      m.querySelector('#t-done').onclick = closeModal;
+    });
+  }
 
   $('#r-offline').addEventListener('click', () => {
     const name = $('#r-name').value.trim() || 'טייס', h = $('#r-handle').value.trim() || 'pilot';
@@ -218,8 +315,44 @@
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
       <label>שם<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">שם המשתמש (@) ייחודי וקבוע. אייקונים נוספים — בחנות.</p>
+      ${user.offline ? '' : `<div class="sec"><h3>התחברות ממכשירים אחרים</h3>${user.email
+        ? `<div class="small">אימייל: <b dir="ltr">${esc(user.email)}</b><br><span class="muted">נכנסים עם @ ואימייל (קוד נשלח למייל). אין טוקן.</span></div><button class="btn small" id="p-em-rm">הסר אימייל וחזור לטוקן</button>`
+        : `<div class="small muted">נכנסים עם @ והטוקן הסודי. רוצה בלי טוקן? הגדר אימייל.</div>
+           <div class="row"><input id="p-email" type="email" dir="ltr" placeholder="you@gmail.com"><button class="btn small" id="p-em-send">שלח קוד</button></div>
+           <div class="row hidden" id="p-em-code-row"><input id="p-em-code" inputmode="numeric" maxlength="6" dir="ltr" placeholder="123456"><button class="btn small primary" id="p-em-ok">אמת</button></div>
+           <div class="status" id="p-em-st"></div>
+           <button class="btn small" id="p-tok">צור טוקן חדש</button>`}</div>`}
       ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} מקושר ל-CutVid: <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}קשר חשבון CutVid</button>`}
-      <button class="btn primary" id="p-save">שמור</button><button class="btn ghost" id="p-x">סגור</button>`, m => {
+      <button class="btn primary" id="p-save">שמור</button>${user.offline ? '' : '<button class="btn ghost" id="p-out">התנתק מהמכשיר</button>'}<button class="btn ghost" id="p-x">סגור</button>`, m => {
+      const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
+      const st = m.querySelector('#p-em-st');
+      const say = (t, ok) => { if (st) { st.className = 'status ' + (ok ? 'ok' : 'err'); st.textContent = t; } else toast(t); };
+      on('#p-em-send', async () => {
+        const em = m.querySelector('#p-email').value.trim();
+        if (!/^\S+@\S+\.\S+$/.test(em)) return say(errText({ message: 'bad_email' }));
+        try { await Net.emailSetStart(user, em); m.querySelector('#p-em-code-row').classList.remove('hidden'); say('שלחנו קוד ל-' + em, true); }
+        catch (e) { say(errText(e)); }
+      });
+      on('#p-em-ok', async () => {
+        try {
+          const em = await Net.emailSetConfirm(user, m.querySelector('#p-em-code').value.trim());
+          if (!em) return say(errText({ message: 'bad_code' }));
+          user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast('האימייל נשמר — מעכשיו נכנסים עם @ ואימייל, והטוקן בוטל', 4000);
+        } catch (e) { say(errText(e)); }
+      });
+      on('#p-em-rm', async () => {
+        if (!confirm('להסיר את האימייל? תקבל טוקן חדש להתחברות.')) return;
+        try { const t = await Net.emailRemove(user); user.email = null; user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
+      });
+      on('#p-tok', async () => {
+        if (!confirm('ליצור טוקן חדש? הטוקן הקודם יפסיק לעבוד.')) return;
+        try { const t = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
+      });
+      on('#p-out', () => {
+        if (!confirm('להתנתק? מפתח ההתחברות נשאר שמור במכשיר, ואפשר להיכנס שוב מ"יש לי משתמש".')) return;
+        Net.stopPresence(); user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
+        $('#r-tabs [data-rt="login"]').click();
+      });
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
       const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => { closeModal(); signInWithCutvid('link'); };
@@ -510,7 +643,7 @@
   icons();
   // web: returning from CutVid's sign-in page (?code=…&state=…)
   if (!NATIVE && !window.SSDesktop && /[?&]code=/.test(location.search) && /[?&]state=/.test(location.search)) {
-    const back = location.href; history.replaceState(null, '', location.pathname);
+    const back = location.href; window.history.replaceState(null, '', location.pathname);
     const intent = store.get('ss_cv_intent', 'login'); store.set('ss_cv_intent', null);
     Net.cutvidOAuthFinish(back).then(token => intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e), 3500));
   }
@@ -518,10 +651,19 @@
   else {
     show('menu');
     if (!user.offline) Net.login(user.id, user.secret).then(r => {
-      Object.assign(user, { handle: r.handle, friend_code: r.friend_code });
+      Object.assign(user, { handle: r.handle, friend_code: r.friend_code, email: r.email || null, has_token: !!r.has_token });
       if (r.data && (r.data.ts || 0) > (user.data.ts || 0)) { user.data = Object.assign(defData(), r.data); store.set('ss_user', user); if (current === 'menu') renderMenu(); }
       afterLogin();
     }).catch(e => { console.warn('login', e); if (String(e.message).includes('unauthorized')) { user.offline = true; store.set('ss_user', user); renderMenu(); } });
   }
+  // automatic sync: pull newer progress from the server whenever the app comes back to the front
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !user || user.offline || game) return;
+    Net.login(user.id, user.secret).then(r => {
+      Object.assign(user, { handle: r.handle, name: r.name, avatar: r.avatar, email: r.email || null, has_token: !!r.has_token });
+      if (r.data && (r.data.ts || 0) > (user.data.ts || 0)) user.data = Object.assign(defData(), r.data);
+      store.set('ss_user', user); const fn = renders[current]; fn && current !== 'register' && fn();
+    }).catch(() => {});
+  });
   window.SSApp = { get user() { return user; }, startGame, show };
 })();

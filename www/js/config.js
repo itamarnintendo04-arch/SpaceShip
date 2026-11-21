@@ -7,7 +7,7 @@ window.SS_CONFIG = {
   CUTVID_URL: 'https://btrwboxwbinqewgvlcal.supabase.co',
   CUTVID_KEY: 'sb_publishable_g2aYTfsQhep44Ta1VIIJfQ_GQnA5ODh',
   // OAuth client registered in the CutVid project (Authentication -> OAuth Apps)
-  CUTVID_OAUTH_CLIENT_ID: '',
+  CUTVID_OAUTH_CLIENT_ID: '5a0c5e5b-0000-4000-8000-5ea0c0de0001',
   // where CutVid sends the user back to the app (Android / iOS / desktop)
   OAUTH_APP_REDIRECT: 'com.spaceship.game://oauth',
 };

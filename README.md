@@ -38,11 +38,22 @@ CutVid משמש כשרת OAuth 2.1 (Supabase Auth OAuth Server בפרויקט Cu
 3. CutVid מחזיר ל-SpaceShip קוד (`com.spaceship.game://oauth` בטלפון ובמחשב, כתובת הדף בדפדפן), והאפליקציה מחליפה אותו לטוקן.
 4. פונקציית ה-Edge‏ `supabase/functions/cutvid-auth` בודקת את הטוקן מול CutVid ומחברת / יוצרת את משתמש ה-SpaceShip.
 
-הגדרה חד-פעמית בפרויקט CutVid ב-Supabase:
-- Authentication → OAuth Server: להפעיל, Authorization Path = `/oauth/consent`
-- Authentication → OAuth Apps: להוסיף אפליקציה **SpaceShip** מסוג Public עם Redirect URIs:
-  `com.spaceship.game://oauth` ו-`http://localhost:8080/`
-- את ה-Client ID שמים ב-`www/js/config.js` (`CUTVID_OAUTH_CLIENT_ID`).
+SpaceShip כבר רשום ב-OAuth Apps של CutVid (Client ID `5a0c5e5b-0000-4000-8000-5ea0c0de0001`, Public, scopes: email profile),
+ובדף ההסכמה מופיע עם וי כחול "אפליקציה רשמית של CutVid".
+נשאר להפעיל פעם אחת בפרויקט CutVid: Authentication → OAuth Server → Enable, Authorization Path = `/oauth/consent`.
+
+## משתמש בכמה מכשירים
+ההתקדמות (מטבעות, שלבים, חנות) נשמרת במכשיר ומסתנכרנת לשרת אוטומטית. כדי להיכנס מכשיר נוסף, במסך הפתיחה → **יש לי משתמש**:
+- **מפתח התחברות שמור**: בכל הרשמה או כניסה המכשיר שומר מפתח, ואפשר לחזור למשתמש בלחיצה.
+- **@ + טוקן**: בהרשמה מקבלים טוקן סודי (`SS-XXXX-XXXX-XXXX-XXXX-XXXX`) שמוצג פעם אחת — צריך לשמור אותו במקום בטוח. אפשר ליצור טוקן חדש מהפרופיל (הישן מפסיק לעבוד).
+- **@ + אימייל**: אם הגדרת אימייל בפרופיל (מאומת בקוד), הטוקן מתבטל ונכנסים עם ה-@ והאימייל — קוד בן 6 ספרות נשלח למייל.
+- **חשבון CutVid** (ראה למטה).
+
+### שליחת מיילים (Google SMTP)
+פונקציית ה-Edge‏ `supabase/functions/ss-email` שולחת את הקודים דרך Gmail ‏(smtp.gmail.com:465).
+ב-Supabase → Edge Functions → Secrets מוסיפים:
+- `GMAIL_USER` — כתובת ה-Gmail
+- `GMAIL_APP_PASSWORD` — "סיסמת אפליקציה" של Google (חשבון Google → אבטחה → אימות דו-שלבי → סיסמאות לאפליקציות)
 
 ## שמירת נתונים
 מטבעות, שלבים, חנות והגדרות נשמרים **במכשיר** (localStorage) ומסונכרנים לשרת כשיש חיבור.

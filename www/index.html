@@ -18,6 +18,8 @@
     <div class="card narrow">
       <img src="icon.png" class="logo" alt="">
       <h1 class="title">SpaceShip</h1>
+      <div class="tabs" id="r-tabs"><button class="tab on" data-rt="new">משתמש חדש</button><button class="tab" data-rt="login">יש לי משתמש</button></div>
+      <div id="r-new" class="col">
       <p class="muted">צור משתמש כדי להתחיל לטוס</p>
       <label>השם שלך<input id="r-name" maxlength="24" placeholder="למשל: דני הטייס"></label>
       <label>שם משתמש ייחודי
@@ -28,6 +30,21 @@
       <div id="r-avatars" class="avatar-row"></div>
       <div id="r-cvbanner" class="cv-banner hidden"></div>
       <button id="r-go" class="btn primary big">יאללה לחלל!</button>
+      </div>
+      <div id="r-login" class="col hidden">
+        <div id="l-saved"></div>
+        <label>שם המשתמש
+          <div class="handle-input"><span>@</span><input id="l-handle" maxlength="20" dir="ltr" autocapitalize="off" autocomplete="username" spellcheck="false" placeholder="dani_pilot"></div>
+        </label>
+        <div class="seg" id="l-method"><button class="on" data-lm="token">עם טוקן</button><button data-lm="email">עם אימייל</button></div>
+        <div id="l-token-box"><label>הטוקן שקיבלת בהרשמה<input id="l-token" dir="ltr" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="SS-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div>
+        <div id="l-email-box" class="hidden">
+          <label>האימייל שהגדרת<input id="l-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com"></label>
+          <label id="l-code-row" class="hidden">הקוד שנשלח למייל<input id="l-code" inputmode="numeric" maxlength="6" dir="ltr" autocomplete="one-time-code" placeholder="123456"></label>
+        </div>
+        <div id="l-status" class="status"></div>
+        <button id="l-go" class="btn primary big">כניסה</button>
+      </div>
       <div class="or"><span>או</span></div>
       <button id="r-cutvid" class="btn cutvid"><span data-ic="cutvid"></span>התחבר עם חשבון CutVid</button>
       <button id="r-offline" class="btn ghost hidden">שחק בלי חיבור לשרת</button>

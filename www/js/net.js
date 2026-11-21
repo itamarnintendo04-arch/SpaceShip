@@ -12,6 +12,13 @@
     return data;
   }
 
+  async function fn(name, body) {
+    if (!sb) throw new Error('offline');
+    const { data, error } = await sb.functions.invoke(name, { body });
+    if (error) { let m = error.message; try { const j = await error.context.json(); m = j.error || m; } catch (e) {} throw new Error(m); }
+    return data;
+  }
+
   let lobby = null, inbox = null, online = new Set();
 
   const Net = {
@@ -23,6 +30,14 @@
     addFriend: (u, code) => rpc('add_friend', { p_id: u.id, p_secret: u.secret, p_code: code }),
     removeFriend: (u, fid) => rpc('remove_friend', { p_id: u.id, p_secret: u.secret, p_friend: fid }),
     friends: u => rpc('list_friends', { p_id: u.id, p_secret: u.secret }),
+    // ---- sign in on another device ----
+    loginToken: (handle, token) => rpc('login_token', { p_handle: handle, p_token: token }),
+    regenToken: u => rpc('regen_token', { p_id: u.id, p_secret: u.secret }),
+    emailSetStart: (u, email) => fn('ss-email', { action: 'set_start', id: u.id, secret: u.secret, email }),
+    emailSetConfirm: (u, code) => rpc('email_set_confirm', { p_id: u.id, p_secret: u.secret, p_code: code }),
+    emailRemove: u => rpc('email_remove', { p_id: u.id, p_secret: u.secret }),
+    emailLoginStart: (handle, email) => fn('ss-email', { action: 'login_start', handle, email }),
+    emailLoginConfirm: (handle, code) => rpc('email_login_confirm', { p_handle: handle, p_code: code }),
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),
 
@@ -60,12 +75,7 @@
       if (!r.ok || !j.access_token) throw new Error('oauth_failed');
       return j.access_token;
     },
-    async cutvidCall(body) {
-      if (!sb) throw new Error('offline');
-      const { data, error } = await sb.functions.invoke('cutvid-auth', { body });
-      if (error) { let m = error.message; try { const j = await error.context.json(); m = j.error || m; } catch (e) {} throw new Error(m); }
-      return data;
-    },
+    cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
     startPresence(user, { onInvite, onOnline }) {
