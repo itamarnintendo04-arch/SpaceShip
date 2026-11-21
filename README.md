@@ -31,11 +31,18 @@
 - גרפיקה משופרת: זוהר ליריות, שובל מנועים, יותר חלקיקים בפיצוצים, כוכבי לכת ברקע.
 - F11 מסך מלא, P הפסקה, ברירת מחדל: מצב לרוחב.
 
-## כניסה עם CutVid
-אפשר להיכנס עם החשבון מאפליקציית CutVid (אימייל וסיסמה; בגרסת הדפדפן גם Google).
-אחרי כניסה ראשונה בוחרים @שם משתמש, ומאז נכנסים מכל מכשיר עם אותו חשבון CutVid וההתקדמות נטענת.
-משתמש קיים יכול לקשר חשבון CutVid מהפרופיל (לחיצה על האווטאר בתפריט).
-האימות עובר דרך פונקציית Edge‏ `supabase/functions/cutvid-auth`, שבודקת את ההתחברות מול CutVid.
+## כניסה עם CutVid (OAuth)
+CutVid משמש כשרת OAuth 2.1 (Supabase Auth OAuth Server בפרויקט CutVid), ו-SpaceShip הוא אפליקציית לקוח:
+1. SpaceShip פותח את `…supabase.co/auth/v1/oauth/authorize` עם PKCE.
+2. Supabase מעביר לדף ההסכמה של CutVid (`cutvid.vercel.app/oauth/consent`) — נכנסים עם אימייל/סיסמה או Google ומאשרים.
+3. CutVid מחזיר ל-SpaceShip קוד (`com.spaceship.game://oauth` בטלפון ובמחשב, כתובת הדף בדפדפן), והאפליקציה מחליפה אותו לטוקן.
+4. פונקציית ה-Edge‏ `supabase/functions/cutvid-auth` בודקת את הטוקן מול CutVid ומחברת / יוצרת את משתמש ה-SpaceShip.
+
+הגדרה חד-פעמית בפרויקט CutVid ב-Supabase:
+- Authentication → OAuth Server: להפעיל, Authorization Path = `/oauth/consent`
+- Authentication → OAuth Apps: להוסיף אפליקציה **SpaceShip** מסוג Public עם Redirect URIs:
+  `com.spaceship.game://oauth` ו-`http://localhost:8080/`
+- את ה-Client ID שמים ב-`www/js/config.js` (`CUTVID_OAUTH_CLIENT_ID`).
 
 ## שמירת נתונים
 מטבעות, שלבים, חנות והגדרות נשמרים **במכשיר** (localStorage) ומסונכרנים לשרת כשיש חיבור.

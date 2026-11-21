@@ -44,7 +44,9 @@
     if (m.includes('bad_handle')) return 'שם משתמש: 3-20 תווים, אותיות אנגלית קטנות, מספרים, _ או .';
     if (m.includes('code_not_found')) return 'הקוד לא נמצא';
     if (m.includes('self')) return 'זה הקוד שלך 🙂';
-    if (m.includes('cutvid_auth')) return 'האימייל או הסיסמה של CutVid לא נכונים';
+    if (m.includes('oauth_not_configured')) return 'ההתחברות עם CutVid עוד לא הופעלה';
+    if (m.includes('oauth_denied')) return 'ביטלת את ההתחברות עם CutVid';
+    if (m.includes('oauth_failed')) return 'ההתחברות עם CutVid נכשלה, נסה שוב';
     if (m.includes('cutvid_unauthorized')) return 'ההתחברות ל-CutVid פגה, נסה שוב';
     if (m.includes('already_linked')) return 'חשבון ה-CutVid הזה כבר מחובר למשתמש אחר';
     if (m.includes('unauthorized')) return 'שגיאת התחברות';
@@ -140,27 +142,30 @@
     } finally { $('#r-go').disabled = false; }
   });
   // ---------- CutVid sign-in ----------
-  function cutvidModal(title, onToken) {
-    modal(`<div style="width:64px;height:64px;margin:0 auto">${Art.icon('cutvid', 'av')}</div><h2>${title}</h2>
-      <p class="muted small">היכנס עם החשבון שלך באפליקציית CutVid</p>
-      <label>אימייל<input id="cv-email" type="email" dir="ltr" autocomplete="email"></label>
-      <label>סיסמה<input id="cv-pass" type="password" dir="ltr" autocomplete="current-password"></label>
-      <div id="cv-st" class="status"></div>
-      <button class="btn primary" id="cv-go">התחבר</button>
-      ${PLATFORM === 'web' && /^https?:/.test(location.protocol) ? `<button class="btn" id="cv-google">${Art.icon('google')}המשך עם Google</button>` : ''}
-      <button class="btn ghost" id="cv-x">ביטול</button>`, m => {
-      const st = m.querySelector('#cv-st');
-      m.querySelector('#cv-x').onclick = closeModal;
-      m.querySelector('#cv-go').onclick = async () => {
-        const email = m.querySelector('#cv-email').value.trim(), pass = m.querySelector('#cv-pass').value;
-        if (!email || !pass) { st.className = 'status err'; st.textContent = 'מלא אימייל וסיסמה'; return; }
-        st.className = 'status'; st.textContent = 'מתחבר...';
-        try { const token = await Net.cutvidSignIn(email, pass); await onToken(token, email); }
-        catch (e) { st.className = 'status err'; st.textContent = errText(e); }
-      };
-      const g = m.querySelector('#cv-google');
-      if (g) g.onclick = () => { store.set('ss_cv_intent', title === 'קשר חשבון CutVid' ? 'link' : 'login'); Net.cutvidGoogle(); };
+  // Opens CutVid's sign-in page and resolves with the URL it redirects back to.
+  function openCutvid(url) {
+    if (window.SSDesktop && window.SSDesktop.oauth) return window.SSDesktop.oauth(url, SS_CONFIG.OAUTH_APP_REDIRECT); // desktop: own window
+    if (NATIVE && Cap.Browser && Cap.App) return new Promise((resolve, reject) => {          // phones: system browser + deep link
+      let done = false;
+      const h = Cap.App.addListener('appUrlOpen', ev => {
+        if (!ev.url || !ev.url.startsWith(SS_CONFIG.OAUTH_APP_REDIRECT)) return;
+        done = true; Promise.resolve(h).then(x => x && x.remove()); try { Cap.Browser.close(); } catch (e) {} resolve(ev.url);
+      });
+      Cap.Browser.addListener('browserFinished', () => setTimeout(() => { if (!done) { Promise.resolve(h).then(x => x && x.remove()); reject(new Error('oauth_cancelled')); } }, 800));
+      Cap.Browser.open({ url, presentationStyle: 'popover' });
     });
+    location.assign(url); return new Promise(() => {}); // web: full-page redirect, finished on return
+  }
+  const webRedirect = () => location.origin + location.pathname;
+  async function signInWithCutvid(intent) {
+    Sfx.init();
+    const redirect = window.SSDesktop || NATIVE ? SS_CONFIG.OAUTH_APP_REDIRECT : webRedirect();
+    store.set('ss_cv_intent', intent);
+    toast('פותח את CutVid…');
+    try {
+      const token = await Net.cutvidOAuth(openCutvid, redirect);
+      if (token) await (intent === 'link' ? cutvidLink(token, '') : cutvidLogin(token, ''));
+    } catch (e) { if (!String(e.message).includes('oauth_cancelled')) toast(errText(e), 3500); }
   }
   async function cutvidLogin(token, email) {
     const res = await Net.cutvidCall({ action: 'login', token });
@@ -175,7 +180,7 @@
     const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
     user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast('החשבון קושר ל-CutVid ✓');
   }
-  $('#r-cutvid').addEventListener('click', () => { Sfx.init(); cutvidModal('התחבר עם CutVid', cutvidLogin); });
+  $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
 
   $('#r-offline').addEventListener('click', () => {
     const name = $('#r-name').value.trim() || 'טייס', h = $('#r-handle').value.trim() || 'pilot';
@@ -217,7 +222,7 @@
       <button class="btn primary" id="p-save">שמור</button><button class="btn ghost" id="p-x">סגור</button>`, m => {
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
-      const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => cutvidModal('קשר חשבון CutVid', cutvidLink);
+      const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => { closeModal(); signInWithCutvid('link'); };
     });
   }
 
@@ -503,11 +508,12 @@
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons();
-  Net.cutvidSessionFromUrl().then(token => {
-    if (!token) return;
+  // web: returning from CutVid's sign-in page (?code=…&state=…)
+  if (!NATIVE && !window.SSDesktop && /[?&]code=/.test(location.search) && /[?&]state=/.test(location.search)) {
+    const back = location.href; history.replaceState(null, '', location.pathname);
     const intent = store.get('ss_cv_intent', 'login'); store.set('ss_cv_intent', null);
-    (intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e)));
-  }).catch(() => {});
+    Net.cutvidOAuthFinish(back).then(token => intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e), 3500));
+  }
   if (!user) show('register');
   else {
     show('menu');

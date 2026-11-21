@@ -4,7 +4,7 @@
   "private": true,
   "description": "SpaceShip - space shooter game",
   "scripts": {
-    "vendor": "mkdir -p www/vendor && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js www/vendor/supabase.js",
+    "vendor": "node -e \"require('fs').mkdirSync('www/vendor',{recursive:true});require('fs').copyFileSync('node_modules/@supabase/supabase-js/dist/umd/supabase.js','www/vendor/supabase.js')\"",
     "serve": "npx http-server www -p 8080 -c-1",
     "desktop": "electron .",
     "dist:desktop": "electron-builder --publish never"
@@ -12,6 +12,7 @@
   "dependencies": {
     "@capacitor/android": "^6.2.0",
     "@capacitor/app": "^6.0.3",
+    "@capacitor/browser": "^6.0.6",
     "@capacitor/core": "^6.2.0",
     "@capacitor/ios": "^6.2.3",
     "@capacitor/screen-orientation": "^6.0.4",

@@ -12,9 +12,6 @@
     return data;
   }
 
-  let cv = null;
-  const cutvid = () => cv || (cv = window.supabase.createClient(C.CUTVID_URL, C.CUTVID_KEY, { auth: { persistSession: false, detectSessionInUrl: true, flowType: 'implicit' } }));
-
   let lobby = null, inbox = null, online = new Set();
 
   const Net = {
@@ -29,18 +26,39 @@
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),
 
-    // ---- CutVid account ----
-    async cutvidSignIn(email, password) {
-      const { data, error } = await cutvid().auth.signInWithPassword({ email, password });
-      if (error) throw new Error('cutvid_auth');
-      return data.session.access_token;
+    // ---- Sign in with CutVid (OAuth 2.1 + PKCE against the CutVid Supabase project) ----
+    // Returns the CutVid access token. `openAuth(url, redirect)` opens the CutVid sign-in page and
+    // resolves with the URL CutVid redirected back to (or null for a full-page web redirect).
+    async cutvidOAuth(openAuth, redirect) {
+      if (!C.CUTVID_OAUTH_CLIENT_ID) throw new Error('oauth_not_configured');
+      const b64 = a => btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const verifier = b64(crypto.getRandomValues(new Uint8Array(32)));
+      const challenge = b64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+      const state = b64(crypto.getRandomValues(new Uint8Array(16)));
+      try { sessionStorage.setItem('ss_oauth', JSON.stringify({ verifier, state, redirect })); localStorage.setItem('ss_oauth', JSON.stringify({ verifier, state, redirect })); } catch (e) {}
+      const url = C.CUTVID_URL + '/auth/v1/oauth/authorize?' + new URLSearchParams({
+        response_type: 'code', client_id: C.CUTVID_OAUTH_CLIENT_ID, redirect_uri: redirect,
+        code_challenge: challenge, code_challenge_method: 'S256', state, scope: 'email profile',
+      });
+      const back = await openAuth(url);
+      return back ? Net.cutvidOAuthFinish(back) : null;
     },
-    cutvidGoogle() { return cutvid().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } }); },
-    async cutvidSessionFromUrl() {
-      if (!/access_token=/.test(location.hash)) return null;
-      const { data } = await cutvid().auth.getSession();
-      history.replaceState(null, '', location.pathname);
-      return data.session ? data.session.access_token : null;
+    // Finish: take the redirect URL (…?code=&state=), exchange the code for a CutVid access token.
+    async cutvidOAuthFinish(backUrl) {
+      const q = new URL(backUrl).searchParams;
+      let saved = null;
+      try { saved = JSON.parse(sessionStorage.getItem('ss_oauth') || localStorage.getItem('ss_oauth') || 'null'); } catch (e) {}
+      try { sessionStorage.removeItem('ss_oauth'); localStorage.removeItem('ss_oauth'); } catch (e) {}
+      if (q.get('error')) throw new Error(q.get('error') === 'access_denied' ? 'oauth_denied' : 'oauth_failed');
+      if (!saved || !q.get('code') || q.get('state') !== saved.state) throw new Error('oauth_failed');
+      const r = await fetch(C.CUTVID_URL + '/auth/v1/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', apikey: C.CUTVID_KEY },
+        body: new URLSearchParams({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: saved.redirect, client_id: C.CUTVID_OAUTH_CLIENT_ID, code_verifier: saved.verifier }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.access_token) throw new Error('oauth_failed');
+      return j.access_token;
     },
     async cutvidCall(body) {
       if (!sb) throw new Error('offline');
