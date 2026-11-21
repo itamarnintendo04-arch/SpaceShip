@@ -5,18 +5,85 @@
   "description": "SpaceShip - space shooter game",
   "scripts": {
     "vendor": "mkdir -p www/vendor && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js www/vendor/supabase.js",
-    "serve": "npx http-server www -p 8080 -c-1"
+    "serve": "npx http-server www -p 8080 -c-1",
+    "desktop": "electron .",
+    "dist:desktop": "electron-builder --publish never"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
     "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.3",
     "@capacitor/screen-orientation": "^6.0.4",
     "@capacitor/share": "^6.0.4",
     "@supabase/supabase-js": "^2.45.4"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^6.2.0"
+    "@capacitor/cli": "^6.2.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "main": "electron/main.js",
+  "author": "SpaceShip",
+  "build": {
+    "appId": "com.spaceship.game",
+    "productName": "SpaceShip",
+    "files": [
+      "electron/**",
+      "www/**",
+      "assets/icon-only.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-desktop",
+      "buildResources": "assets"
+    },
+    "icon": "assets/icon-only.png",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-only.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "SpaceShip-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "SpaceShip-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.games",
+      "identity": null,
+      "artifactName": "SpaceShip-${version}-mac.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "artifactName": "SpaceShip-${version}-linux.${ext}"
+    }
   }
 }

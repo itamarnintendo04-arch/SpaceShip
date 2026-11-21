@@ -66,6 +66,7 @@
       this.landscape = opts.orientation === 'landscape';
       this.coop = opts.coop || null; // {room, role}
       this.isGuest = this.coop && this.coop.role === 'guest';
+      this.local2 = !!opts.local2; this.hd = !!opts.hd; this.padPrev = {};
       this.level = opts.level || 1;
       this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level);
       this.t = 0; this.spawnT = 1; this.kills = 0; this.score = 0; this.coins = 0;
@@ -81,6 +82,7 @@
       else {
         this.players = [this.makePlayer(opts.me, true)];
         if (this.coop) this.players.push(this.makePlayer(opts.peer, false));
+        if (this.local2) this.players.push(this.makePlayer(opts.p2, true));
         this.me = this.players[0];
       }
       this.spreadPlayers();
@@ -131,15 +133,23 @@
       this.h = {
         down: e => { Sfx.init(); if (this.paused) return; this.drag = { px: e.clientX, py: e.clientY, x: this.me.tx, y: this.me.ty }; },
         move: e => {
-          if (!this.drag) return;
+          if (!this.drag) {
+            // desktop: ship follows the mouse
+            if (this.hd && e.pointerType === 'mouse' && !this.paused && e.target === this.cv) {
+              const sx = e.clientX - this.cv.getBoundingClientRect().left, sy = e.clientY - this.cv.getBoundingClientRect().top;
+              const [wx, wy] = this.landscape ? [(sy - this.oy) / this.s, this.H - (sx - this.ox) / this.s] : [(sx - this.ox) / this.s, (sy - this.oy) / this.s];
+              this.me.tx = clamp(wx, 20, W - 20); this.me.ty = clamp(wy, this.H * 0.3, this.H - 30);
+            }
+            return;
+          }
           const [dx, dy] = this.screenDelta(e.clientX - this.drag.px, e.clientY - this.drag.py);
           const k = 1.25; // a bit of acceleration so thumbs travel less
           this.me.tx = clamp(this.drag.x + dx * k, 20, W - 20);
           this.me.ty = clamp(this.drag.y + dy * k, this.H * 0.3, this.H - 30);
         },
         up: () => { this.drag = null; },
-        kd: e => { this.keys[e.key] = true; if (e.key === 'p' || e.key === 'Escape') this.o.onPauseKey && this.o.onPauseKey(); },
-        ku: e => { this.keys[e.key] = false; },
+        kd: e => { this.keys[e.code] = true; if (e.code === 'KeyP' || e.code === 'Escape') this.o.onPauseKey && this.o.onPauseKey(); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); },
+        ku: e => { this.keys[e.code] = false; },
         rs: () => this.resize(),
       };
       this.cv.addEventListener('pointerdown', this.h.down);
@@ -169,13 +179,27 @@
 
     keyMove(dt) {
       const k = this.keys, sp = 420 * dt;
-      let ax = 0, fy = 0; // ax: screen horizontal, fy: screen vertical
-      if (k.ArrowLeft || k.a || k.A) ax -= 1; if (k.ArrowRight || k.d || k.D) ax += 1;
-      if (k.ArrowUp || k.w || k.W) fy -= 1; if (k.ArrowDown || k.s || k.S) fy += 1;
-      if (!ax && !fy) return;
-      const [dx, dy] = this.landscape ? [fy, -ax] : [ax, fy];
-      this.me.tx = clamp(this.me.tx + dx * sp, 20, W - 20);
-      this.me.ty = clamp(this.me.ty + dy * sp, this.H * 0.3, this.H - 30);
+      const dir = (L, R, U, D) => [(k[R] ? 1 : 0) - (k[L] ? 1 : 0), (k[D] ? 1 : 0) - (k[U] ? 1 : 0)];
+      const wasd = dir('KeyA', 'KeyD', 'KeyW', 'KeyS'), arrows = dir('ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown');
+      const ctl = this.local2 ? [[this.players[0], wasd], [this.players[1], arrows]] : [[this.me, [wasd[0] || arrows[0], wasd[1] || arrows[1]]]];
+      // gamepads: pad i controls player i (single player: any pad)
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+      pads.forEach((g, i) => {
+        const c = this.local2 ? ctl[i] : ctl[0]; if (!c) return;
+        const b = n => g.buttons[n] && g.buttons[n].pressed;
+        let ax = g.axes[0] || 0, ay = g.axes[1] || 0;
+        if (Math.abs(ax) < 0.2) ax = 0; if (Math.abs(ay) < 0.2) ay = 0;
+        if (b(14)) ax = -1; if (b(15)) ax = 1; if (b(12)) ay = -1; if (b(13)) ay = 1;
+        if (ax || ay) c[1] = [ax, ay];
+        if (b(9) && !this.padPrev[i]) this.o.onPauseKey && this.o.onPauseKey();
+        this.padPrev[i] = b(9);
+      });
+      for (const [p, [ax, fy]] of ctl) {
+        if (!p.alive || (!ax && !fy)) continue;
+        const [dx, dy] = this.landscape ? [fy, -ax] : [ax, fy];
+        p.tx = clamp(p.tx + dx * sp, 20, W - 20);
+        p.ty = clamp(p.ty + dy * sp, this.H * 0.3, this.H - 30);
+      }
     }
 
     update(dt) {
@@ -184,8 +208,10 @@
       for (const L of this.stars) for (const s of L) { s.y += s.v * dt * (this.boss ? 0.5 : 1); if (s.y > 1) { s.y -= 1; s.x = Math.random(); } }
       this.keyMove(dt);
       // local ship follows target smoothly
-      const me = this.me;
-      me.x += (me.tx - me.x) * Math.min(1, dt * 18); me.y += (me.ty - me.y) * Math.min(1, dt * 18);
+      for (const me of this.players) if (me.local) {
+        me.x += (me.tx - me.x) * Math.min(1, dt * 18); me.y += (me.ty - me.y) * Math.min(1, dt * 18);
+        if (this.hd && me.alive && Math.random() < 0.7) this.parts.push({ x: me.x + rnd(-4, 4), y: me.y + 26, vx: rnd(-15, 15), vy: rnd(120, 200), life: 0.35, max: 0.35, sz: rnd(2, 4), c: (Art.SHIPS.find(q => q.id === me.skin) || Art.SHIPS[0]).glow });
+      }
       this.updateParticles(dt);
       if (this.isGuest) return this.guestUpdate(dt);
 
@@ -378,7 +404,7 @@
 
     // ----- particles / effects -----
     explode(x, y, size, ci) {
-      const n = Math.min(40, 8 + size * 0.7);
+      const n = Math.min(this.hd ? 70 : 40, (8 + size * 0.7) * (this.hd ? 1.6 : 1));
       for (let i = 0; i < n; i++) { const a = Math.random() * 7, v = rnd(40, 120 + size * 4); this.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.4, 0.9), max: 0.9, sz: rnd(1.5, 3.5 + size / 15), c: FX_COLORS[ci] }); }
       this.parts.push({ x, y, vx: 0, vy: 0, life: 0.3, max: 0.3, ring: size * 1.8, c: FX_COLORS[ci] });
       Sfx.boom(size > 35);
@@ -457,6 +483,13 @@
         g.addColorStop(0, `hsla(${hue + i * 30},80%,45%,0.22)`); g.addColorStop(1, 'rgba(0,0,0,0)');
         x.fillStyle = g; x.fillRect(0, 0, c.width, c.height);
       }
+      if (this.hd) for (let i = 0; i < 2; i++) {
+        const px = rnd(0.1, 0.9) * c.width, py = rnd(0.1, 0.9) * c.height, pr = Math.min(c.width, c.height) * rnd(0.05, 0.12), h2 = (hue + 120 + i * 90) % 360;
+        const pg = x.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
+        pg.addColorStop(0, `hsla(${h2},70%,65%,.75)`); pg.addColorStop(1, `hsla(${h2},60%,15%,.75)`);
+        x.fillStyle = pg; x.beginPath(); x.arc(px, py, pr, 0, 7); x.fill();
+        if (i === 0) { x.strokeStyle = `hsla(${h2 + 40},80%,75%,.45)`; x.lineWidth = Math.max(1, pr * 0.12); x.beginPath(); x.ellipse(px, py, pr * 1.8, pr * 0.45, -0.35, 0, 7); x.stroke(); }
+      }
       this.bgHue = hue;
     }
     draw() {
@@ -488,6 +521,7 @@
         if (b.enemy) { x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(b.x, b.y, 6, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(b.x, b.y, 2.5, 0, 7); x.fill(); continue; }
         const p = this.players[b.owner] || this.players[0];
         const k = Art.SHIPS.find(s => s.id === p.skin) || Art.SHIPS[0];
+        if (this.hd) { x.shadowColor = k.glow; x.shadowBlur = 12; }
         x.strokeStyle = k.glow; x.lineWidth = 5; x.globalAlpha = 0.5;
         x.beginPath(); x.moveTo(b.x, b.y); x.lineTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022); x.stroke();
         x.strokeStyle = '#fff'; x.lineWidth = 2; x.globalAlpha = 1; x.stroke();
@@ -498,7 +532,7 @@
         if (p.ring) { x.strokeStyle = p.c; x.lineWidth = 3 * a; x.beginPath(); x.arc(p.x, p.y, p.ring * (1 - a) + 4, 0, 7); x.stroke(); }
         else { x.fillStyle = p.c; x.fillRect(p.x - p.sz / 2, p.y - p.sz / 2, p.sz, p.sz); }
       }
-      x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+      x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.shadowBlur = 0;
       // ships
       for (const p of this.players) {
         if (!p.alive) continue;
@@ -516,7 +550,7 @@
       // HUD (screen space)
       x.setTransform(d, 0, 0, d, 0, 0);
       // names over ships in co-op
-      if (this.coop) {
+      if (this.players.length > 1) {
         x.font = '600 12px system-ui, sans-serif'; x.textAlign = 'center';
         for (const p of this.players) if (p.alive) { const [sx, sy] = this.toScreen(p.x, p.y); x.fillStyle = p.local ? '#a5f3fc' : '#fde68a'; x.direction = 'ltr'; x.fillText('@' + p.handle, sx, sy + (this.landscape ? 44 : 48) * Math.min(1, this.s * 1.4)); }
       }
@@ -605,7 +639,7 @@
       if (this.boss) { pg.addColorStop(0, '#be123c'); pg.addColorStop(1, '#f43f5e'); } else { pg.addColorStop(0, '#22d3ee'); pg.addColorStop(1, '#a855f7'); }
       x.fillStyle = pg; roundRect(x, bx, by, Math.max(4, bw * frac), 9, 5); x.fill();
       // partner status
-      if (this.coop) {
+      if (this.players.length > 1) {
         const other = this.players.find(p => p !== me);
         x.textAlign = 'center'; x.font = '600 12px system-ui'; x.fillStyle = other.alive ? '#fde68a' : '#94a3b8';
         x.direction = 'ltr'; x.fillText('@' + other.handle + '  ' + (other.alive ? '♥' + other.lives + (other.shield ? ' ◈' + other.shield : '') : 'הופל'), cw / 2, by + 44);

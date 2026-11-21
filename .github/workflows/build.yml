@@ -1,0 +1,131 @@
+name: Build SpaceShip apps
+
+# Every push: Android + Windows + Linux.
+# macOS runners cost 10x minutes on private repos, so iOS and macOS builds run when started
+# manually (Actions -> Build SpaceShip apps -> Run workflow, tick "Apple") or on a v* tag.
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      apple:
+        description: Also build iOS and macOS
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: build-${{ github.run_number }}
+  VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: SpaceShip ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            **SpaceShip ${{ env.VERSION }}** (${{ github.ref_name }})
+
+            | מכשיר | קובץ |
+            |---|---|
+            | Android | `SpaceShip.apk` — פתח בטלפון והתקן |
+            | Windows | `SpaceShip-Setup-….exe` (התקנה) או `SpaceShip-Portable-….exe` (בלי התקנה) |
+            | Linux | `SpaceShip-….AppImage` |
+            | macOS | `SpaceShip-…-mac.dmg` (בבנייה ידנית) — קליק ימני → Open בפעם הראשונה |
+            | iPhone / iPad | `SpaceShip-iOS-unsigned.ipa` (בבנייה ידנית) — התקנה דרך Sideloadly / AltStore |
+
+  android:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 17 }
+      - run: npm ci
+      - run: npm run vendor
+      - run: npx cap add android
+      - run: npx capacitor-assets generate --android --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
+      - name: Set version
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"${{ env.VERSION }}\"/" android/app/build.gradle
+      - run: npx cap sync android
+      - name: Build APK
+        run: |
+          mkdir -p ~/.android && cp android-debug.keystore ~/.android/debug.keystore
+          cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../SpaceShip.apk
+      - uses: softprops/action-gh-release@v2
+        with: { tag_name: '${{ env.TAG }}', files: SpaceShip.apk }
+
+  desktop:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Skip macOS unless requested
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "macos-latest" ] && [ "${{ inputs.apple }}" != "true" ] && [[ "${{ github.ref }}" != refs/tags/v* ]]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.skip != '1'
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.skip != '1'
+        with: { node-version: 20, cache: npm }
+      - if: steps.gate.outputs.skip != '1'
+        shell: bash
+        run: |
+          npm ci
+          npm run vendor
+          npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version
+          npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - if: steps.gate.outputs.skip != '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: |
+            dist-desktop/*.exe
+            dist-desktop/*.AppImage
+            dist-desktop/*.dmg
+
+  ios:
+    needs: release
+    if: inputs.apple == true || startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run vendor
+      - run: npx cap add ios
+      - run: npx capacitor-assets generate --ios --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
+      - run: npx cap sync ios
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios-build \
+            MARKETING_VERSION=${{ env.VERSION }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir Payload
+          cp -R ios-build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr SpaceShip-iOS-unsigned.ipa Payload
+      - uses: softprops/action-gh-release@v2
+        with: { tag_name: '${{ env.TAG }}', files: SpaceShip-iOS-unsigned.ipa }

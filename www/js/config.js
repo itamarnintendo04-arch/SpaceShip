@@ -3,4 +3,7 @@ window.SS_CONFIG = {
   SUPABASE_URL: 'https://unpzeskbzovolyqsqzna.supabase.co',
   SUPABASE_KEY: 'sb_publishable_iuaATuSyhRd65ZjNdx3Opg_w1KxQdQc',
   LEVEL_COUNT: 20,
+  // CutVid (our other app) - players can sign in with their CutVid account
+  CUTVID_URL: 'https://btrwboxwbinqewgvlcal.supabase.co',
+  CUTVID_KEY: 'sb_publishable_g2aYTfsQhep44Ta1VIIJfQ_GQnA5ODh',
 };

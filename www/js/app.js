@@ -4,6 +4,9 @@
   const { Game, Sfx, levelCfg } = window.SSGame;
   const LEVELS = SS_CONFIG.LEVEL_COUNT;
   const Cap = window.Capacitor && window.Capacitor.Plugins || {};
+  const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const PLATFORM = window.SS_PLATFORM || (NATIVE ? 'mobile' : 'web');
+  const DESKTOP = PLATFORM === 'desktop' || (!NATIVE && matchMedia('(pointer: fine)').matches && innerWidth >= 900);
 
   const UPGRADES = [
     { id: 'weapon', name: 'תותח', icon: 'gun', desc: 'יותר יריות בכל צרור', base: 1, costs: [250, 600, 1200, 2500] },
@@ -16,7 +19,7 @@
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   const defData = () => ({ coins: 100, ships: ['falcon'], avatars: [], skin: 'falcon', up: { weapon: 1, shield: 0, magnet: 0, life: 0 }, levels: {}, best: 0, ts: 0 });
   let user = store.get('ss_user', null);
-  let settings = store.get('ss_settings', { orientation: 'portrait', sound: true });
+  let settings = store.get('ss_settings', { orientation: DESKTOP ? 'landscape' : 'portrait', sound: true });
   let friends = [], game = null, room = null, roomPeer = null, peerStats = null, current = null, history = [];
   if (user) user.data = Object.assign(defData(), user.data || {});
 
@@ -41,6 +44,9 @@
     if (m.includes('bad_handle')) return 'שם משתמש: 3-20 תווים, אותיות אנגלית קטנות, מספרים, _ או .';
     if (m.includes('code_not_found')) return 'הקוד לא נמצא';
     if (m.includes('self')) return 'זה הקוד שלך 🙂';
+    if (m.includes('cutvid_auth')) return 'האימייל או הסיסמה של CutVid לא נכונים';
+    if (m.includes('cutvid_unauthorized')) return 'ההתחברות ל-CutVid פגה, נסה שוב';
+    if (m.includes('already_linked')) return 'חשבון ה-CutVid הזה כבר מחובר למשתמש אחר';
     if (m.includes('unauthorized')) return 'שגיאת התחברות';
     return 'אין חיבור לשרת';
   };
@@ -92,11 +98,14 @@
   }
 
   // ---------- register ----------
-  let regAvatar = 'rocket', checkT = null, handleOk = false;
+  let regAvatar = 'rocket', checkT = null, handleOk = false, cvPending = null; // cvPending = {token, email}
   function renderRegister() {
     const free = Art.AVATARS.filter(a => a.price === 0);
     $('#r-avatars').innerHTML = free.map(a => `<button data-av="${a.id}" class="${a.id === regAvatar ? 'on' : ''}">${Art.avatar(a.id)}</button>`).join('');
-    if (user && user.offline) { $('#r-name').value = user.name; $('#r-handle').value = user.handle; checkHandle(); }
+    if (user && user.offline && !$('#r-handle').value) { $('#r-name').value = user.name; $('#r-handle').value = user.handle; checkHandle(); }
+    $('#r-cvbanner').classList.toggle('hidden', !cvPending);
+    if (cvPending) $('#r-cvbanner').innerHTML = `${Art.icon('cutvid')} מחובר ל-CutVid: <b dir="ltr">${esc(cvPending.email)}</b><br>בחר שם ושם משתמש ל-SpaceShip`;
+    $('#r-cutvid').classList.toggle('hidden', !!cvPending);
   }
   $('#r-avatars').addEventListener('click', e => { const b = e.target.closest('[data-av]'); if (!b) return; regAvatar = b.dataset.av; renderRegister(); });
   $('#r-handle').addEventListener('input', e => {
@@ -120,15 +129,54 @@
     if (!/^[a-z0-9_.]{3,20}$/.test(h)) { st.className = 'status err'; st.textContent = errText({ message: 'bad_handle' }); return; }
     $('#r-go').disabled = true;
     try {
-      const r = await Net.register(h, name, regAvatar);
+      const r = cvPending ? (await Net.cutvidCall({ action: 'register', token: cvPending.token, handle: h, name, avatar: regAvatar })).profile : await Net.register(h, name, regAvatar);
       const data = user && user.offline ? user.data : defData();
-      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data };
+      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined };
+      cvPending = null;
       save(); afterLogin(); show('menu'); history = []; toast('ברוך הבא ' + at(r.handle) + '!');
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
     } finally { $('#r-go').disabled = false; }
   });
+  // ---------- CutVid sign-in ----------
+  function cutvidModal(title, onToken) {
+    modal(`<div style="width:64px;height:64px;margin:0 auto">${Art.icon('cutvid', 'av')}</div><h2>${title}</h2>
+      <p class="muted small">היכנס עם החשבון שלך באפליקציית CutVid</p>
+      <label>אימייל<input id="cv-email" type="email" dir="ltr" autocomplete="email"></label>
+      <label>סיסמה<input id="cv-pass" type="password" dir="ltr" autocomplete="current-password"></label>
+      <div id="cv-st" class="status"></div>
+      <button class="btn primary" id="cv-go">התחבר</button>
+      ${PLATFORM === 'web' && /^https?:/.test(location.protocol) ? `<button class="btn" id="cv-google">${Art.icon('google')}המשך עם Google</button>` : ''}
+      <button class="btn ghost" id="cv-x">ביטול</button>`, m => {
+      const st = m.querySelector('#cv-st');
+      m.querySelector('#cv-x').onclick = closeModal;
+      m.querySelector('#cv-go').onclick = async () => {
+        const email = m.querySelector('#cv-email').value.trim(), pass = m.querySelector('#cv-pass').value;
+        if (!email || !pass) { st.className = 'status err'; st.textContent = 'מלא אימייל וסיסמה'; return; }
+        st.className = 'status'; st.textContent = 'מתחבר...';
+        try { const token = await Net.cutvidSignIn(email, pass); await onToken(token, email); }
+        catch (e) { st.className = 'status err'; st.textContent = errText(e); }
+      };
+      const g = m.querySelector('#cv-google');
+      if (g) g.onclick = () => { store.set('ss_cv_intent', title === 'קשר חשבון CutVid' ? 'link' : 'login'); Net.cutvidGoogle(); };
+    });
+  }
+  async function cutvidLogin(token, email) {
+    const res = await Net.cutvidCall({ action: 'login', token });
+    closeModal();
+    if (res.profile) {
+      const r = res.profile;
+      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, cutvid: res.email || email, data: Object.assign(defData(), r.data || {}) };
+      store.set('ss_user', user); afterLogin(); history = []; show('menu'); toast('ברוך הבא ' + at(r.handle) + '!');
+    } else { cvPending = { token, email: res.email || email }; show('register', false); }
+  }
+  async function cutvidLink(token, email) {
+    const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
+    user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast('החשבון קושר ל-CutVid ✓');
+  }
+  $('#r-cutvid').addEventListener('click', () => { Sfx.init(); cutvidModal('התחבר עם CutVid', cutvidLogin); });
+
   $('#r-offline').addEventListener('click', () => {
     const name = $('#r-name').value.trim() || 'טייס', h = $('#r-handle').value.trim() || 'pilot';
     user = user || { id: 'local-' + Math.random().toString(36).slice(2), handle: h, name, avatar: regAvatar, offline: true, data: defData() };
@@ -142,9 +190,21 @@
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + 'מצב: לרוחב' : Art.icon('rotate') + 'מצב: לאורך';
     $('#t-sound').innerHTML = settings.sound ? Art.icon('sound') + 'צליל' : Art.icon('mute') + 'מושתק';
     $('#m-offline').classList.toggle('hidden', !user.offline);
+    $('#m-local2').classList.toggle('hidden', !DESKTOP); $('#m-desk').classList.toggle('hidden', !DESKTOP);
     updateOnlineBadge();
   }
   $('#m-me').addEventListener('click', () => editProfile());
+  $('#m-local2').addEventListener('click', () => {
+    const L = user.data.levels; let o = '<option value="endless">מצב אינסופי</option>';
+    for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">שלב ${n}${levelCfg(n).boss ? ' (בוס)' : ''}</option>`;
+    modal(`<h2>2 שחקנים</h2>
+      <div class="vs"><div class="slot"><div class="avatar">${Art.avatar(user.avatar)}</div><b>${esc(user.name)}</b><small>WASD / ג'ויסטיק 1</small></div><div class="plus">+</div>
+      <div class="slot"><div class="avatar">${Art.avatar('alien')}</div><b>שחקן 2</b><small>חצים / ג'ויסטיק 2</small></div></div>
+      <select id="l2-lv">${o}</select><button class="btn primary big" id="l2-go">התחל!</button><button class="btn ghost" id="l2-x">ביטול</button>`, m => {
+      m.querySelector('#l2-x').onclick = closeModal;
+      m.querySelector('#l2-go').onclick = () => { const v = m.querySelector('#l2-lv').value; startGame(v === 'endless' ? { mode: 'endless', local2: true } : { mode: 'level', level: +v, local2: true }); };
+    });
+  });
   $('#t-orient').addEventListener('click', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); renderMenu(); toast(settings.orientation === 'landscape' ? 'החללית תטוס ימינה — לרוחב' : 'החללית תטוס למעלה — לאורך'); });
   $('#t-sound').addEventListener('click', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); renderMenu(); });
   $('#m-reg').addEventListener('click', e => { e.preventDefault(); show('register'); });
@@ -153,9 +213,11 @@
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
       <label>שם<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">שם המשתמש (@) ייחודי וקבוע. אייקונים נוספים — בחנות.</p>
+      ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} מקושר ל-CutVid: <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}קשר חשבון CutVid</button>`}
       <button class="btn primary" id="p-save">שמור</button><button class="btn ghost" id="p-x">סגור</button>`, m => {
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
+      const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => cutvidModal('קשר חשבון CutVid', cutvidLink);
     });
   }
 
@@ -361,7 +423,8 @@
     const start = () => {
       game = new Game($('#game'), {
         mode: o.mode, level: o.level, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
-        me: meInfo(), peer: o.peer, coop: o.coop,
+        me: meInfo(), peer: o.peer, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
+        p2: o.local2 ? { id: 'p2', handle: 'player2', name: 'שחקן 2', skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
         onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
       });
       if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, H: game.H, host: meInfo() }); }
@@ -382,7 +445,7 @@
     game.paused = true;
     modal(`<h2>הפסקה</h2><button class="btn primary big" id="p-res">המשך</button><button class="btn" id="p-restart">התחל מחדש</button><button class="btn ghost" id="p-quit">יציאה לתפריט</button>`, m => {
       m.querySelector('#p-res').onclick = () => { closeModal(); game.paused = false; game.last = performance.now(); };
-      m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level }); };
+      m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, local2: g.local2 }); };
       m.querySelector('#p-quit').onclick = () => { closeModal(); stopGame(); show(game ? 'menu' : 'levels', false); };
     });
   }
@@ -402,7 +465,7 @@
   }
   function onGameEnd(r) {
     if (!game) return;
-    const coop = game.coop, D = user.data;
+    const coop = game.coop, local2 = game.local2, D = user.data;
     stopGame();
     D.coins += r.coins;
     let newBest = false, unlocked = false;
@@ -424,8 +487,8 @@
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
       <div class="muted small">נאספו ${r.collected} · בונוס ${r.bonus}</div>${buttons}`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
-      on('#e-next', () => startGame({ mode: 'level', level: r.level + 1 }));
-      on('#e-retry', () => startGame({ mode: r.mode, level: r.level }));
+      on('#e-next', () => startGame({ mode: 'level', level: r.level + 1, local2 }));
+      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2 }));
       on('#e-shop', () => { closeModal(); history = ['menu']; show('shop', false); });
       on('#e-menu', () => { closeModal(); if (coop) leaveRoom(); history = []; show('menu', false); });
       on('#e-lobby', () => { closeModal(); if (!room) { show('menu', false); return; } history = ['menu']; show('coop', false); });
@@ -440,6 +503,11 @@
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons();
+  Net.cutvidSessionFromUrl().then(token => {
+    if (!token) return;
+    const intent = store.get('ss_cv_intent', 'login'); store.set('ss_cv_intent', null);
+    (intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e)));
+  }).catch(() => {});
   if (!user) show('register');
   else {
     show('menu');

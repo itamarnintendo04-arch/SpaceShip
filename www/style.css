@@ -126,6 +126,11 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .reward { font-size: 26px; font-weight: 900; color: var(--gold); direction: ltr; }
 .toast { position: fixed; bottom: calc(var(--sb) + 24px); left: 50%; transform: translate(-50%, 20px); z-index: 20; background: #1e1b4b; border: 1px solid var(--violet); padding: 10px 18px; border-radius: 999px; font-weight: 700; opacity: 0; transition: .25s; pointer-events: none; max-width: 90vw; text-align: center; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
+.btn.cutvid { background: linear-gradient(135deg, rgba(239, 68, 68, .35), rgba(127, 29, 29, .5)); border-color: rgba(248, 113, 113, .55); }
+.btn.local2 { grid-column: 1 / -1; border-color: rgba(34, 211, 238, .5); background: linear-gradient(135deg, rgba(8, 145, 178, .4), rgba(76, 29, 149, .45)); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; } .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.cv-banner { background: rgba(239, 68, 68, .15); border: 1px solid rgba(248, 113, 113, .5); border-radius: 14px; padding: 10px; font-size: 14px; }
+.desk-hint { font-size: 12px; color: var(--muted); text-align: center; }
 @media (orientation: landscape) and (max-height: 520px) {
   .hero { flex-direction: row; gap: 10px; } #m-ship { width: 80px; height: 80px; } .title { font-size: 34px; }
   .menu-grid { grid-template-columns: repeat(3, 1fr); width: min(720px, 100%); } .menu-grid .btn.primary { grid-column: span 1; }

@@ -12,6 +12,9 @@
     return data;
   }
 
+  let cv = null;
+  const cutvid = () => cv || (cv = window.supabase.createClient(C.CUTVID_URL, C.CUTVID_KEY, { auth: { persistSession: false, detectSessionInUrl: true, flowType: 'implicit' } }));
+
   let lobby = null, inbox = null, online = new Set();
 
   const Net = {
@@ -25,6 +28,26 @@
     friends: u => rpc('list_friends', { p_id: u.id, p_secret: u.secret }),
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),
+
+    // ---- CutVid account ----
+    async cutvidSignIn(email, password) {
+      const { data, error } = await cutvid().auth.signInWithPassword({ email, password });
+      if (error) throw new Error('cutvid_auth');
+      return data.session.access_token;
+    },
+    cutvidGoogle() { return cutvid().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } }); },
+    async cutvidSessionFromUrl() {
+      if (!/access_token=/.test(location.hash)) return null;
+      const { data } = await cutvid().auth.getSession();
+      history.replaceState(null, '', location.pathname);
+      return data.session ? data.session.access_token : null;
+    },
+    async cutvidCall(body) {
+      if (!sb) throw new Error('offline');
+      const { data, error } = await sb.functions.invoke('cutvid-auth', { body });
+      if (error) { let m = error.message; try { const j = await error.context.json(); m = j.error || m; } catch (e) {} throw new Error(m); }
+      return data;
+    },
 
     // Presence in a global lobby + a personal inbox channel for invites
     startPresence(user, { onInvite, onOnline }) {
