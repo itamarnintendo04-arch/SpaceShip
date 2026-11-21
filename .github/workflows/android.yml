@@ -1,0 +1,73 @@
+name: Build SpaceShip Android app
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Copy Supabase client into www
+        run: npm run vendor
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Generate app icon and splash
+        run: npx capacitor-assets generate --android --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
+
+      - name: Set version
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: Sync web assets
+        run: npx cap sync android
+
+      - name: Build APK
+        run: |
+          mkdir -p ~/.android
+          cp android-debug.keystore ~/.android/debug.keystore
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../SpaceShip.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpaceShip-apk
+          path: SpaceShip.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: SpaceShip 1.0.${{ github.run_number }}
+          body: |
+            SpaceShip Android app — build ${{ github.run_number }} (${{ github.ref_name }}).
+            Download **SpaceShip.apk** below and open it on your Android phone to install.
+          files: SpaceShip.apk
+          target_commitish: ${{ github.sha }}
+          make_latest: true

@@ -1,0 +1,6 @@
+{
+  "appId": "com.spaceship.game",
+  "appName": "SpaceShip",
+  "webDir": "www",
+  "android": { "backgroundColor": "#05021a" }
+}

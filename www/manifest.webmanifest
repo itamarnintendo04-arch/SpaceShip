@@ -1,0 +1,1 @@
+{ "name": "SpaceShip", "short_name": "SpaceShip", "start_url": ".", "display": "fullscreen", "background_color": "#05021a", "theme_color": "#05021a", "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }] }
