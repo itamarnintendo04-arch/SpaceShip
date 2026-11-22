@@ -9,15 +9,22 @@
     { id: 'phantom', name: 'פנטום',     price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee' },
     { id: 'dragon',  name: 'דרקון',     price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af' },
     { id: 'golden',  name: 'זהב',       price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047' },
+    // special ships - bought with diamonds
+    { id: 'phoenix', name: 'פניקס',     gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c', desc: 'כנפי אש בוערות' },
+    { id: 'ghost',   name: 'רוח רפאים', gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc', desc: 'שקופה ומהבהבת' },
+    { id: 'crystal', name: 'קריסטל',    gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9', desc: 'יהלום מעופף' },
+    { id: 'rainbow', name: 'כוכב-על',   gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc', desc: 'מחליפה צבעים כל הזמן' },
   ];
 
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
 
   // Draw ship centred at 0,0 pointing up; s = half size
   function drawShip(ctx, id, s, t, thrust = 1) {
-    const k = SHIPS.find(x => x.id === id) || SHIPS[0];
+    let k = SHIPS.find(x => x.id === id) || SHIPS[0];
     t = t || 0;
     ctx.save();
+    if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
+    if (k.fx === 'rainbow') { const h = (t * 90) % 360; k = Object.assign({}, k, { body: `hsl(${h},90%,75%)`, accent: `hsl(${(h + 60) % 360},80%,40%)`, glow: `hsl(${(h + 30) % 360},95%,65%)` }); }
     // engine flame
     const fl = (0.7 + 0.3 * Math.sin(t * 40)) * thrust;
     const g = ctx.createLinearGradient(0, s * 0.6, 0, s * (1.1 + fl));
@@ -48,6 +55,24 @@
         ctx.fill(); ctx.stroke();
         ctx.strokeStyle = k.glow; ctx.beginPath(); ctx.moveTo(0, -s * 0.8); ctx.lineTo(0, s * 0.4); ctx.stroke();
         break;
+      case 'phoenix': {
+        const f = Math.sin(t * 8) * s * 0.08;
+        for (const sx of [-1, 1]) {
+          ctx.beginPath(); ctx.moveTo(0, -s * 0.2);
+          ctx.quadraticCurveTo(sx * s * 0.6, -s * 0.9 - f, sx * s * 1.1, -s * 0.5 - f);
+          ctx.quadraticCurveTo(sx * s * 0.8, -s * 0.1, sx * s * 1.05, s * 0.2 + f);
+          ctx.quadraticCurveTo(sx * s * 0.5, s * 0.15, sx * s * 0.2, s * 0.55);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+        path(ctx, [0, -s, s * 0.22, -s * 0.2, s * 0.15, s * 0.7, 0, s * 0.9, -s * 0.15, s * 0.7, -s * 0.22, -s * 0.2]); ctx.fill(); ctx.stroke();
+        break;
+      }
+      case 'crystal':
+        path(ctx, [0, -s, s * 0.7, -s * 0.2, s * 0.45, s * 0.6, -s * 0.45, s * 0.6, -s * 0.7, -s * 0.2]); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * 0.04); ctx.beginPath();
+        ctx.moveTo(0, -s); ctx.lineTo(-s * 0.25, -s * 0.2); ctx.lineTo(0, s * 0.6); ctx.lineTo(s * 0.25, -s * 0.2); ctx.closePath();
+        ctx.moveTo(-s * 0.7, -s * 0.2); ctx.lineTo(s * 0.7, -s * 0.2); ctx.stroke();
+        break;
       case 'dragon':
         ctx.beginPath(); ctx.moveTo(0, -s);
         ctx.quadraticCurveTo(s * 0.3, -s * 0.3, s * 1.0, -s * 0.1); ctx.quadraticCurveTo(s * 0.6, s * 0.2, s * 0.85, s * 0.7);
@@ -58,7 +83,7 @@
         path(ctx, [0, -s, s * 0.22, -s * 0.35, s * 0.3, s * 0.05, s * 0.95, s * 0.55, s * 0.9, s * 0.72, s * 0.3, s * 0.55, s * 0.2, s * 0.7, -s * 0.2, s * 0.7, -s * 0.3, s * 0.55, -s * 0.9, s * 0.72, -s * 0.95, s * 0.55, -s * 0.3, s * 0.05, -s * 0.22, -s * 0.35]);
         ctx.fill(); ctx.stroke();
     }
-    if (k.shape !== 'saucer') { // cockpit
+    if (k.shape !== 'saucer' && k.shape !== 'crystal') { // cockpit
       ctx.shadowBlur = 0;
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
@@ -102,6 +127,10 @@
     cutvid: '<defs><linearGradient id="cvg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f43f5e"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#cvg)"/><circle cx="8" cy="16" r="2.6" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="16" cy="16" r="2.6" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M9.6 14L16 5.5M14.4 14L8 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>',
     google: '<path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 01-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285f4"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0012 22z" fill="#34a853"/><path d="M6.4 14a6 6 0 010-3.9V7.4H3.1a10 10 0 000 9.2z" fill="#fbbc05"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 003.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" fill="#ea4335"/>',
     keyboard: '<rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 10h1M9 10h1M12 10h1M15 10h1M18 10h1M7 14h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    gem: '<path d="M7 3h10l4 6-9 12L3 9z" fill="#22d3ee" stroke="#cffafe" stroke-width="1.2" stroke-linejoin="round"/><path d="M3 9h18M9 3l3 18M15 3l-3 18M7 3l2 6M17 3l-2 6" stroke="#0e7490" stroke-width="1" fill="none"/>',
+    secret: '<circle cx="12" cy="12" r="9.5" fill="none" stroke="#c084fc" stroke-width="1.8" stroke-dasharray="3 2.5"/><path d="M12 6.5l1.6 3.6 3.9.4-2.9 2.6.8 3.9L12 15l-3.4 2 .8-3.9-2.9-2.6 3.9-.4z" fill="#c084fc"/>',
+    swap: '<path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+    plasma: '<circle cx="12" cy="12" r="5" fill="#e879f9"/><circle cx="12" cy="12" r="9" fill="none" stroke="#c026d3" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#f0abfc" stroke-width="1.6" stroke-linecap="round"/>',
     x: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
   };
 
@@ -116,6 +145,9 @@
     { id: 'moon', price: 500, svg: '<path d="M15.5 3a9 9 0 104.8 15.3A7.6 7.6 0 0115.5 3z" fill="#fde68a"/><circle cx="9" cy="10" r="1.4" fill="#eab308"/><circle cx="10.5" cy="16" r="1.9" fill="#eab308"/><circle cx="6.5" cy="14" r=".9" fill="#eab308"/>' },
     { id: 'skull', price: 700, svg: '<path d="M12 3a8 8 0 00-8 8c0 3 1.5 4.8 3 5.6V20h10v-3.4c1.5-.8 3-2.6 3-5.6a8 8 0 00-8-8z" fill="#e2e8f0"/><circle cx="8.8" cy="11.5" r="2.2" fill="#111827"/><circle cx="15.2" cy="11.5" r="2.2" fill="#111827"/><path d="M11 15l1-1.6 1 1.6z" fill="#111827"/>' },
     { id: 'crown', price: 1200, svg: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#facc15" stroke="#a16207" stroke-width="1.2" stroke-linejoin="round"/><circle cx="12" cy="14" r="1.6" fill="#ef4444"/><circle cx="7.5" cy="15" r="1.1" fill="#22d3ee"/><circle cx="16.5" cy="15" r="1.1" fill="#22d3ee"/>' },
+    { id: 'diamond', gems: 8, svg: '<circle cx="12" cy="12" r="11" fill="#083344"/><path d="M7.5 7h9l3 4.5L12 20l-7.5-8.5z" fill="#22d3ee" stroke="#cffafe" stroke-width=".8"/><path d="M4.5 11.5h15M10 7l2 13M14 7l-2 13" stroke="#0e7490" stroke-width=".8" fill="none"/>' },
+    { id: 'phoenix', gems: 12, svg: '<circle cx="12" cy="12" r="11" fill="#431407"/><path d="M12 19c-4-2-7-6-6-11 2 2 3 3 4 3 0-3 1-5 2-7 1 2 2 4 2 7 1 0 2-1 4-3 1 5-2 9-6 11z" fill="#fb923c"/><path d="M12 18c-2-1-3-3-2.5-5.5 1 1 1.6 1.2 2.5 1.2 0-1.4.3-2.4 1-3.4.6 1 .8 2 .8 3.4.9 0 1.5-.2 2.5-1.2.4 2.5-.6 4.5-2.8 5.5z" fill="#fde047"/>' },
+    { id: 'galaxy', gems: 20, svg: '<circle cx="12" cy="12" r="11" fill="#1e1b4b"/><path d="M12 12c3-1 5 1 4 3.5s-5 3.5-8 1.5S4 10 7 7s9-3 11 1" fill="none" stroke="#f0abfc" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#fff"/><circle cx="6" cy="17" r=".7" fill="#fff"/><circle cx="18" cy="6" r=".7" fill="#fff"/>' },
     { id: 'blackhole', price: 2000, svg: '<circle cx="12" cy="12" r="10" fill="#7c3aed" opacity=".35"/><circle cx="12" cy="12" r="7" fill="none" stroke="#f472b6" stroke-width="1.6" stroke-dasharray="6 3"/><circle cx="12" cy="12" r="4" fill="#000" stroke="#c084fc"/>' },
   ];
 

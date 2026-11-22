@@ -1,7 +1,15 @@
 // SpaceShip app: screens, profile, shop, friends, co-op lobby
 (function () {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-  const { Game, Sfx, levelCfg } = window.SSGame;
+  const { Game, Sfx, levelCfg, WORLDS } = window.SSGame;
+  const GEM_RATE = 10; // 1 diamond = 10 coins
+  // special items - bought with diamonds
+  const GEM_ITEMS = [
+    { id: 'plasma', name: 'תותח פלזמה', icon: 'plasma', gems: 30, desc: 'היריות עוברות דרך כמה מטאורים' },
+    { id: 'shield2', name: 'מגן כפול', icon: 'shield', gems: 20, desc: '+2 מגנים בתחילת כל משחק' },
+    { id: 'supermag', name: 'מגנט-על', icon: 'magnet', gems: 15, desc: 'מושך מטבעות מכל המסך' },
+    { id: 'goldheart', name: 'לב זהב', icon: 'heart', gems: 35, desc: 'לב נוסף בכל משחק' },
+  ];
   const LEVELS = SS_CONFIG.LEVEL_COUNT;
   const Cap = window.Capacitor && window.Capacitor.Plugins || {};
   const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -17,7 +25,7 @@
 
   // ---------- state ----------
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-  const defData = () => ({ coins: 100, ships: ['falcon'], avatars: [], skin: 'falcon', up: { weapon: 1, shield: 0, magnet: 0, life: 0 }, levels: {}, best: 0, ts: 0 });
+  const defData = () => ({ coins: 100, ships: ['falcon'], avatars: [], skin: 'falcon', up: { weapon: 1, shield: 0, magnet: 0, life: 0 }, levels: {}, best: 0, ts: 0, gems: 0, worlds: [], slevels: {}, items: [] });
   let user = store.get('ss_user', null);
   let settings = store.get('ss_settings', { orientation: DESKTOP ? 'landscape' : 'portrait', sound: true });
   let friends = [], game = null, room = null, roomPeer = null, peerStats = null, current = null, history = [];
@@ -47,6 +55,8 @@
   function modal(html, onBind) { $('#modal-card').innerHTML = html; icons($('#modal-card')); $('#modal').classList.remove('hidden'); onBind && onBind($('#modal-card')); }
   function closeModal() { $('#modal').classList.add('hidden'); }
   const coinHtml = n => `${Art.icon('coin')}<span>${Number(n).toLocaleString()}</span>`;
+  const gemHtml = n => `${Art.icon('gem')}<span>${Number(n).toLocaleString()}</span>`;
+  const walletHtml = D => `<span class="wal">${coinHtml(D.coins)}</span><span class="wal gemc">${gemHtml(D.gems || 0)}</span>`;
   const errText = e => {
     const m = (e && e.message) || '';
     if (m.includes('handle_taken')) return 'שם המשתמש הזה כבר תפוס';
@@ -288,7 +298,7 @@
   // ---------- menu ----------
   function renderMenu() {
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
-    $('#m-coins').innerHTML = coinHtml(user.data.coins);
+    $('#m-coins').innerHTML = walletHtml(user.data);
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + 'מצב: לרוחב' : Art.icon('rotate') + 'מצב: לאורך';
     $('#t-sound').innerHTML = settings.sound ? Art.icon('sound') + 'צליל' : Art.icon('mute') + 'מושתק';
     $('#m-offline').classList.toggle('hidden', !user.offline);
@@ -361,24 +371,72 @@
 
   // ---------- levels ----------
   function renderLevels() {
-    $$('[data-coins]').forEach(e => e.innerHTML = coinHtml(user.data.coins));
+    $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(user.data));
     const L = user.data.levels; let html = '';
     for (let n = 1; n <= LEVELS; n++) {
       const stars = L[n] || 0, unlocked = n === 1 || L[n - 1] > 0, next = unlocked && !stars;
       html += `<button class="lv ${levelCfg(n).boss ? 'boss' : ''} ${unlocked ? '' : 'locked'} ${next ? 'next' : ''}" data-lv="${n}" ${unlocked ? '' : 'disabled'}>
         ${unlocked ? `<b>${n}</b><div class="stars">${[1, 2, 3].map(i => Art.icon(i <= stars ? 'star' : 'starOff')).join('')}</div>` : Art.icon('lock')}</button>`;
     }
+    // secret worlds
+    const D = user.data;
+    html += `<div class="sw-head">${Art.icon('secret')} עולמות סודיים <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
+    WORLDS.forEach((w, i) => {
+      const wn = i + 1;
+      if (!D.worlds.includes(w.id)) {
+        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} עולם סודי ???</div><div class="w-hint">רמז: ${w.hint}</div></div>`;
+        return;
+      }
+      html += `<div class="world" style="--h:${w.hue}"><div class="w-title">${Art.icon('secret')} ${w.name}</div><div class="w-levels">` +
+        [1, 2, 3].map(k => {
+          const key = wn + '-' + k, st = D.slevels[key] || 0, open = k === 1 || D.slevels[wn + '-' + (k - 1)] > 0;
+          return `<button class="lv sl ${open ? '' : 'locked'} ${k === 3 ? 'boss' : ''}" data-sw="${wn}" data-sk="${k}" ${open ? '' : 'disabled'}>
+            ${open ? `<b>${wn}-${k}</b><div class="stars">${[1, 2, 3].map(j => Art.icon(j <= st ? 'star' : 'starOff')).join('')}</div>
+            <span class="gem-r">${st ? '✓' : gemHtml(w.gems[k - 1])}</span>` : Art.icon('lock')}</button>`;
+        }).join('') + `</div></div>`;
+    });
     $('#lv-grid').innerHTML = html;
   }
-  $('#lv-grid').addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (b && !b.disabled) startGame({ mode: 'level', level: +b.dataset.lv }); });
+  $('#lv-grid').addEventListener('click', e => {
+    const s = e.target.closest('[data-sw]');
+    if (s && !s.disabled) return startGame({ mode: 'level', level: 1, secret: { w: +s.dataset.sw, k: +s.dataset.sk } });
+    const b = e.target.closest('[data-lv]'); if (b && !b.disabled) startGame({ mode: 'level', level: +b.dataset.lv });
+  });
 
   // ---------- shop ----------
   let shopTab = 'ships';
   $('#shop-tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (!t) return; shopTab = t.dataset.tab; $$('#shop-tabs .tab').forEach(x => x.classList.toggle('on', x === t)); renderShop(); });
   function renderShop() {
-    const D = user.data; $$('[data-coins]').forEach(e => e.innerHTML = coinHtml(D.coins));
+    const D = user.data; $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(D));
     let html = '';
-    if (shopTab === 'ships') html = Art.SHIPS.map(s => {
+    if (shopTab === 'gems') {
+      const g = D.gems || 0;
+      html = `<div class="conv">
+        <h3>${Art.icon('swap')} המרת יהלומים למטבעות</h3>
+        <div class="conv-rate">${gemHtml(1)} = ${coinHtml(GEM_RATE)} <span class="muted">· כל המרה כפול ${GEM_RATE}</span></div>
+        <div class="conv-have">יש לך <b>${g}</b> יהלומים · מקסימום להמרה: <b>${g}</b> יהלומים = <b>${(g * GEM_RATE).toLocaleString()}</b> מטבעות</div>
+        <div class="row center conv-ctl"><button class="icon-btn" data-cv="-1" ${g ? '' : 'disabled'}>−</button>
+          <input id="cv-n" type="number" min="1" max="${g}" value="${Math.min(1, g)}" ${g ? '' : 'disabled'}>
+          <button class="icon-btn" data-cv="1" ${g ? '' : 'disabled'}>+</button><button class="chip" data-cv="max" ${g ? '' : 'disabled'}>מקסימום</button></div>
+        <div class="conv-out" id="cv-out">${g ? `תקבל ${coinHtml(GEM_RATE)}` : 'אין לך יהלומים עדיין — מסיימים שלבים בעולמות הסודיים כדי להשיג'}</div>
+        <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>המר</button></div>`;
+      html += `<div class="sh-sec">${Art.icon('gem')} חלליות מיוחדות</div>` + Art.SHIPS.filter(s => s.gems).map(s => {
+        const own = D.ships.includes(s.id), eq = D.skin === s.id;
+        return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.name}</b><small>${s.desc}</small>
+          ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-equip="${s.id}">השתמש</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
+      }).join('');
+      html += `<div class="sh-sec">${Art.icon('gem')} כוחות מיוחדים</div>` + GEM_ITEMS.map(it => {
+        const own = D.items.includes(it.id);
+        return `<div class="item special"><div class="pic">${Art.icon(it.icon)}</div><b>${it.name}</b><small>${it.desc}</small>
+          ${own ? '<button class="btn small" disabled>יש לך ✓</button>' : `<button class="btn small gem" data-gitem="${it.id}" ${g < it.gems ? 'disabled' : ''}>${gemHtml(it.gems)}</button>`}</div>`;
+      }).join('');
+      html += `<div class="sh-sec">${Art.icon('gem')} אייקונים מיוחדים</div>` + Art.AVATARS.filter(a => a.gems).map(a => {
+        const own = D.avatars.includes(a.id), eq = user.avatar === a.id;
+        return `<div class="item special ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
+          ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-av-eq="${a.id}">השתמש</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
+      }).join('');
+    }
+    else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.name}</b>
         ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-equip="${s.id}">השתמש</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
@@ -389,16 +447,33 @@
         <div class="pips">${u.costs.map((_, j) => `<i class="${j < i ? 'on' : ''}"></i>`).join('')}</div>
         ${max ? '<button class="btn small" disabled>מקסימום ✓</button>' : `<button class="btn small gold" data-up="${u.id}" ${D.coins < cost ? 'disabled' : ''}>${coinHtml(cost)}</button>`}</div>`;
     }).join('');
-    else html = Art.AVATARS.map(a => {
+    else html = Art.AVATARS.filter(a => !a.gems).map(a => {
       const own = a.price === 0 || D.avatars.includes(a.id), eq = user.avatar === a.id;
       return `<div class="item ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
         ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-av-eq="${a.id}">השתמש</button>` : `<button class="btn small gold" data-buy-av="${a.id}" ${D.coins < a.price ? 'disabled' : ''}>${coinHtml(a.price)}</button>`}</div>`;
     }).join('');
     $('#shop-list').innerHTML = html;
+    const n = $('#cv-n');
+    if (n) n.oninput = () => { const g = D.gems || 0; let v = Math.max(1, Math.min(g, Math.floor(+n.value || 1))); $('#cv-out').innerHTML = `תקבל ${coinHtml(v * GEM_RATE)}`; };
   }
   $('#shop-list').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return; const D = user.data;
     const pay = c => { if (D.coins < c) { toast('אין מספיק מטבעות'); return false; } D.coins -= c; Sfx.init(); Sfx.coin(); return true; };
+    const payGems = c => { if ((D.gems || 0) < c) { toast('אין מספיק יהלומים'); return false; } D.gems -= c; Sfx.init(); Sfx.power(); return true; };
+    if (b.dataset.cv) {
+      const n = $('#cv-n'), g = D.gems || 0; let v = Math.floor(+n.value || 1);
+      v = b.dataset.cv === 'max' ? g : v + +b.dataset.cv; v = Math.max(1, Math.min(g, v));
+      n.value = v; $('#cv-out').innerHTML = `תקבל ${coinHtml(v * GEM_RATE)}`; return;
+    }
+    if (b.id === 'cv-go') {
+      const g = D.gems || 0, v = Math.max(1, Math.min(g, Math.floor(+$('#cv-n').value || 1)));
+      if (!g) return;
+      D.gems -= v; D.coins += v * GEM_RATE; Sfx.init(); Sfx.coin(); toast(`המרת ${v} יהלומים ל-${(v * GEM_RATE).toLocaleString()} מטבעות!`);
+      save(); renderShop(); return;
+    }
+    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast('חללית מיוחדת: ' + s.name + '!'); save(); return renderShop(); }
+    if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(it.name + ' — שלך!'); save(); return renderShop(); }
+    if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast('אייקון מיוחד!'); save(); return renderShop(); }
     if (b.dataset.equip) D.skin = b.dataset.equip;
     else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast('קנית את ' + s.name + '!'); }
     else if (b.dataset.up) { const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base; if (!pay(u.costs[lvl - u.base])) return; D.up[u.id] = lvl + 1; toast(u.name + ' שודרג!'); }
@@ -454,7 +529,11 @@
   }
 
   // ---------- co-op ----------
-  const myStats = () => ({ weapon: user.data.up.weapon, shield: user.data.up.shield, magnet: user.data.up.magnet, life: user.data.up.life });
+  const myStats = () => {
+    const D = user.data, has = id => (D.items || []).includes(id);
+    return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
+      life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma') };
+  };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
   function renderCoop() {
@@ -560,7 +639,7 @@
     const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
     const start = () => {
       game = new Game($('#game'), {
-        mode: o.mode, level: o.level, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
+        mode: o.mode, level: o.level, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
         me: meInfo(), peer: o.peer, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
         p2: o.local2 ? { id: 'p2', handle: 'player2', name: 'שחקן 2', skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
         onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
@@ -606,27 +685,37 @@
     const coop = game.coop, local2 = game.local2, D = user.data;
     stopGame();
     D.coins += r.coins;
-    let newBest = false, unlocked = false;
+    let newBest = false, unlocked = false, gemsWon = 0;
+    D.gems = D.gems || 0; D.worlds = D.worlds || []; D.slevels = D.slevels || {}; D.items = D.items || [];
+    const sec = r.secret, skey = sec ? sec.w + '-' + sec.k : null;
     if (r.mode === 'endless' && r.score > D.best) { D.best = r.score; newBest = true; }
-    if (r.mode === 'level' && r.win) { unlocked = !D.levels[r.level] && r.level < LEVELS; D.levels[r.level] = Math.max(D.levels[r.level] || 0, r.stars); }
+    if (sec && r.win) {
+      if (!D.slevels[skey]) gemsWon = WORLDS[sec.w - 1].gems[sec.k - 1];   // diamonds for the first clear
+      D.slevels[skey] = Math.max(D.slevels[skey] || 0, r.stars);
+    } else if (r.mode === 'level' && r.win) { unlocked = !D.levels[r.level] && r.level < LEVELS; D.levels[r.level] = Math.max(D.levels[r.level] || 0, r.stars); }
+    D.gems += gemsWon;
+    const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
+    D.worlds.push(...newWorlds);
     save();
     if (coop && room) room.nextLevel = r.mode === 'level' && r.win ? Math.min(LEVELS, r.level + 1) : r.level;
     const title = r.mode === 'endless' ? (newBest ? 'שיא חדש!' : 'המשחק נגמר') : r.win ? 'ניצחון!' : 'החללית נפגעה';
     const stars = r.mode === 'level' && r.win ? `<div class="big-stars">${[1, 2, 3].map(i => Art.icon(i <= r.stars ? 'star' : 'starOff')).join('')}</div>` : '';
-    const hasNext = r.mode === 'level' && r.win && r.level < LEVELS;
+    const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && r.level < LEVELS;
+    const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} גילית עולם סודי: <b>${w.name}</b><br><small>${w.how} · מחכה לך במסך השלבים</small></div>`; }).join('');
     let buttons;
     if (coop) buttons = `<button class="btn primary big" id="e-lobby">חזרה לחדר</button><button class="btn ghost" id="e-menu">תפריט</button>`;
     else buttons = `${hasNext ? '<button class="btn primary big" id="e-next">שלב הבא</button>' : ''}
       <button class="btn ${hasNext ? '' : 'primary big'}" id="e-retry">${r.win && r.mode === 'level' ? 'שחק שוב' : 'נסה שוב'}</button>
       <button class="btn" id="e-shop">${Art.icon('shop')}חנות</button><button class="btn ghost" id="e-menu">תפריט</button>`;
     modal(`<h2>${title}</h2>${stars}
-      ${r.mode === 'level' ? `<div class="muted">שלב ${r.level}${unlocked ? ' · שלב ' + (r.level + 1) + ' נפתח!' : ''}</div>` : ''}
+      ${sec ? `<div class="muted">✦ ${WORLDS[sec.w - 1].name} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">שלב ${r.level}${unlocked ? ' · שלב ' + (r.level + 1) + ' נפתח!' : ''}</div>` : ''}
+      ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">ניקוד: <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
       <div class="muted small">נאספו ${r.collected} · בונוס ${r.bonus}</div>${buttons}`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
-      on('#e-next', () => startGame({ mode: 'level', level: r.level + 1, local2 }));
-      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2 }));
+      on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } } : { mode: 'level', level: r.level + 1, local2 }));
+      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2, secret: sec }));
       on('#e-shop', () => { closeModal(); history = ['menu']; show('shop', false); });
       on('#e-menu', () => { closeModal(); if (coop) leaveRoom(); history = []; show('menu', false); });
       on('#e-lobby', () => { closeModal(); if (!room) { show('menu', false); return; } history = ['menu']; show('coop', false); });
@@ -665,5 +754,5 @@
       store.set('ss_user', user); const fn = renders[current]; fn && current !== 'register' && fn();
     }).catch(() => {});
   });
-  window.SSApp = { get user() { return user; }, startGame, show };
+  window.SSApp = { get user() { return user; }, get game() { return game; }, startGame, show };
 })();

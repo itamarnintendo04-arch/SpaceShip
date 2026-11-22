@@ -47,6 +47,23 @@
       hue: (200 + n * 47) % 360,
     };
   }
+  // ---- secret worlds: found by doing something special in normal levels; their levels give diamonds ----
+  const WORLDS = [
+    { id: 'w1', name: 'ערפילית הזהב', hue: 45, kinds: ['gold', 'rock', 'lava'], gems: [3, 4, 6],
+      hint: 'משהו זהוב חולף מהר בשלב 4… אל תיתן לו לברוח', how: 'הפלת את שביט הזהב' },
+    { id: 'w2', name: 'החור השחור', hue: 275, kinds: ['lava', 'rock', 'lava'], gems: [5, 6, 9],
+      hint: 'נצח את ספינת האם של שלב 10 בלי לאבד אף לב', how: 'ניצחת את בוס שלב 10 בלי להיפגע' },
+    { id: 'w3', name: 'ממלכת הקרח', hue: 190, kinds: ['ice', 'ice', 'rock'], gems: [7, 8, 12],
+      hint: 'בשלב 13 מסתתרים 3 גבישים נוצצים — אסוף את כולם', how: 'אספת את 3 הגבישים' },
+  ];
+  function secretCfg(w, k) {
+    const W_ = WORLDS[w - 1], base = levelCfg(8 + w * 4 + k * 2);
+    return Object.assign(base, {
+      hue: W_.hue, kinds: W_.kinds, goal: 30 + w * 8 + k * 6, spawn: Math.max(0.22, base.spawn * 0.75),
+      speed: base.speed * 1.12, bigChance: Math.min(0.6, base.bigChance + 0.1), boss: k === 3, goldChance: w === 1 ? 0.12 : base.goldChance,
+    });
+  }
+
   const KIND = {
     rock: { c1: '#a8a29e', c2: '#44403c', hp: 1, sp: 1 },
     ice:  { c1: '#bae6fd', c2: '#0369a1', hp: 2, sp: 0.85 },
@@ -54,7 +71,7 @@
     gold: { c1: '#fde68a', c2: '#a16207', hp: 1.5, sp: 1 },
   };
   const FX_COLORS = ['#fbbf24', '#60a5fa', '#f87171', '#a3e635', '#e879f9', '#ffffff'];
-  const PICK_TYPES = ['coin', 'shield', 'rapid', 'triple', 'life'];
+  const PICK_TYPES = ['coin', 'shield', 'rapid', 'triple', 'life', 'crystal'];
 
   let nextId = 1;
 
@@ -68,7 +85,13 @@
       this.isGuest = this.coop && this.coop.role === 'guest';
       this.local2 = !!opts.local2; this.hd = !!opts.hd; this.padPrev = {};
       this.level = opts.level || 1;
+      this.secret = opts.secret || null; // {w, k}
       this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level);
+      if (this.secret) { this.level = 8 + this.secret.w * 4 + this.secret.k * 2; this.cfg = secretCfg(this.secret.w, this.secret.k); }
+      this.found = []; this.crystals = 0; this.comet = null;
+      const normal = this.mode === 'level' && !this.secret;
+      this.cometAt = normal && this.level === 4 ? rnd(7, 14) : 0;
+      this.crystalAt = normal && this.level === 13 ? [8, 17, 26] : [];
       this.t = 0; this.spawnT = 1; this.kills = 0; this.score = 0; this.coins = 0;
       this.meteors = []; this.bullets = []; this.pickups = []; this.parts = []; this.floats = [];
       this.boss = null; this.bossSpawned = false;
@@ -98,7 +121,7 @@
       const st = p.stats || {};
       return {
         id: p.id, name: p.name, handle: p.handle, skin: p.skin || 'falcon', local,
-        x: W / 2, y: 0, lives: 3 + (st.life || 0), shield: st.shield || 0,
+        x: W / 2, y: 0, lives: (this.secret ? 1 : 3) + (st.life || 0), shield: st.shield || 0, plasma: !!st.plasma,
         weapon: st.weapon || 1, magnet: st.magnet || 0, inv: 2, alive: true, fireCd: 0, rapid: 0, triple: 0, tx: W / 2, ty: 0,
       };
     }
@@ -226,6 +249,22 @@
         if (this.spawnT <= 0) { this.spawnT = cfg.spawn * rnd(0.6, 1.3) * (this.players.length > 1 ? 0.8 : 1); this.spawnMeteor(); }
       } else if (!cfg.boss && !this.over && this.meteors.length === 0) this.finish(true);
 
+      // secret: the golden comet (level 4) and the hidden crystals (level 13)
+      if (this.cometAt && this.t > this.cometAt && !this.over) {
+        this.cometAt = 0; const fromLeft = Math.random() < 0.5;
+        this.comet = { x: fromLeft ? -40 : W + 40, y: rnd(70, 190), vx: (fromLeft ? 1 : -1) * 240, hp: 4, t: 0 };
+        Sfx.power();
+      }
+      if (this.comet) {
+        const c = this.comet; c.x += c.vx * dt; c.t += dt; c.y += Math.sin(c.t * 5) * 30 * dt;
+        if (c.x < -60 || c.x > W + 60) { this.comet = null; this.float(W / 2, 150, 'השביט ברח…', '#fde68a', 1.4); }
+        else if (Math.random() < 0.8) this.parts.push({ x: c.x - Math.sign(c.vx) * 12, y: c.y + rnd(-4, 4), vx: -c.vx * 0.2, vy: rnd(-20, 20), life: 0.5, max: 0.5, sz: rnd(2, 5), c: '#fde047' });
+      }
+      while (this.crystalAt.length && this.t > this.crystalAt[0]) {
+        this.crystalAt.shift();
+        this.pickups.push({ x: rnd(40, W - 40), y: -20, vx: 0, vy: 150, type: 'crystal', t: 0 });
+      }
+
       // players
       for (const p of this.players) {
         if (!p.alive) continue;
@@ -254,10 +293,16 @@
         for (const m of this.meteors) {
           if (m.dead) continue;
           if (Math.abs(m.x - b.x) < m.r + 4 && Math.abs(m.y - b.y) < m.r + 4 && Math.hypot(m.x - b.x, m.y - b.y) < m.r + 4) {
-            b.dead = true; m.hp -= b.dmg; m.flash = 0.06;
+            if (b.pierce) { if (b.hits.has(m.id)) continue; b.hits.add(m.id); } else b.dead = true;
+            m.hp -= b.dmg; m.flash = 0.06;
             if (m.hp <= 0) this.killMeteor(m, b.owner);
-            break;
+            if (b.dead) break;
           }
+        }
+        const C = this.comet;
+        if (!b.dead && C && Math.hypot(C.x - b.x, C.y - b.y) < 20) {
+          b.dead = true; C.hp -= 1; this.spark(b.x, b.y, 6, 0);
+          if (C.hp <= 0) { this.comet = null; this.explode(C.x, C.y, 50, 0); this.discover('w1', C.x, C.y); for (let i = 0; i < 8; i++) this.drop(C.x, C.y, 'coin'); }
         }
         const B = this.boss;
         if (!b.dead && B && B.hp > 0 && Math.abs(b.x - B.x) < 95 && Math.abs(b.y - B.y) < 45) {
@@ -281,7 +326,7 @@
         k.t += dt; k.y += k.vy * dt; k.x += k.vx * dt; k.vx *= 0.97;
         for (const p of this.players) {
           if (!p.alive) continue;
-          const d = Math.hypot(p.x - k.x, p.y - k.y), mag = k.type === 'coin' ? 30 + p.magnet * 45 : 30;
+          const d = Math.hypot(p.x - k.x, p.y - k.y), mag = k.type === 'coin' ? 30 + p.magnet * 45 : k.type === 'crystal' ? 0 : 30;
           if (d < mag && d > 1) { k.x += (p.x - k.x) / d * 520 * dt; k.y += (p.y - k.y) / d * 520 * dt; }
           if (d < 24) { this.collect(p, k); break; }
         }
@@ -333,6 +378,11 @@
     collect(p, k) {
       k.dead = true;
       if (k.type === 'coin') { this.coins++; Sfx.coin(); this.float(k.x, k.y, '+1', '#facc15'); return; }
+      if (k.type === 'crystal') {
+        this.crystals++; Sfx.power(); this.spark(k.x, k.y, 16, 1);
+        if (this.crystals >= 3) this.discover('w3', k.x, k.y); else this.float(k.x, k.y, 'גביש ' + this.crystals + '/3', '#67e8f9', 1.2);
+        return;
+      }
       Sfx.power(); this.fxQueue.push([k.x, k.y, -1, 0]);
       if (k.type === 'shield') { p.shield = Math.min(6, p.shield + 1); this.float(k.x, k.y, 'מגן +1', '#38bdf8'); }
       if (k.type === 'rapid') { p.rapid = 8; this.float(k.x, k.y, 'ירי מהיר!', '#fde047'); }
@@ -345,7 +395,7 @@
     }
     fire(p) {
       const lvl = Math.min(6, p.weapon + (p.triple > 0 ? 2 : 0)), owner = this.players.indexOf(p);
-      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg, owner });
+      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg, owner, pierce: p.plasma, hits: p.plasma ? new Set() : null });
       if (lvl === 1) add(0, 0);
       else if (lvl === 2) { add(-8, 0); add(8, 0); }
       else if (lvl === 3) { add(0, 0); add(-8, -0.12); add(8, 0.12); }
@@ -396,10 +446,18 @@
       if (this.over) return;
       this.over = true; this.endT = win ? 1.6 : 1.8;
       const stars = win ? (this.livesLost === 0 ? 3 : this.livesLost === 1 ? 2 : 1) : 0;
+      if (win && this.mode === 'level' && !this.secret && this.level === 10 && this.livesLost === 0) this.discover('w2', W / 2, this.H * 0.35);
       const bonus = win && this.mode === 'level' ? 20 + this.level * 10 : Math.floor(this.score / 200);
-      this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.level, mode: this.mode };
+      this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, mode: this.mode, secret: this.secret, found: this.found.slice() };
       if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, 'השלב הושלם!', '#4ade80', 2); }
       if (this.coop) { this.sendState(); this.coop.room.send('end', this.result); }
+    }
+
+    discover(id, x, y) {
+      if (this.found.includes(id)) return;
+      this.found.push(id); Sfx.win(); this.shake = 10;
+      for (let i = 0; i < 3; i++) this.spark(x, y, 20, i);
+      this.float(W / 2, this.H * 0.3, '✦ גילית עולם סודי! ✦', '#c084fc', 2.6);
     }
 
     // ----- particles / effects -----
@@ -430,6 +488,7 @@
         k: this.pickups.map(k => [r1(k.x), r1(k.y), PICK_TYPES.indexOf(k.type)]),
         pl: this.players.map(p => [p.lives, p.shield, +p.inv.toFixed(1), p.alive ? 1 : 0, r1(p.x), r1(p.y), p.rapid > 0 ? 1 : 0, p.triple > 0 ? 1 : 0]),
         s: this.score, c: this.coins, kl: this.kills, g: this.cfg.goal, n: this.cfg.n, hue: this.cfg.hue,
+        co: this.comet ? [Math.round(this.comet.x), Math.round(this.comet.y)] : null,
         bo: this.boss ? [r1(this.boss.x), r1(this.boss.y), this.boss.hp, this.boss.max] : null,
         fx: this.fxQueue.splice(0), fl: this.floats.filter(f => f.life === f.max).map(f => [r1(f.x), r1(f.y), f.text, f.color, f.max]),
       };
@@ -459,6 +518,7 @@
       });
       if (st.c > this.coins) Sfx.coin();
       this.score = st.s; this.coins = st.c; this.kills = st.kl; this.cfg.goal = st.g; this.cfg.n = st.n; this.cfg.hue = st.hue;
+      this.comet = st.co ? { x: st.co[0], y: st.co[1], vx: 0, t: 0 } : null;
       this.boss = st.bo ? { x: st.bo[0], y: st.bo[1], hp: st.bo[2], max: st.bo[3], t: this.t, flash: 0 } : null;
       for (const f of st.fx) { if (f[2] === -1) Sfx.power(); else if (f[2] === -2) this.spark(f[0], f[1], 12, 1); else this.explode(f[0], f[1], f[2], f[3]); }
       for (const f of st.fl) this.float(f[0], f[1], f[2], f[3], f[4]);
@@ -515,6 +575,12 @@
       for (const m of this.meteors) this.drawMeteor(x, m);
       // boss
       if (this.boss) this.drawBoss(x, this.boss);
+      if (this.comet) {
+        const c = this.comet; x.save(); x.translate(c.x, c.y);
+        x.shadowColor = '#fde047'; x.shadowBlur = 24;
+        const g = x.createRadialGradient(0, 0, 2, 0, 0, 18); g.addColorStop(0, '#fff'); g.addColorStop(0.4, '#fde047'); g.addColorStop(1, 'rgba(234,179,8,0)');
+        x.fillStyle = g; x.beginPath(); x.arc(0, 0, 18, 0, 7); x.fill(); x.restore();
+      }
       // bullets
       x.globalCompositeOperation = 'lighter';
       for (const b of this.bullets) {
@@ -580,6 +646,12 @@
     drawPickup(x, k, t) {
       const bob = Math.sin((t + k.t) * 5) * 2;
       x.save(); x.translate(k.x, k.y + bob);
+      if (k.type === 'crystal') {
+        x.rotate(t * 2); x.shadowColor = '#67e8f9'; x.shadowBlur = 20;
+        x.fillStyle = '#a5f3fc'; x.strokeStyle = '#fff'; x.lineWidth = 1.5;
+        x.beginPath(); x.moveTo(0, -15); x.lineTo(10, 0); x.lineTo(0, 15); x.lineTo(-10, 0); x.closePath(); x.fill(); x.stroke();
+        x.restore(); return;
+      }
       if (k.type === 'coin') {
         const w = Math.abs(Math.cos((t + k.t) * 4)) * 9 + 1;
         x.fillStyle = '#facc15'; x.strokeStyle = '#a16207'; x.lineWidth = 1.5;
@@ -632,6 +704,7 @@
       let label, frac;
       if (this.boss) { label = 'ספינת אם'; frac = this.boss.hp / this.boss.max; x.fillStyle = '#fda4af'; }
       else if (this.mode === 'endless') { label = 'אינסופי · רמה ' + this.cfg.n; frac = (this.t % 22) / 22; }
+      else if (this.secret) { label = '✦ ' + WORLDS[this.secret.w - 1].name + ' ' + this.secret.k + '/3' + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · בוס!' : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
       else { label = 'שלב ' + this.level + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · בוס!' : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
       x.fillText(label, cw / 2, by + 26);
       x.fillStyle = 'rgba(255,255,255,.12)'; roundRect(x, bx, by, bw, 9, 5); x.fill();
@@ -648,5 +721,5 @@
   }
   function roundRect(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
 
-  window.SSGame = { Game, Sfx, levelCfg };
+  window.SSGame = { Game, Sfx, levelCfg, WORLDS };
 })();
