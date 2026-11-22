@@ -155,6 +155,11 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .acc-row .info { flex: 1; min-width: 0; text-align: start; }
 .acc-row .avatar { width: 38px; height: 38px; }
 .settings-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+/* music volume */
+.vol { flex-direction: column; gap: 6px; text-align: start; font-size: 14px; color: var(--text); }
+.vol b { color: var(--cyan); }
+.vol.off { opacity: .45; }
+.vol input[type=range] { width: 100%; accent-color: #a855f7; padding: 0; border: 0; background: transparent; }
 /* languages */
 .cv-note { display: flex; gap: 6px; align-items: flex-start; text-align: start; }
 html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }

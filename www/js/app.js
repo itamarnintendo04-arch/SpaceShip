@@ -63,6 +63,13 @@
   }
   if (user && !user.offline) rememberAccount(user);
   Sfx.on = settings.sound;
+  // music: on by default at 60%, change in Settings (1-100%)
+  if (settings.music === undefined) settings.music = true;
+  if (!settings.musicVol) settings.musicVol = 60;
+  Music.setEnabled(settings.music); Music.setVolume(settings.musicVol);
+  // browsers start audio only after a tap / key press
+  const unlockAudio = () => Music.unlock();
+  addEventListener('pointerdown', unlockAudio, true); addEventListener('keydown', unlockAudio, true);
 
   // ---------- helpers ----------
   const at = h => '\u2066@' + h + '\u2069';
@@ -109,6 +116,7 @@
     current = name;
     $('#bgfx').style.display = name === 'game' || name === 'loading' ? 'none' : '';
     if (name !== 'loading' && loadingGame) { loadingGame.destroy(); loadingGame = null; }
+    Music.play(name === 'loading' ? 'loading' : name === 'game' ? 'game' : 'menu');
     const r = renders[name]; r && r();
   }
   function back() {
@@ -450,8 +458,11 @@
         <button class="chip" id="s-lang">${langLabel()}</button>
         <button class="chip" id="s-sound">${settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted')}</button>
         <button class="chip" id="s-orient">${settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port')}</button>
+        <button class="chip" id="s-music">${settings.music ? '🎵 ' + t('music_on') : '🔇 ' + t('music_off')}</button>
         ${user.offline ? '' : `<button class="chip" id="s-notif">${settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off')}</button>`}
       </div>
+      <label class="vol ${settings.music ? '' : 'off'}">${t('music_vol')} <b id="s-vol-n">${settings.musicVol}%</b>
+        <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
       ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
         : `<div class="small muted">${t('ask_email_body')}</div>
@@ -466,6 +477,10 @@
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#s-x', closeModal);
       on('#s-lang', () => { closeModal(); pickLanguage(); });
+      on('#s-music', () => { settings.music = !settings.music; saveSettings(); Music.setEnabled(settings.music); Music.unlock(); openSettings(); });
+      const vol = m.querySelector('#s-vol');
+      vol.oninput = () => { settings.musicVol = +vol.value; m.querySelector('#s-vol-n').textContent = vol.value + '%'; Music.setVolume(settings.musicVol); };
+      vol.onchange = saveSettings;
       on('#s-sound', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); openSettings(); });
       on('#s-orient', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); openSettings(); });
       on('#s-notif', async () => { await setNotify(!settings.notify); openSettings(); });
@@ -966,6 +981,7 @@
 
   // automatic sync: pull newer progress from the server whenever the app comes back to the front
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) Music.suspend(); else Music.resume();
     if (!document.hidden) resumePendingToken();
     if (document.hidden || !user || user.offline || game) return;
     Net.login(user.id, user.secret).then(r => {
