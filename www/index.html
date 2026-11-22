@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -18,36 +18,37 @@
     <div class="card narrow">
       <img src="icon.png" class="logo" alt="">
       <h1 class="title">SpaceShip</h1>
-      <div class="tabs" id="r-tabs"><button class="tab on" data-rt="new">משתמש חדש</button><button class="tab" data-rt="login">יש לי משתמש</button></div>
+      <button class="chip lang-chip" id="r-lang"></button>
+      <div class="tabs" id="r-tabs"><button class="tab on" data-rt="new"><span data-t="tab_new"></span></button><button class="tab" data-rt="login"><span data-t="tab_have"></span></button></div>
       <div id="r-new" class="col">
-      <p class="muted">צור משתמש כדי להתחיל לטוס</p>
-      <label>השם שלך<input id="r-name" maxlength="24" placeholder="למשל: דני הטייס"></label>
-      <label>שם משתמש ייחודי
+      <p class="muted" data-t="reg_sub"></p>
+      <label><span data-t="your_name"></span><input id="r-name" maxlength="24" data-tp="name_ph"></label>
+      <label><span data-t="unique_handle"></span>
         <div class="handle-input"><span>@</span><input id="r-handle" maxlength="20" dir="ltr" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="dani_pilot"></div>
       </label>
       <div id="r-status" class="status"></div>
-      <div class="lbl">בחר אייקון</div>
+      <div class="lbl" data-t="pick_icon"></div>
       <div id="r-avatars" class="avatar-row"></div>
       <div id="r-cvbanner" class="cv-banner hidden"></div>
-      <button id="r-go" class="btn primary big">יאללה לחלל!</button>
+      <button id="r-go" class="btn primary big" data-t="lets_go"></button>
       </div>
       <div id="r-login" class="col hidden">
         <div id="l-saved"></div>
-        <label>שם המשתמש
+        <label><span data-t="username"></span>
           <div class="handle-input"><span>@</span><input id="l-handle" maxlength="20" dir="ltr" autocapitalize="off" autocomplete="username" spellcheck="false" placeholder="dani_pilot"></div>
         </label>
-        <div class="seg" id="l-method"><button class="on" data-lm="token">עם טוקן</button><button data-lm="email">עם אימייל</button></div>
-        <div id="l-token-box"><label>הטוקן שקיבלת בהרשמה<input id="l-token" dir="ltr" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="SS-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div>
+        <div class="seg" id="l-method"><button class="on" data-lm="token"><span data-t="with_token"></span></button><button data-lm="email"><span data-t="with_email"></span></button></div>
+        <div id="l-token-box"><label><span data-t="token_label"></span><input id="l-token" dir="ltr" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="SS-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div>
         <div id="l-email-box" class="hidden">
-          <label>האימייל שהגדרת<input id="l-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com"></label>
-          <label id="l-code-row" class="hidden">הקוד שנשלח למייל<input id="l-code" inputmode="numeric" maxlength="6" dir="ltr" autocomplete="one-time-code" placeholder="123456"></label>
+          <label><span data-t="email_label"></span><input id="l-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com"></label>
+          <label id="l-code-row" class="hidden"><span data-t="code_label"></span><input id="l-code" inputmode="numeric" maxlength="6" dir="ltr" autocomplete="one-time-code" placeholder="123456"></label>
         </div>
         <div id="l-status" class="status"></div>
-        <button id="l-go" class="btn primary big">כניסה</button>
+        <button id="l-go" class="btn primary big" data-t="login"></button>
       </div>
-      <div class="or"><span>או</span></div>
-      <button id="r-cutvid" class="btn cutvid"><span data-ic="cutvid"></span>התחבר עם חשבון CutVid</button>
-      <button id="r-offline" class="btn ghost hidden">שחק בלי חיבור לשרת</button>
+      <div class="or"><span data-t="or"></span></div>
+      <button id="r-cutvid" class="btn cutvid"><span data-ic="cutvid"></span><span data-t="cutvid_btn"></span></button>
+      <button id="r-offline" class="btn ghost hidden" data-t="play_offline"></button>
     </div>
   </section>
 
@@ -63,100 +64,101 @@
         <h1 class="title">SpaceShip</h1>
       </div>
       <div class="menu-grid">
-        <button class="btn primary big" data-go="levels"><span data-ic="play"></span>שלבים</button>
-        <button class="btn big" data-act="endless"><span data-ic="infinity"></span>מצב אינסופי</button>
-        <button class="btn big coop" data-go="coop"><span data-ic="friends"></span>שחק עם חבר</button>
-        <button class="btn big" data-go="shop"><span data-ic="shop"></span>חנות</button>
-        <button class="btn" data-go="friends"><span data-ic="friends"></span>חברים <i id="m-online" class="badge hidden"></i></button>
-        <button class="btn" data-go="board"><span data-ic="trophy"></span>שיאים</button>
-        <button class="btn big local2 hidden" id="m-local2"><span data-ic="keyboard"></span>2 שחקנים על מחשב אחד</button>
+        <button class="btn primary big" data-go="levels"><span data-ic="play"></span><span data-t="levels"></span></button>
+        <button class="btn big" data-act="endless"><span data-ic="infinity"></span><span data-t="endless"></span></button>
+        <button class="btn big coop" data-go="coop"><span data-ic="friends"></span><span data-t="play_friend"></span></button>
+        <button class="btn big" data-go="shop"><span data-ic="shop"></span><span data-t="shop"></span></button>
+        <button class="btn" data-go="friends"><span data-ic="friends"></span><span data-t="friends"></span> <i id="m-online" class="badge hidden"></i></button>
+        <button class="btn" data-go="board"><span data-ic="trophy"></span><span data-t="records"></span></button>
+        <button class="btn big local2 hidden" id="m-local2"><span data-ic="keyboard"></span><span data-t="local2"></span></button>
       </div>
       <div class="toggles">
         <button class="chip" id="t-orient"></button>
         <button class="chip" id="t-sound"></button>
+        <button class="chip" id="t-lang"></button>
       </div>
-      <div id="m-desk" class="desk-hint hidden">מקלדת WASD / חצים · עכבר · ג'ויסטיק · F11 מסך מלא · P הפסקה</div>
-      <div id="m-offline" class="offline hidden">מצב לא מקוון — <a href="#" id="m-reg">התחבר לשרת</a></div>
+      <div id="m-desk" class="desk-hint hidden" data-t="desk_hint"></div>
+      <div id="m-offline" class="offline hidden"><span data-t="offline_mode"></span> <a href="#" id="m-reg" data-t="connect_server"></a></div>
     </div>
   </section>
 
   <!-- Levels -->
   <section id="s-levels" class="screen">
-    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2>שלבים</h2><div class="coins" data-coins></div></header>
+    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="levels"></h2><div class="coins" data-coins></div></header>
     <div id="lv-grid" class="lv-grid"></div>
   </section>
 
   <!-- Shop -->
   <section id="s-shop" class="screen">
-    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2>חנות</h2><div class="coins" data-coins></div></header>
+    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="shop"></h2><div class="coins" data-coins></div></header>
     <div class="tabs" id="shop-tabs">
-      <button class="tab on" data-tab="ships">חלליות</button>
-      <button class="tab" data-tab="up">שדרוגים</button>
-      <button class="tab" data-tab="avatars">אייקונים</button>
-      <button class="tab gemtab" data-tab="gems"><span data-ic="gem"></span>מיוחדים</button>
+      <button class="tab on" data-tab="ships" data-t="ships"></button>
+      <button class="tab" data-tab="up" data-t="upgrades"></button>
+      <button class="tab" data-tab="avatars" data-t="icons"></button>
+      <button class="tab gemtab" data-tab="gems"><span data-ic="gem"></span><span data-t="special"></span></button>
     </div>
     <div id="shop-list" class="shop-list"></div>
   </section>
 
   <!-- Friends -->
   <section id="s-friends" class="screen">
-    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2>חברים</h2><div></div></header>
+    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="friends"></h2><div></div></header>
     <div class="scroll">
       <div class="card">
-        <div class="lbl">קוד החבר שלך</div>
+        <div class="lbl" data-t="your_friend_code"></div>
         <div class="code-box"><b id="f-mycode" dir="ltr">------</b><button class="icon-btn" id="f-copy"><span data-ic="copy"></span></button><button class="icon-btn" id="f-share"><span data-ic="send"></span></button></div>
-        <p class="muted small">שלח את הקוד לחבר. כשהוא מכניס אותו אתם הופכים לחברים ותוכלו להזמין אחד את השני לשחק — בלי קוד.</p>
+        <p class="muted small" data-t="friend_code_help"></p>
       </div>
       <div class="card">
-        <div class="lbl">הוסף חבר עם קוד</div>
-        <div class="row"><input id="f-code" maxlength="6" dir="ltr" placeholder="ABC123" autocapitalize="characters"><button class="btn primary" id="f-add"><span data-ic="plus"></span>הוסף</button></div>
+        <div class="lbl" data-t="add_friend_code"></div>
+        <div class="row"><input id="f-code" maxlength="6" dir="ltr" placeholder="ABC123" autocapitalize="characters"><button class="btn primary" id="f-add"><span data-ic="plus"></span><span data-t="add"></span></button></div>
         <div id="f-status" class="status"></div>
       </div>
-      <div class="lbl pad">החברים שלי</div>
+      <div class="lbl pad" data-t="my_friends"></div>
       <div id="f-list" class="list"></div>
     </div>
   </section>
 
   <!-- Co-op -->
   <section id="s-coop" class="screen">
-    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2>שחק עם חבר</h2><div></div></header>
+    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="play_friend"></h2><div></div></header>
     <div class="scroll">
       <div id="c-start">
         <div class="card">
-          <h3>צור חדר</h3>
-          <p class="muted small">תקבל קוד חדר — שלח אותו לחבר שלך.</p>
-          <button class="btn primary big" id="c-create">צור חדר חדש</button>
+          <h3 data-t="create_room"></h3>
+          <p class="muted small" data-t="create_room_help"></p>
+          <button class="btn primary big" id="c-create" data-t="create_new_room"></button>
         </div>
         <div class="card">
-          <h3>הצטרף עם קוד</h3>
-          <div class="row"><input id="c-code" maxlength="5" dir="ltr" placeholder="XXXXX" autocapitalize="characters"><button class="btn" id="c-join">הצטרף</button></div>
+          <h3 data-t="join_code"></h3>
+          <div class="row"><input id="c-code" maxlength="5" dir="ltr" placeholder="XXXXX" autocapitalize="characters"><button class="btn" id="c-join" data-t="join"></button></div>
           <div id="c-status" class="status"></div>
         </div>
         <div class="card">
-          <h3>הזמן חבר</h3>
-          <p class="muted small">חברים מחוברים — הזמנה ישירה בלי קוד:</p>
+          <h3 data-t="invite_friend"></h3>
+          <p class="muted small" data-t="online_friends_help"></p>
           <div id="c-friends" class="list"></div>
         </div>
       </div>
       <div id="c-lobby" class="hidden">
         <div class="card center">
-          <div class="lbl">קוד החדר</div>
+          <div class="lbl" data-t="room_code"></div>
           <div class="room-code" id="c-roomcode" dir="ltr"></div>
-          <button class="chip" id="c-copy"><span data-ic="copy"></span>העתק</button>
+          <button class="chip" id="c-copy"><span data-ic="copy"></span><span data-t="copy"></span></button>
           <div class="vs">
             <div class="slot" id="c-slot1"></div>
             <div class="plus">+</div>
             <div class="slot" id="c-slot2"></div>
           </div>
           <div id="c-hostctl">
-            <div class="lbl">בחר משחק</div>
+            <div class="lbl" data-t="choose_game"></div>
             <div class="row center">
               <select id="c-level"></select>
             </div>
-            <button class="btn primary big" id="c-go" disabled>התחל!</button>
+            <button class="btn primary big" id="c-go" disabled data-t="start"></button>
           </div>
-          <p id="c-wait" class="muted hidden">ממתין שהמארח יתחיל...</p>
-          <button class="btn ghost" id="c-leave">צא מהחדר</button>
+          <p id="c-wait" class="muted hidden" data-t="waiting_host"></p>
+          <button class="btn ghost" id="c-leave" data-t="leave_room"></button>
         </div>
       </div>
     </div>
@@ -164,7 +166,7 @@
 
   <!-- Leaderboard -->
   <section id="s-board" class="screen">
-    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2>שיאים — מצב אינסופי</h2><div></div></header>
+    <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="board_title"></h2><div></div></header>
     <div class="scroll"><div id="b-list" class="list"></div></div>
   </section>
 
@@ -172,7 +174,7 @@
   <section id="s-game" class="screen game">
     <canvas id="game"></canvas>
     <button class="icon-btn pause" id="g-pause"><span data-ic="pause"></span></button>
-    <div id="g-rotate" class="rotate-hint hidden"><span data-ic="rotateL"></span>סובב את המכשיר לרוחב</div>
+    <div id="g-rotate" class="rotate-hint hidden"><span data-ic="rotateL"></span><span data-t="rotate_hint"></span></div>
   </section>
 </div>
 
@@ -182,6 +184,7 @@
 
 <script src="vendor/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/art.js"></script>
 <script src="js/net.js"></script>
 <script src="js/game.js"></script>

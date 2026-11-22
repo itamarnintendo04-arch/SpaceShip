@@ -1,19 +1,19 @@
 // Art: ship skins, icons, avatars
 (function () {
   const SHIPS = [
-    { id: 'falcon',  name: 'בז',        price: 0,    shape: 'arrow',   body: '#d7e3ff', accent: '#3b82f6', glow: '#60a5fa' },
-    { id: 'viper',   name: 'צפע',       price: 300,  shape: 'delta',   body: '#bbf7d0', accent: '#16a34a', glow: '#4ade80' },
-    { id: 'nova',    name: 'נובה',      price: 600,  shape: 'arrow',   body: '#fecaca', accent: '#dc2626', glow: '#f87171' },
-    { id: 'saucer',  name: 'צלחת',      price: 900,  shape: 'saucer',  body: '#e9d5ff', accent: '#9333ea', glow: '#c084fc' },
-    { id: 'twin',    name: 'תאומים',    price: 1400, shape: 'twin',    body: '#fde68a', accent: '#ea580c', glow: '#fb923c' },
-    { id: 'phantom', name: 'פנטום',     price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee' },
-    { id: 'dragon',  name: 'דרקון',     price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af' },
-    { id: 'golden',  name: 'זהב',       price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047' },
+    { id: 'falcon',  price: 0,    shape: 'arrow',   body: '#d7e3ff', accent: '#3b82f6', glow: '#60a5fa' },
+    { id: 'viper',   price: 300,  shape: 'delta',   body: '#bbf7d0', accent: '#16a34a', glow: '#4ade80' },
+    { id: 'nova',    price: 600,  shape: 'arrow',   body: '#fecaca', accent: '#dc2626', glow: '#f87171' },
+    { id: 'saucer',  price: 900,  shape: 'saucer',  body: '#e9d5ff', accent: '#9333ea', glow: '#c084fc' },
+    { id: 'twin',    price: 1400, shape: 'twin',    body: '#fde68a', accent: '#ea580c', glow: '#fb923c' },
+    { id: 'phantom', price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee' },
+    { id: 'dragon',  price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af' },
+    { id: 'golden',  price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047' },
     // special ships - bought with diamonds
-    { id: 'phoenix', name: 'פניקס',     gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c', desc: 'כנפי אש בוערות' },
-    { id: 'ghost',   name: 'רוח רפאים', gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc', desc: 'שקופה ומהבהבת' },
-    { id: 'crystal', name: 'קריסטל',    gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9', desc: 'יהלום מעופף' },
-    { id: 'rainbow', name: 'כוכב-על',   gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc', desc: 'מחליפה צבעים כל הזמן' },
+    { id: 'phoenix', gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c' },
+    { id: 'ghost',   gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc' },
+    { id: 'crystal', gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9' },
+    { id: 'rainbow', gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc' },
   ];
 
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
@@ -127,6 +127,7 @@
     cutvid: '<defs><linearGradient id="cvg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f43f5e"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#cvg)"/><circle cx="8" cy="16" r="2.6" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="16" cy="16" r="2.6" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M9.6 14L16 5.5M14.4 14L8 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>',
     google: '<path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 01-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285f4"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0012 22z" fill="#34a853"/><path d="M6.4 14a6 6 0 010-3.9V7.4H3.1a10 10 0 000 9.2z" fill="#fbbc05"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 003.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" fill="#ea4335"/>',
     keyboard: '<rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 10h1M9 10h1M12 10h1M15 10h1M18 10h1M7 14h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    globe: '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 12h19M12 2.5c2.8 3 2.8 16 0 19M12 2.5c-2.8 3-2.8 16 0 19" fill="none" stroke="currentColor" stroke-width="1.6"/>',
     gem: '<path d="M7 3h10l4 6-9 12L3 9z" fill="#22d3ee" stroke="#cffafe" stroke-width="1.2" stroke-linejoin="round"/><path d="M3 9h18M9 3l3 18M15 3l-3 18M7 3l2 6M17 3l-2 6" stroke="#0e7490" stroke-width="1" fill="none"/>',
     secret: '<circle cx="12" cy="12" r="9.5" fill="none" stroke="#c084fc" stroke-width="1.8" stroke-dasharray="3 2.5"/><path d="M12 6.5l1.6 3.6 3.9.4-2.9 2.6.8 3.9L12 15l-3.4 2 .8-3.9-2.9-2.6 3.9-.4z" fill="#c084fc"/>',
     swap: '<path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',

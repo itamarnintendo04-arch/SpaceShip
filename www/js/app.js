@@ -5,10 +5,10 @@
   const GEM_RATE = 10; // 1 diamond = 10 coins
   // special items - bought with diamonds
   const GEM_ITEMS = [
-    { id: 'plasma', name: 'תותח פלזמה', icon: 'plasma', gems: 30, desc: 'היריות עוברות דרך כמה מטאורים' },
-    { id: 'shield2', name: 'מגן כפול', icon: 'shield', gems: 20, desc: '+2 מגנים בתחילת כל משחק' },
-    { id: 'supermag', name: 'מגנט-על', icon: 'magnet', gems: 15, desc: 'מושך מטבעות מכל המסך' },
-    { id: 'goldheart', name: 'לב זהב', icon: 'heart', gems: 35, desc: 'לב נוסף בכל משחק' },
+    { id: 'plasma', icon: 'plasma', gems: 30 },
+    { id: 'shield2', icon: 'shield', gems: 20 },
+    { id: 'supermag', icon: 'magnet', gems: 15 },
+    { id: 'goldheart', icon: 'heart', gems: 35, dkey: 'up_life_d' },
   ];
   const LEVELS = SS_CONFIG.LEVEL_COUNT;
   const Cap = window.Capacitor && window.Capacitor.Plugins || {};
@@ -17,10 +17,10 @@
   const DESKTOP = PLATFORM === 'desktop' || (!NATIVE && matchMedia('(pointer: fine)').matches && innerWidth >= 900);
 
   const UPGRADES = [
-    { id: 'weapon', name: 'תותח', icon: 'gun', desc: 'יותר יריות בכל צרור', base: 1, costs: [250, 600, 1200, 2500] },
-    { id: 'shield', name: 'מגנים', icon: 'shield', desc: 'מגנים בתחילת כל שלב', base: 0, costs: [150, 300, 600, 1000, 1600] },
-    { id: 'magnet', name: 'מגנט', icon: 'magnet', desc: 'מושך מטבעות מרחוק', base: 0, costs: [200, 500, 1000] },
-    { id: 'life', name: 'חיים נוספים', icon: 'heart', desc: 'לב נוסף בכל משחק', base: 0, costs: [800, 2000] },
+    { id: 'weapon', icon: 'gun', base: 1, costs: [250, 600, 1200, 2500] },
+    { id: 'shield', icon: 'shield', base: 0, costs: [150, 300, 600, 1000, 1600] },
+    { id: 'magnet', icon: 'magnet', base: 0, costs: [200, 500, 1000] },
+    { id: 'life', icon: 'heart', base: 0, costs: [800, 2000] },
   ];
 
   // ---------- state ----------
@@ -36,6 +36,22 @@
     if (!user.offline) { clearTimeout(save.t); save.t = setTimeout(() => Net.save(user, user.data, user.data.best).catch(e => console.warn('save', e)), 800); }
   };
   const saveSettings = () => store.set('ss_settings', settings);
+  // language: English by default, the player can switch any time
+  if (!settings.lang) settings.lang = 'en';
+  I18N.set(settings.lang);
+  const langLabel = () => Art.icon('globe') + (I18N.LANGS.find(l => l.id === I18N.lang) || I18N.LANGS[0]).name;
+  function pickLanguage() {
+    modal(`<h2>${Art.icon('globe')} ${t('language')}</h2><div class="lang-grid">${I18N.LANGS.map(l =>
+      `<button class="btn ${l.id === I18N.lang ? 'primary' : ''}" data-lang="${l.id}" dir="${l.dir}">${l.name}</button>`).join('')}</div>
+      <button class="btn ghost" id="lang-x">${t('close')}</button>`, m => {
+      m.querySelector('#lang-x').onclick = closeModal;
+      m.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => {
+        settings.lang = b.dataset.lang; saveSettings(); I18N.set(settings.lang); I18N.apply(); closeModal();
+        $('#r-lang').innerHTML = langLabel();
+        const r = renders[current]; r && r();
+      });
+    });
+  }
   // Login keys saved on this device (one per account) - tap one on the login screen to sign in again.
   const savedAccounts = () => store.get('ss_accounts', []).filter(a => a && a.id && a.secret);
   function rememberAccount(u) {
@@ -59,27 +75,27 @@
   const walletHtml = D => `<span class="wal">${coinHtml(D.coins)}</span><span class="wal gemc">${gemHtml(D.gems || 0)}</span>`;
   const errText = e => {
     const m = (e && e.message) || '';
-    if (m.includes('handle_taken')) return 'שם המשתמש הזה כבר תפוס';
-    if (m.includes('bad_handle')) return 'שם משתמש: 3-20 תווים, אותיות אנגלית קטנות, מספרים, _ או .';
-    if (m.includes('code_not_found')) return 'הקוד לא נמצא';
-    if (m.includes('self')) return 'זה הקוד שלך 🙂';
-    if (m.includes('bad_login')) return '@ או טוקן לא נכונים';
-    if (m.includes('bad_code') || m.includes('code_expired')) return 'הקוד לא נכון או שפג תוקפו';
-    if (m.includes('bad_email')) return 'כתובת אימייל לא תקינה';
-    if (m.includes('email_taken')) return 'האימייל הזה כבר מחובר למשתמש אחר';
-    if (m.includes('email_set')) return 'למשתמש עם אימייל אין טוקן';
-    if (m.includes('too_soon')) return 'חכה חצי דקה ונסה שוב';
-    if (m.includes('smtp_not_configured')) return 'שליחת מיילים עוד לא הוגדרה בשרת';
-    if (m.includes('send_failed')) return 'לא הצלחנו לשלוח מייל, נסה שוב';
-    if (m.includes('oauth_not_configured')) return 'ההתחברות עם CutVid עוד לא הופעלה';
-    if (m.includes('oauth_denied')) return 'ביטלת את ההתחברות עם CutVid';
-    if (m.includes('oauth_failed')) return 'ההתחברות עם CutVid נכשלה, נסה שוב';
-    if (m.includes('cutvid_unauthorized')) return 'ההתחברות ל-CutVid פגה, נסה שוב';
-    if (m.includes('already_linked')) return 'חשבון ה-CutVid הזה כבר מחובר למשתמש אחר';
-    if (m.includes('unauthorized')) return 'שגיאת התחברות';
-    return 'אין חיבור לשרת';
+    if (m.includes('handle_taken')) return t('e_handle_taken');
+    if (m.includes('bad_handle')) return t('e_bad_handle');
+    if (m.includes('code_not_found')) return t('e_code_not_found');
+    if (m.includes('self')) return t('e_self');
+    if (m.includes('bad_login')) return t('e_bad_login');
+    if (m.includes('bad_code') || m.includes('code_expired')) return t('e_bad_code');
+    if (m.includes('bad_email')) return t('e_bad_email');
+    if (m.includes('email_taken')) return t('e_email_taken');
+    if (m.includes('email_set')) return t('e_email_set');
+    if (m.includes('too_soon')) return t('e_too_soon');
+    if (m.includes('smtp_not_configured')) return t('e_smtp');
+    if (m.includes('send_failed')) return t('e_send_failed');
+    if (m.includes('oauth_not_configured')) return t('e_oauth_off');
+    if (m.includes('oauth_denied')) return t('e_oauth_denied');
+    if (m.includes('oauth_failed')) return t('e_oauth_failed');
+    if (m.includes('cutvid_unauthorized')) return t('e_cutvid_expired');
+    if (m.includes('already_linked')) return t('e_already_linked');
+    if (m.includes('unauthorized')) return t('e_unauthorized');
+    return t('e_offline');
   };
-  function copy(text) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('הועתק!'), () => toast(text)); }
+  function copy(text) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast(t('copied')), () => toast(text)); }
   function share(text) { if (Cap.Share) return Cap.Share.share({ text }); if (navigator.share) return navigator.share({ text }).catch(() => {}); copy(text); }
 
   // ---------- navigation ----------
@@ -133,7 +149,7 @@
     $('#r-avatars').innerHTML = free.map(a => `<button data-av="${a.id}" class="${a.id === regAvatar ? 'on' : ''}">${Art.avatar(a.id)}</button>`).join('');
     if (user && user.offline && !$('#r-handle').value) { $('#r-name').value = user.name; $('#r-handle').value = user.handle; checkHandle(); }
     $('#r-cvbanner').classList.toggle('hidden', !cvPending);
-    if (cvPending) $('#r-cvbanner').innerHTML = `${Art.icon('cutvid')} מחובר ל-CutVid: <b dir="ltr">${esc(cvPending.email)}</b><br>בחר שם ושם משתמש ל-SpaceShip`;
+    if (cvPending) $('#r-cvbanner').innerHTML = `${Art.icon('cutvid')} ${t('cv_connected')} <b dir="ltr">${esc(cvPending.email)}</b><br>${t('cv_pick')}`;
     $('#r-cutvid').classList.toggle('hidden', !!cvPending);
   }
   $('#r-avatars').addEventListener('click', e => { const b = e.target.closest('[data-av]'); if (!b) return; regAvatar = b.dataset.av; renderRegister(); });
@@ -143,18 +159,18 @@
   });
   async function checkHandle() {
     const h = $('#r-handle').value, st = $('#r-status'); handleOk = false;
-    if (h.length < 3) { st.className = 'status'; st.textContent = h ? 'לפחות 3 תווים' : ''; return; }
-    st.className = 'status'; st.textContent = 'בודק...';
+    if (h.length < 3) { st.className = 'status'; st.textContent = h ? t('min3') : ''; return; }
+    st.className = 'status'; st.textContent = t('checking');
     try {
       const ok = await Net.handleAvailable(h);
       if ($('#r-handle').value !== h) return;
-      handleOk = ok; st.className = 'status ' + (ok ? 'ok' : 'err'); st.textContent = ok ? '✓ ' + at(h) + ' פנוי!' : '✗ ' + at(h) + ' כבר תפוס';
-    } catch (e) { st.className = 'status err'; st.textContent = 'אין חיבור לשרת'; $('#r-offline').classList.remove('hidden'); }
+      handleOk = ok; st.className = 'status ' + (ok ? 'ok' : 'err'); st.textContent = ok ? '✓ ' + t('h_free', { h: at(h) }) : '✗ ' + t('h_taken', { h: at(h) });
+    } catch (e) { st.className = 'status err'; st.textContent = t('e_offline'); $('#r-offline').classList.remove('hidden'); }
   }
   $('#r-go').addEventListener('click', async () => {
     Sfx.init();
     const name = $('#r-name').value.trim(), h = $('#r-handle').value.trim(), st = $('#r-status');
-    if (!name) { st.className = 'status err'; st.textContent = 'כתוב את השם שלך'; return; }
+    if (!name) { st.className = 'status err'; st.textContent = t('write_name'); return; }
     if (!/^[a-z0-9_.]{3,20}$/.test(h)) { st.className = 'status err'; st.textContent = errText({ message: 'bad_handle' }); return; }
     $('#r-go').disabled = true;
     try {
@@ -162,7 +178,7 @@
       const data = user && user.offline ? user.data : defData();
       user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, has_token: !!r.token };
       cvPending = null;
-      save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast('ברוך הבא ' + at(r.handle) + '!');
+      save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast(t('welcome', { h: at(r.handle) }));
       if (r.token) showToken(r.token, true);
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
@@ -189,7 +205,7 @@
     Sfx.init();
     const redirect = window.SSDesktop || NATIVE ? SS_CONFIG.OAUTH_APP_REDIRECT : webRedirect();
     store.set('ss_cv_intent', intent);
-    toast('פותח את CutVid…');
+    toast(t('opening_cutvid'));
     try {
       const token = await Net.cutvidOAuth(openCutvid, redirect);
       if (token) await (intent === 'link' ? cutvidLink(token, '') : cutvidLogin(token, ''));
@@ -205,7 +221,7 @@
   }
   async function cutvidLink(token, email) {
     const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
-    user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast('החשבון קושר ל-CutVid ✓');
+    user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast(t('cv_linked'));
   }
   $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
 
@@ -214,7 +230,7 @@
     user = Object.assign({ id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code,
       email: r.email || null, has_token: !!r.has_token, data: Object.assign(defData(), r.data || {}) }, extra || {});
     store.set('ss_user', user); rememberAccount(user); Net.stopPresence(); afterLogin();
-    closeModal(); history = []; show('menu'); toast('ברוך הבא ' + at(r.handle) + '! ההתקדמות סונכרנה');
+    closeModal(); history = []; show('menu'); toast(t('welcome_sync', { h: at(r.handle) }));
   }
   let loginMethod = 'token', codeSent = false;
   $('#r-tabs').addEventListener('click', e => {
@@ -228,18 +244,18 @@
     loginMethod = b.dataset.lm; codeSent = false;
     $$('#l-method button').forEach(x => x.classList.toggle('on', x === b));
     $('#l-token-box').classList.toggle('hidden', loginMethod !== 'token'); $('#l-email-box').classList.toggle('hidden', loginMethod !== 'email');
-    $('#l-code-row').classList.add('hidden'); $('#l-go').textContent = loginMethod === 'email' ? 'שלח לי קוד' : 'כניסה'; $('#l-status').textContent = '';
+    $('#l-code-row').classList.add('hidden'); $('#l-go').textContent = loginMethod === 'email' ? t('send_code') : t('login'); $('#l-status').textContent = '';
   });
   $('#l-handle').addEventListener('input', e => { const v = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''); if (v !== e.target.value) e.target.value = v; });
   function renderSaved() {
     const list = savedAccounts();
-    $('#l-saved').innerHTML = list.length ? `<div class="lbl">מפתחות התחברות שמורים במכשיר</div><div class="saved-acc">${list.map(a =>
-      `<button class="person" data-acc="${esc(a.id)}"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><small>@${esc(a.handle)}</small></div><span class="chip">כניסה</span></button>`).join('')}</div><div class="or"><span>או</span></div>` : '';
+    $('#l-saved').innerHTML = list.length ? `<div class="lbl">${t('saved_keys')}</div><div class="saved-acc">${list.map(a =>
+      `<button class="person" data-acc="${esc(a.id)}"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><small>@${esc(a.handle)}</small></div><span class="chip">${t('login')}</span></button>`).join('')}</div><div class="or"><span>${t('or')}</span></div>` : '';
   }
   $('#l-saved').addEventListener('click', async e => {
     const b = e.target.closest('[data-acc]'); if (!b) return;
     const a = savedAccounts().find(x => x.id === b.dataset.acc); const st = $('#l-status');
-    st.className = 'status'; st.textContent = 'מתחבר...';
+    st.className = 'status'; st.textContent = t('connecting');
     try { const r = await Net.login(a.id, a.secret); finishLogin(Object.assign(r, { secret: a.secret })); }
     catch (er) {
       st.className = 'status err'; st.textContent = errText(er);
@@ -249,8 +265,8 @@
   $('#l-go').addEventListener('click', async () => {
     Sfx.init();
     const h = $('#l-handle').value.trim(), st = $('#l-status'), btn = $('#l-go');
-    if (h.length < 3) { st.className = 'status err'; st.textContent = 'כתוב את שם המשתמש (@)'; return; }
-    btn.disabled = true; st.className = 'status'; st.textContent = 'רגע...';
+    if (h.length < 3) { st.className = 'status err'; st.textContent = t('write_handle'); return; }
+    btn.disabled = true; st.className = 'status'; st.textContent = t('wait');
     try {
       if (loginMethod === 'token') {
         const t = $('#l-token').value.trim();
@@ -259,9 +275,9 @@
       } else if (!codeSent) {
         const em = $('#l-email').value.trim();
         if (!/^\S+@\S+\.\S+$/.test(em)) throw new Error('bad_email');
-        await Net.emailLoginStart(h, em);
-        codeSent = true; $('#l-code-row').classList.remove('hidden'); btn.textContent = 'כניסה';
-        st.className = 'status ok'; st.textContent = 'אם @ והאימייל מתאימים — שלחנו קוד למייל'; $('#l-code').focus();
+        await Net.emailLoginStart(h, em, I18N.lang);
+        codeSent = true; $('#l-code-row').classList.remove('hidden'); btn.textContent = t('login');
+        st.className = 'status ok'; st.textContent = t('code_sent_maybe'); $('#l-code').focus();
       } else {
         const r = await Net.emailLoginConfirm(h, $('#l-code').value.trim());
         if (!r || r.error) throw new Error('bad_code');
@@ -273,13 +289,13 @@
 
   // The login token is shown in full only here. It signs in on other devices together with the @handle.
   function showToken(token, first) {
-    modal(`<h2>${first ? 'הטוקן הסודי שלך' : 'טוקן חדש'}</h2>
-      <p class="muted small">כדי להיכנס למשתמש <b dir="ltr">@${esc(user.handle)}</b> ממכשיר אחר מזינים את ה-@ ואת הטוקן. ההתקדמות מסתנכרנת אוטומטית.</p>
+    modal(`<h2>${first ? t('token_first') : t('token_new')}</h2>
+      <p class="muted small">${t('token_help', { h: `<b dir="ltr">@${esc(user.handle)}</b>` })}</p>
       <div class="token-box" id="t-val">${esc(token)}</div>
-      <div class="row center"><button class="chip" id="t-copy">${Art.icon('copy')}העתק</button><button class="chip" id="t-share">${Art.icon('send')}שתף</button><button class="chip" id="t-file">שמור כקובץ</button></div>
-      <div class="warn">⚠️ שמור אותו במקום בטוח (מנהל סיסמאות, צילום מסך, פתק). לא נוכל להציג אותו שוב, ומי שיש לו את הטוקן יכול להיכנס למשתמש.${first ? '<br>רוצה בלי טוקן? הגדר אימייל בפרופיל.' : ''}</div>
-      <label class="check"><input type="checkbox" id="t-ok"> שמרתי את הטוקן</label>
-      <button class="btn primary" id="t-done" disabled>המשך</button>`, m => {
+      <div class="row center"><button class="chip" id="t-copy">${Art.icon('copy')}${t('copy')}</button><button class="chip" id="t-share">${Art.icon('send')}${t('share')}</button><button class="chip" id="t-file">${t('save_file')}</button></div>
+      <div class="warn">${t('token_warn')}${first ? '<br>' + t('token_warn_email') : ''}</div>
+      <label class="check"><input type="checkbox" id="t-ok"> ${t('saved_token')}</label>
+      <button class="btn primary" id="t-done" disabled>${t('continue')}</button>`, m => {
       const text = `SpaceShip\n@${user.handle}\n${token}`;
       m.querySelector('#t-copy').onclick = () => copy(token);
       m.querySelector('#t-share').onclick = () => share(text);
@@ -290,7 +306,7 @@
   }
 
   $('#r-offline').addEventListener('click', () => {
-    const name = $('#r-name').value.trim() || 'טייס', h = $('#r-handle').value.trim() || 'pilot';
+    const name = $('#r-name').value.trim() || t('pilot'), h = $('#r-handle').value.trim() || 'pilot';
     user = user || { id: 'local-' + Math.random().toString(36).slice(2), handle: h, name, avatar: regAvatar, offline: true, data: defData() };
     Object.assign(user, { name, handle: h, avatar: regAvatar, offline: true }); save(); show('menu'); history = [];
   });
@@ -299,67 +315,70 @@
   function renderMenu() {
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
     $('#m-coins').innerHTML = walletHtml(user.data);
-    $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + 'מצב: לרוחב' : Art.icon('rotate') + 'מצב: לאורך';
-    $('#t-sound').innerHTML = settings.sound ? Art.icon('sound') + 'צליל' : Art.icon('mute') + 'מושתק';
+    $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
+    $('#t-lang').innerHTML = langLabel();
+    $('#t-sound').innerHTML = settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted');
     $('#m-offline').classList.toggle('hidden', !user.offline);
     $('#m-local2').classList.toggle('hidden', !DESKTOP); $('#m-desk').classList.toggle('hidden', !DESKTOP);
     updateOnlineBadge();
   }
   $('#m-me').addEventListener('click', () => editProfile());
   $('#m-local2').addEventListener('click', () => {
-    const L = user.data.levels; let o = '<option value="endless">מצב אינסופי</option>';
-    for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">שלב ${n}${levelCfg(n).boss ? ' (בוס)' : ''}</option>`;
-    modal(`<h2>2 שחקנים</h2>
-      <div class="vs"><div class="slot"><div class="avatar">${Art.avatar(user.avatar)}</div><b>${esc(user.name)}</b><small>WASD / ג'ויסטיק 1</small></div><div class="plus">+</div>
-      <div class="slot"><div class="avatar">${Art.avatar('alien')}</div><b>שחקן 2</b><small>חצים / ג'ויסטיק 2</small></div></div>
-      <select id="l2-lv">${o}</select><button class="btn primary big" id="l2-go">התחל!</button><button class="btn ghost" id="l2-x">ביטול</button>`, m => {
+    const L = user.data.levels; let o = `<option value="endless">${t('endless')}</option>`;
+    for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">${t('level_n', { n })}${levelCfg(n).boss ? ' ' + t('boss_tag') : ''}</option>`;
+    modal(`<h2>${t('two_players')}</h2>
+      <div class="vs"><div class="slot"><div class="avatar">${Art.avatar(user.avatar)}</div><b>${esc(user.name)}</b><small>${t('wasd_pad1')}</small></div><div class="plus">+</div>
+      <div class="slot"><div class="avatar">${Art.avatar('alien')}</div><b>${t('player2')}</b><small>${t('arrows_pad2')}</small></div></div>
+      <select id="l2-lv">${o}</select><button class="btn primary big" id="l2-go">${t('start')}</button><button class="btn ghost" id="l2-x">${t('cancel')}</button>`, m => {
       m.querySelector('#l2-x').onclick = closeModal;
       m.querySelector('#l2-go').onclick = () => { const v = m.querySelector('#l2-lv').value; startGame(v === 'endless' ? { mode: 'endless', local2: true } : { mode: 'level', level: +v, local2: true }); };
     });
   });
-  $('#t-orient').addEventListener('click', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); renderMenu(); toast(settings.orientation === 'landscape' ? 'החללית תטוס ימינה — לרוחב' : 'החללית תטוס למעלה — לאורך'); });
+  $('#t-orient').addEventListener('click', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); renderMenu(); toast(settings.orientation === 'landscape' ? t('toast_land') : t('toast_port')); });
   $('#t-sound').addEventListener('click', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); renderMenu(); });
+  $('#t-lang').addEventListener('click', pickLanguage);
+  $('#r-lang').addEventListener('click', pickLanguage);
   $('#m-reg').addEventListener('click', e => { e.preventDefault(); show('register'); });
   function editProfile() {
-    modal(`<h2>הפרופיל שלי</h2><div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(user.avatar)}</div>
+    modal(`<h2>${t('profile')}</h2><div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(user.avatar)}</div>
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
-      <label>שם<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
-      <p class="muted small">שם המשתמש (@) ייחודי וקבוע. אייקונים נוספים — בחנות.</p>
-      ${user.offline ? '' : `<div class="sec"><h3>התחברות ממכשירים אחרים</h3>${user.email
-        ? `<div class="small">אימייל: <b dir="ltr">${esc(user.email)}</b><br><span class="muted">נכנסים עם @ ואימייל (קוד נשלח למייל). אין טוקן.</span></div><button class="btn small" id="p-em-rm">הסר אימייל וחזור לטוקן</button>`
-        : `<div class="small muted">נכנסים עם @ והטוקן הסודי. רוצה בלי טוקן? הגדר אימייל.</div>
-           <div class="row"><input id="p-email" type="email" dir="ltr" placeholder="you@gmail.com"><button class="btn small" id="p-em-send">שלח קוד</button></div>
-           <div class="row hidden" id="p-em-code-row"><input id="p-em-code" inputmode="numeric" maxlength="6" dir="ltr" placeholder="123456"><button class="btn small primary" id="p-em-ok">אמת</button></div>
+      <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
+      <p class="muted small">${t('handle_note')}</p>
+      ${user.offline ? '' : `<div class="sec"><h3>${t('other_devices')}</h3>${user.email
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
+        : `<div class="small muted">${t('token_mode')}</div>
+           <div class="row"><input id="p-email" type="email" dir="ltr" placeholder="you@gmail.com"><button class="btn small" id="p-em-send">${t('send_code_short')}</button></div>
+           <div class="row hidden" id="p-em-code-row"><input id="p-em-code" inputmode="numeric" maxlength="6" dir="ltr" placeholder="123456"><button class="btn small primary" id="p-em-ok">${t('verify')}</button></div>
            <div class="status" id="p-em-st"></div>
-           <button class="btn small" id="p-tok">צור טוקן חדש</button>`}</div>`}
-      ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} מקושר ל-CutVid: <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}קשר חשבון CutVid</button>`}
-      <button class="btn primary" id="p-save">שמור</button>${user.offline ? '' : '<button class="btn ghost" id="p-out">התנתק מהמכשיר</button>'}<button class="btn ghost" id="p-x">סגור</button>`, m => {
+           <button class="btn small" id="p-tok">${t('new_token')}</button>`}</div>`}
+      ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} ${t('linked_cutvid')} <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}${t('link_cutvid')}</button>`}
+      <button class="btn primary" id="p-save">${t('save')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       const st = m.querySelector('#p-em-st');
       const say = (t, ok) => { if (st) { st.className = 'status ' + (ok ? 'ok' : 'err'); st.textContent = t; } else toast(t); };
       on('#p-em-send', async () => {
         const em = m.querySelector('#p-email').value.trim();
         if (!/^\S+@\S+\.\S+$/.test(em)) return say(errText({ message: 'bad_email' }));
-        try { await Net.emailSetStart(user, em); m.querySelector('#p-em-code-row').classList.remove('hidden'); say('שלחנו קוד ל-' + em, true); }
+        try { await Net.emailSetStart(user, em, I18N.lang); m.querySelector('#p-em-code-row').classList.remove('hidden'); say(t('code_sent_to', { e: em }), true); }
         catch (e) { say(errText(e)); }
       });
       on('#p-em-ok', async () => {
         try {
           const em = await Net.emailSetConfirm(user, m.querySelector('#p-em-code').value.trim());
           if (!em) return say(errText({ message: 'bad_code' }));
-          user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast('האימייל נשמר — מעכשיו נכנסים עם @ ואימייל, והטוקן בוטל', 4000);
+          user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast(t('email_saved'), 4000);
         } catch (e) { say(errText(e)); }
       });
       on('#p-em-rm', async () => {
-        if (!confirm('להסיר את האימייל? תקבל טוקן חדש להתחברות.')) return;
+        if (!confirm(t('confirm_rm_email'))) return;
         try { const t = await Net.emailRemove(user); user.email = null; user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
       });
       on('#p-tok', async () => {
-        if (!confirm('ליצור טוקן חדש? הטוקן הקודם יפסיק לעבוד.')) return;
+        if (!confirm(t('confirm_new_token'))) return;
         try { const t = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
       });
       on('#p-out', () => {
-        if (!confirm('להתנתק? מפתח ההתחברות נשאר שמור במכשיר, ואפשר להיכנס שוב מ"יש לי משתמש".')) return;
+        if (!confirm(t('confirm_signout'))) return;
         Net.stopPresence(); user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
         $('#r-tabs [data-rt="login"]').click();
       });
@@ -375,22 +394,22 @@
     const L = user.data.levels; let html = '';
     for (let n = 1; n <= LEVELS; n++) {
       const stars = L[n] || 0, unlocked = n === 1 || L[n - 1] > 0, next = unlocked && !stars;
-      html += `<button class="lv ${levelCfg(n).boss ? 'boss' : ''} ${unlocked ? '' : 'locked'} ${next ? 'next' : ''}" data-lv="${n}" ${unlocked ? '' : 'disabled'}>
+      html += `<button data-bl="${t('hud_boss').replace(/[!！]/g, '')}" class="lv ${levelCfg(n).boss ? 'boss' : ''} ${unlocked ? '' : 'locked'} ${next ? 'next' : ''}" data-lv="${n}" ${unlocked ? '' : 'disabled'}>
         ${unlocked ? `<b>${n}</b><div class="stars">${[1, 2, 3].map(i => Art.icon(i <= stars ? 'star' : 'starOff')).join('')}</div>` : Art.icon('lock')}</button>`;
     }
     // secret worlds
     const D = user.data;
-    html += `<div class="sw-head">${Art.icon('secret')} עולמות סודיים <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
+    html += `<div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
     WORLDS.forEach((w, i) => {
       const wn = i + 1;
       if (!D.worlds.includes(w.id)) {
-        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} עולם סודי ???</div><div class="w-hint">רמז: ${w.hint}</div></div>`;
+        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} ${t('secret_world_q')}</div><div class="w-hint">${t('hint')} ${t(w.id + '_hint')}</div></div>`;
         return;
       }
-      html += `<div class="world" style="--h:${w.hue}"><div class="w-title">${Art.icon('secret')} ${w.name}</div><div class="w-levels">` +
+      html += `<div class="world" style="--h:${w.hue}"><div class="w-title">${Art.icon('secret')} ${t(w.id + '_name')}</div><div class="w-levels">` +
         [1, 2, 3].map(k => {
           const key = wn + '-' + k, st = D.slevels[key] || 0, open = k === 1 || D.slevels[wn + '-' + (k - 1)] > 0;
-          return `<button class="lv sl ${open ? '' : 'locked'} ${k === 3 ? 'boss' : ''}" data-sw="${wn}" data-sk="${k}" ${open ? '' : 'disabled'}>
+          return `<button data-bl="${t('hud_boss').replace(/[!！]/g, '')}" class="lv sl ${open ? '' : 'locked'} ${k === 3 ? 'boss' : ''}" data-sw="${wn}" data-sk="${k}" ${open ? '' : 'disabled'}>
             ${open ? `<b>${wn}-${k}</b><div class="stars">${[1, 2, 3].map(j => Art.icon(j <= st ? 'star' : 'starOff')).join('')}</div>
             <span class="gem-r">${st ? '✓' : gemHtml(w.gems[k - 1])}</span>` : Art.icon('lock')}</button>`;
         }).join('') + `</div></div>`;
@@ -412,73 +431,73 @@
     if (shopTab === 'gems') {
       const g = D.gems || 0;
       html = `<div class="conv">
-        <h3>${Art.icon('swap')} המרת יהלומים למטבעות</h3>
-        <div class="conv-rate">${gemHtml(1)} = ${coinHtml(GEM_RATE)} <span class="muted">· כל המרה כפול ${GEM_RATE}</span></div>
-        <div class="conv-have">יש לך <b>${g}</b> יהלומים · מקסימום להמרה: <b>${g}</b> יהלומים = <b>${(g * GEM_RATE).toLocaleString()}</b> מטבעות</div>
+        <h3>${Art.icon('swap')} ${t('convert_title')}</h3>
+        <div class="conv-rate">${gemHtml(1)} = ${coinHtml(GEM_RATE)} <span class="muted">· ${t('per_conv', { n: GEM_RATE })}</span></div>
+        <div class="conv-have">${t('gems_have', { g: `<b>${g}</b>`, c: `<b>${(g * GEM_RATE).toLocaleString()}</b>` })}</div>
         <div class="row center conv-ctl"><button class="icon-btn" data-cv="-1" ${g ? '' : 'disabled'}>−</button>
           <input id="cv-n" type="number" min="1" max="${g}" value="${Math.min(1, g)}" ${g ? '' : 'disabled'}>
-          <button class="icon-btn" data-cv="1" ${g ? '' : 'disabled'}>+</button><button class="chip" data-cv="max" ${g ? '' : 'disabled'}>מקסימום</button></div>
-        <div class="conv-out" id="cv-out">${g ? `תקבל ${coinHtml(GEM_RATE)}` : 'אין לך יהלומים עדיין — מסיימים שלבים בעולמות הסודיים כדי להשיג'}</div>
-        <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>המר</button></div>`;
-      html += `<div class="sh-sec">${Art.icon('gem')} חלליות מיוחדות</div>` + Art.SHIPS.filter(s => s.gems).map(s => {
+          <button class="icon-btn" data-cv="1" ${g ? '' : 'disabled'}>+</button><button class="chip" data-cv="max" ${g ? '' : 'disabled'}>${t('max')}</button></div>
+        <div class="conv-out" id="cv-out">${g ? `${t('you_get')} ${coinHtml(GEM_RATE)}` : t('no_gems')}</div>
+        <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>${t('convert')}</button></div>`;
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems).map(s => {
         const own = D.ships.includes(s.id), eq = D.skin === s.id;
-        return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.name}</b><small>${s.desc}</small>
-          ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-equip="${s.id}">השתמש</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
+        return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>
+          ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
       }).join('');
-      html += `<div class="sh-sec">${Art.icon('gem')} כוחות מיוחדים</div>` + GEM_ITEMS.map(it => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_powers')}</div>` + GEM_ITEMS.map(it => {
         const own = D.items.includes(it.id);
-        return `<div class="item special"><div class="pic">${Art.icon(it.icon)}</div><b>${it.name}</b><small>${it.desc}</small>
-          ${own ? '<button class="btn small" disabled>יש לך ✓</button>' : `<button class="btn small gem" data-gitem="${it.id}" ${g < it.gems ? 'disabled' : ''}>${gemHtml(it.gems)}</button>`}</div>`;
+        return `<div class="item special"><div class="pic">${Art.icon(it.icon)}</div><b>${t('it_' + it.id)}</b><small>${t(it.dkey || 'it_' + it.id + '_d')}</small>
+          ${own ? `<button class="btn small" disabled>${t('owned')}</button>` : `<button class="btn small gem" data-gitem="${it.id}" ${g < it.gems ? 'disabled' : ''}>${gemHtml(it.gems)}</button>`}</div>`;
       }).join('');
-      html += `<div class="sh-sec">${Art.icon('gem')} אייקונים מיוחדים</div>` + Art.AVATARS.filter(a => a.gems).map(a => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_icons')}</div>` + Art.AVATARS.filter(a => a.gems).map(a => {
         const own = D.avatars.includes(a.id), eq = user.avatar === a.id;
         return `<div class="item special ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
-          ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-av-eq="${a.id}">השתמש</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
+          ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
     else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
-      return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.name}</b>
-        ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-equip="${s.id}">השתמש</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
+      return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>
+        ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
     }).join('');
     else if (shopTab === 'up') html = UPGRADES.map(u => {
       const lvl = D.up[u.id] || u.base, i = lvl - u.base, max = i >= u.costs.length, cost = u.costs[i];
-      return `<div class="item"><div class="pic">${Art.icon(u.icon)}</div><b>${u.name}</b><small>${u.desc}</small>
+      return `<div class="item"><div class="pic">${Art.icon(u.icon)}</div><b>${t('up_' + u.id)}</b><small>${t('up_' + u.id + '_d')}</small>
         <div class="pips">${u.costs.map((_, j) => `<i class="${j < i ? 'on' : ''}"></i>`).join('')}</div>
-        ${max ? '<button class="btn small" disabled>מקסימום ✓</button>' : `<button class="btn small gold" data-up="${u.id}" ${D.coins < cost ? 'disabled' : ''}>${coinHtml(cost)}</button>`}</div>`;
+        ${max ? `<button class="btn small" disabled>${t('maxed')}</button>` : `<button class="btn small gold" data-up="${u.id}" ${D.coins < cost ? 'disabled' : ''}>${coinHtml(cost)}</button>`}</div>`;
     }).join('');
     else html = Art.AVATARS.filter(a => !a.gems).map(a => {
       const own = a.price === 0 || D.avatars.includes(a.id), eq = user.avatar === a.id;
       return `<div class="item ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
-        ${eq ? '<button class="btn small" disabled>בשימוש ✓</button>' : own ? `<button class="btn small" data-av-eq="${a.id}">השתמש</button>` : `<button class="btn small gold" data-buy-av="${a.id}" ${D.coins < a.price ? 'disabled' : ''}>${coinHtml(a.price)}</button>`}</div>`;
+        ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-av="${a.id}" ${D.coins < a.price ? 'disabled' : ''}>${coinHtml(a.price)}</button>`}</div>`;
     }).join('');
     $('#shop-list').innerHTML = html;
     const n = $('#cv-n');
-    if (n) n.oninput = () => { const g = D.gems || 0; let v = Math.max(1, Math.min(g, Math.floor(+n.value || 1))); $('#cv-out').innerHTML = `תקבל ${coinHtml(v * GEM_RATE)}`; };
+    if (n) n.oninput = () => { const g = D.gems || 0; let v = Math.max(1, Math.min(g, Math.floor(+n.value || 1))); $('#cv-out').innerHTML = `${t('you_get')} ${coinHtml(v * GEM_RATE)}`; };
   }
   $('#shop-list').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return; const D = user.data;
-    const pay = c => { if (D.coins < c) { toast('אין מספיק מטבעות'); return false; } D.coins -= c; Sfx.init(); Sfx.coin(); return true; };
-    const payGems = c => { if ((D.gems || 0) < c) { toast('אין מספיק יהלומים'); return false; } D.gems -= c; Sfx.init(); Sfx.power(); return true; };
+    const pay = c => { if (D.coins < c) { toast(t('not_enough_coins')); return false; } D.coins -= c; Sfx.init(); Sfx.coin(); return true; };
+    const payGems = c => { if ((D.gems || 0) < c) { toast(t('not_enough_gems')); return false; } D.gems -= c; Sfx.init(); Sfx.power(); return true; };
     if (b.dataset.cv) {
       const n = $('#cv-n'), g = D.gems || 0; let v = Math.floor(+n.value || 1);
       v = b.dataset.cv === 'max' ? g : v + +b.dataset.cv; v = Math.max(1, Math.min(g, v));
-      n.value = v; $('#cv-out').innerHTML = `תקבל ${coinHtml(v * GEM_RATE)}`; return;
+      n.value = v; $('#cv-out').innerHTML = `${t('you_get')} ${coinHtml(v * GEM_RATE)}`; return;
     }
     if (b.id === 'cv-go') {
       const g = D.gems || 0, v = Math.max(1, Math.min(g, Math.floor(+$('#cv-n').value || 1)));
       if (!g) return;
-      D.gems -= v; D.coins += v * GEM_RATE; Sfx.init(); Sfx.coin(); toast(`המרת ${v} יהלומים ל-${(v * GEM_RATE).toLocaleString()} מטבעות!`);
+      D.gems -= v; D.coins += v * GEM_RATE; Sfx.init(); Sfx.coin(); toast(t('converted', { g: v, c: (v * GEM_RATE).toLocaleString() }));
       save(); renderShop(); return;
     }
-    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast('חללית מיוחדת: ' + s.name + '!'); save(); return renderShop(); }
-    if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(it.name + ' — שלך!'); save(); return renderShop(); }
-    if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast('אייקון מיוחד!'); save(); return renderShop(); }
+    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); return renderShop(); }
+    if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(t('item_yours', { x: t('it_' + it.id) })); save(); return renderShop(); }
+    if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('special_icon')); save(); return renderShop(); }
     if (b.dataset.equip) D.skin = b.dataset.equip;
-    else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast('קנית את ' + s.name + '!'); }
-    else if (b.dataset.up) { const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base; if (!pay(u.costs[lvl - u.base])) return; D.up[u.id] = lvl + 1; toast(u.name + ' שודרג!'); }
+    else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast(t('bought', { x: t('ship_' + s.id) })); }
+    else if (b.dataset.up) { const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base; if (!pay(u.costs[lvl - u.base])) return; D.up[u.id] = lvl + 1; toast(t('upgraded', { x: t('up_' + u.id) })); }
     else if (b.dataset.avEq) user.avatar = b.dataset.avEq;
-    else if (b.dataset.buyAv) { const a = Art.AVATARS.find(x => x.id === b.dataset.buyAv); if (!pay(a.price)) return; D.avatars.push(a.id); user.avatar = a.id; toast('אייקון חדש!'); }
+    else if (b.dataset.buyAv) { const a = Art.AVATARS.find(x => x.id === b.dataset.buyAv); if (!pay(a.price)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('new_icon')); }
     save(); renderShop();
   });
 
@@ -492,7 +511,7 @@
   }
   function updateOnlineBadge() { const n = friends.filter(f => Net.isOnline(f.id)).length; const b = $('#m-online'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n); }
   function renderFriends() {
-    if (user.offline) { $('#f-mycode').textContent = '------'; $('#f-list').innerHTML = '<div class="empty">צריך להתחבר לשרת כדי להוסיף חברים</div>'; return; }
+    if (user.offline) { $('#f-mycode').textContent = '------'; $('#f-list').innerHTML = `<div class="empty">${t('need_server_friends')}</div>`; return; }
     $('#f-mycode').textContent = user.friend_code; renderFriendsList(); loadFriends();
   }
   function personRow(f, actions) {
@@ -501,31 +520,31 @@
   }
   function renderFriendsList() {
     $('#f-list').innerHTML = friends.length ? friends.map(f => personRow(f, (f, on) =>
-      `<button class="btn small ${on ? 'primary' : ''}" data-invite="${f.id}" ${on ? '' : 'disabled'}>הזמן</button><button class="icon-btn" data-rm="${f.id}">${Art.icon('x')}</button>`)).join('')
-      : '<div class="empty">עוד אין לך חברים. שתף את הקוד שלך!</div>';
+      `<button class="btn small ${on ? 'primary' : ''}" data-invite="${f.id}" ${on ? '' : 'disabled'}>${t('invite')}</button><button class="icon-btn" data-rm="${f.id}">${Art.icon('x')}</button>`)).join('')
+      : `<div class="empty">${t('no_friends')}</div>`;
   }
   $('#f-list').addEventListener('click', async e => {
     const inv = e.target.closest('[data-invite]'), rm = e.target.closest('[data-rm]');
     if (inv) inviteFriend(inv.dataset.invite);
-    if (rm) { const f = friends.find(x => x.id === rm.dataset.rm); if (!confirm('להסיר את ' + at(f.handle) + '?')) return; try { await Net.removeFriend(user, f.id); friends = friends.filter(x => x !== f); renderFriendsList(); } catch (er) { toast(errText(er)); } }
+    if (rm) { const f = friends.find(x => x.id === rm.dataset.rm); if (!confirm(t('confirm_rm_friend', { h: at(f.handle) }))) return; try { await Net.removeFriend(user, f.id); friends = friends.filter(x => x !== f); renderFriendsList(); } catch (er) { toast(errText(er)); } }
   });
   $('#f-copy').addEventListener('click', () => copy(user.friend_code));
-  $('#f-share').addEventListener('click', () => share(`בוא נהיה חברים ב-SpaceShip! קוד החבר שלי: ${user.friend_code}  (@${user.handle})`));
+  $('#f-share').addEventListener('click', () => share(t('share_friend', { code: user.friend_code, h: '@' + user.handle })));
   $('#f-add').addEventListener('click', async () => {
     const code = $('#f-code').value.trim().toUpperCase(), st = $('#f-status');
-    if (user.offline) return toast('צריך להתחבר לשרת');
-    if (code.length < 6) { st.className = 'status err'; st.textContent = 'הקוד הוא 6 תווים'; return; }
-    try { const f = await Net.addFriend(user, code); st.className = 'status ok'; st.textContent = '✓ ' + at(f.handle) + ' נוסף לחברים!'; $('#f-code').value = ''; loadFriends(); }
+    if (user.offline) return toast(t('need_server'));
+    if (code.length < 6) { st.className = 'status err'; st.textContent = t('code6'); return; }
+    try { const f = await Net.addFriend(user, code); st.className = 'status ok'; st.textContent = '✓ ' + t('friend_added', { h: at(f.handle) }); $('#f-code').value = ''; loadFriends(); }
     catch (e) { st.className = 'status err'; st.textContent = errText(e); }
   });
 
   // ---------- leaderboard ----------
   async function renderBoard() {
-    $('#b-list').innerHTML = '<div class="empty">טוען...</div>';
+    $('#b-list').innerHTML = `<div class="empty">${t('loading')}</div>`;
     try {
       const rows = await Net.leaderboard();
-      $('#b-list').innerHTML = rows.length ? rows.map((r, i) => `<div class="person ${r.id === user.id ? 'me-row' : ''}"><div class="rank">${i + 1}</div><div class="avatar">${Art.avatar(r.avatar)}</div><div class="info"><b>${esc(r.name)}</b><small>@${esc(r.handle)}</small></div><b style="color:var(--gold)">${r.best.toLocaleString()}</b></div>`).join('') : '<div class="empty">עוד אין שיאים — תהיה הראשון!</div>';
-    } catch (e) { $('#b-list').innerHTML = `<div class="empty">אין חיבור לשרת<br>השיא שלך: ${user.data.best.toLocaleString()}</div>`; }
+      $('#b-list').innerHTML = rows.length ? rows.map((r, i) => `<div class="person ${r.id === user.id ? 'me-row' : ''}"><div class="rank">${i + 1}</div><div class="avatar">${Art.avatar(r.avatar)}</div><div class="info"><b>${esc(r.name)}</b><small>@${esc(r.handle)}</small></div><b style="color:var(--gold)">${r.best.toLocaleString()}</b></div>`).join('') : `<div class="empty">${t('no_records')}</div>`;
+    } catch (e) { $('#b-list').innerHTML = `<div class="empty">${t('e_offline')}<br>${t('your_best', { n: user.data.best.toLocaleString() })}</div>`; }
   }
 
   // ---------- co-op ----------
@@ -542,10 +561,10 @@
   }
   function renderCoopFriends() {
     const on = friends.filter(f => Net.isOnline(f.id));
-    $('#c-friends').innerHTML = user.offline ? '<div class="empty">צריך להתחבר לשרת</div>' : on.length ? on.map(f => personRow(f, () => `<button class="btn small primary" data-invite="${f.id}">הזמן</button>`)).join('') : '<div class="empty small">אין חברים מחוברים כרגע</div>';
+    $('#c-friends').innerHTML = user.offline ? `<div class="empty">${t('need_server')}</div>` : on.length ? on.map(f => personRow(f, () => `<button class="btn small primary" data-invite="${f.id}">${t('invite')}</button>`)).join('') : `<div class="empty small">${t('no_online_friends')}</div>`;
   }
   $('#c-friends').addEventListener('click', e => { const b = e.target.closest('[data-invite]'); if (b) inviteFriend(b.dataset.invite); });
-  function slot(p) { return p ? `<div class="avatar">${Art.avatar(p.avatar)}</div><b>${esc(p.name)}</b><small>@${esc(p.handle)}</small>` : `<div class="avatar"></div><b class="muted">ממתין...</b>`; }
+  function slot(p) { return p ? `<div class="avatar">${Art.avatar(p.avatar)}</div><b>${esc(p.name)}</b><small>@${esc(p.handle)}</small>` : `<div class="avatar"></div><b class="muted">${t('waiting')}</b>`; }
   function renderLobby() {
     $('#c-roomcode').textContent = room.code;
     const host = room.role === 'host' ? user : roomPeer, guest = room.role === 'host' ? roomPeer : user;
@@ -555,15 +574,15 @@
     $('#c-wait').classList.toggle('hidden', room.role === 'host' || !roomPeer);
     if (room.role === 'host') {
       const sel = $('#c-level'), prev = sel.value;
-      const L = user.data.levels; let o = '<option value="endless">מצב אינסופי</option>';
-      for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">שלב ${n}${levelCfg(n).boss ? ' (בוס)' : ''}</option>`;
+      const L = user.data.levels; let o = `<option value="endless">${t('endless')}</option>`;
+      for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">${t('level_n', { n })}${levelCfg(n).boss ? ' ' + t('boss_tag') : ''}</option>`;
       sel.innerHTML = o; sel.value = prev || (room.nextLevel ? String(room.nextLevel) : '1'); if (!sel.value) sel.value = '1';
       $('#c-go').disabled = !(roomPeer && peerStats);
     }
     icons($('#c-lobby'));
   }
   function openRoom(code, role) {
-    if (user.offline) return toast('צריך להתחבר לשרת');
+    if (user.offline) return toast(t('need_server'));
     if (room) room.leave();
     roomPeer = null; peerStats = null;
     let found = false;
@@ -572,17 +591,17 @@
         if (role === 'guest' && p.role !== 'host') return;
         found = true; roomPeer = p; Sfx.init(); Sfx.power();
         if (role === 'guest') room.send('hello', meInfo());
-        toast(at(p.handle) + ' בחדר!');
+        toast(t('in_room', { h: at(p.handle) }));
         if (current === 'coop') renderLobby();
       },
       onPeerLeft: () => {
         roomPeer = null; peerStats = null;
-        if (game) { endGameAbrupt('החבר עזב את המשחק'); }
-        else toast('החבר עזב את החדר');
+        if (game) { endGameAbrupt(t('friend_left_game')); }
+        else toast(t('friend_left_room'));
         if (role === 'guest') { leaveRoom(); return; }
         if (current === 'coop') renderLobby();
       },
-      onSync: others => { if (others.length > 1 && role === 'guest' && !found) { toast('החדר מלא'); leaveRoom(); } },
+      onSync: others => { if (others.length > 1 && role === 'guest' && !found) { toast(t('room_full')); leaveRoom(); } },
       onMessage: (ev, p) => {
         if (ev === 'hello' && role === 'host') { peerStats = p; roomPeer = Object.assign(roomPeer || {}, p); room.send('hello', meInfo()); if (current === 'coop') renderLobby(); }
         else if (ev === 'hello' && role === 'guest') { peerStats = p; }
@@ -590,16 +609,16 @@
         else if (ev === 'end' && role === 'guest' && game) { const r = p; setTimeout(() => game && onGameEnd(r), 200); }
         else if (game) game.onNet(ev, p);
       },
-      onError: () => toast('בעיית חיבור לחדר'),
+      onError: () => toast(t('room_conn')),
     });
     room.nextLevel = 1;
-    if (role === 'guest') setTimeout(() => { if (room && room.code === code && !found) { toast('החדר לא נמצא'); leaveRoom(); } }, 7000);
+    if (role === 'guest') setTimeout(() => { if (room && room.code === code && !found) { toast(t('room_not_found')); leaveRoom(); } }, 7000);
     if (current !== 'coop') show('coop'); else renderCoop();
   }
   function leaveRoom() { if (room) { room.send('bye', {}); room.leave(); } room = null; roomPeer = null; peerStats = null; if (current === 'coop') renderCoop(); }
   $('#c-create').addEventListener('click', () => openRoom(roomCode(), 'host'));
-  $('#c-join').addEventListener('click', () => { const c = $('#c-code').value.trim().toUpperCase(); if (c.length !== 5) { $('#c-status').className = 'status err'; $('#c-status').textContent = 'קוד חדר הוא 5 תווים'; return; } openRoom(c, 'guest'); });
-  $('#c-copy').addEventListener('click', () => share(`בוא לשחק איתי SpaceShip! קוד חדר: ${room.code}`));
+  $('#c-join').addEventListener('click', () => { const c = $('#c-code').value.trim().toUpperCase(); if (c.length !== 5) { $('#c-status').className = 'status err'; $('#c-status').textContent = t('room5'); return; } openRoom(c, 'guest'); });
+  $('#c-copy').addEventListener('click', () => share(t('share_room', { code: room.code })));
   $('#c-leave').addEventListener('click', leaveRoom);
   $('#c-go').addEventListener('click', () => {
     if (!roomPeer || !peerStats) return;
@@ -609,15 +628,15 @@
   async function inviteFriend(fid) {
     const f = friends.find(x => x.id === fid); if (!f) return;
     if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
-    try { await Net.sendInvite(fid, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar } }); toast('ההזמנה נשלחה ל-' + at(f.handle)); }
-    catch (e) { toast('לא הצלחנו לשלוח הזמנה'); }
+    try { await Net.sendInvite(fid, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('invite_sent', { h: at(f.handle) })); }
+    catch (e) { toast(t('invite_fail')); }
   }
   function onInvite(p) {
     if (game || !p || !p.code) return;
     Sfx.init(); Sfx.power();
-    modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>הזמנה למשחק!</h2>
-      <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> מזמין אותך לשחק ביחד</p>
-      <button class="btn primary big" id="i-yes">הצטרף</button><button class="btn ghost" id="i-no">לא עכשיו</button>`, m => {
+    modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>${t('game_invite')}</h2>
+      <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> ${t('invites_you')}</p>
+      <button class="btn primary big" id="i-yes">${t('join')}</button><button class="btn ghost" id="i-no">${t('not_now')}</button>`, m => {
       m.querySelector('#i-yes').onclick = () => { closeModal(); openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest'); };
       m.querySelector('#i-no').onclick = closeModal;
     });
@@ -641,7 +660,7 @@
       game = new Game($('#game'), {
         mode: o.mode, level: o.level, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
         me: meInfo(), peer: o.peer, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
-        p2: o.local2 ? { id: 'p2', handle: 'player2', name: 'שחקן 2', skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
+        p2: o.local2 ? { id: 'p2', handle: 'player2', name: t('player2'), skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
         onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
       });
       if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, H: game.H, host: meInfo() }); }
@@ -653,14 +672,14 @@
   function pause() {
     if (!game || game.over) return;
     if (game.coop) {
-      modal(`<h2>לצאת מהמשחק?</h2><p class="muted">החבר שלך ימשיך לבד</p><button class="btn primary" id="q-no">המשך לשחק</button><button class="btn ghost" id="q-yes">צא</button>`, m => {
+      modal(`<h2>${t('quit_q')}</h2><p class="muted">${t('friend_continues')}</p><button class="btn primary" id="q-no">${t('keep_playing')}</button><button class="btn ghost" id="q-yes">${t('quit')}</button>`, m => {
         m.querySelector('#q-no').onclick = closeModal;
         m.querySelector('#q-yes').onclick = () => { closeModal(); leaveRoom(); stopGame(); show('menu', false); history = []; };
       });
       return;
     }
     game.paused = true;
-    modal(`<h2>הפסקה</h2><button class="btn primary big" id="p-res">המשך</button><button class="btn" id="p-restart">התחל מחדש</button><button class="btn ghost" id="p-quit">יציאה לתפריט</button>`, m => {
+    modal(`<h2>${t('paused')}</h2><button class="btn primary big" id="p-res">${t('resume')}</button><button class="btn" id="p-restart">${t('restart')}</button><button class="btn ghost" id="p-quit">${t('to_menu')}</button>`, m => {
       m.querySelector('#p-res').onclick = () => { closeModal(); game.paused = false; game.last = performance.now(); };
       m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, local2: g.local2 }); };
       m.querySelector('#p-quit').onclick = () => { closeModal(); stopGame(); show(game ? 'menu' : 'levels', false); };
@@ -698,21 +717,21 @@
     D.worlds.push(...newWorlds);
     save();
     if (coop && room) room.nextLevel = r.mode === 'level' && r.win ? Math.min(LEVELS, r.level + 1) : r.level;
-    const title = r.mode === 'endless' ? (newBest ? 'שיא חדש!' : 'המשחק נגמר') : r.win ? 'ניצחון!' : 'החללית נפגעה';
+    const title = r.mode === 'endless' ? (newBest ? t('new_best') : t('game_over')) : r.win ? t('victory') : t('ship_hit');
     const stars = r.mode === 'level' && r.win ? `<div class="big-stars">${[1, 2, 3].map(i => Art.icon(i <= r.stars ? 'star' : 'starOff')).join('')}</div>` : '';
     const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && r.level < LEVELS;
-    const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} גילית עולם סודי: <b>${w.name}</b><br><small>${w.how} · מחכה לך במסך השלבים</small></div>`; }).join('');
+    const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} ${t('found_world')} <b>${t(w.id + '_name')}</b><br><small>${t(w.id + '_how')} · ${t('waits_levels')}</small></div>`; }).join('');
     let buttons;
-    if (coop) buttons = `<button class="btn primary big" id="e-lobby">חזרה לחדר</button><button class="btn ghost" id="e-menu">תפריט</button>`;
-    else buttons = `${hasNext ? '<button class="btn primary big" id="e-next">שלב הבא</button>' : ''}
-      <button class="btn ${hasNext ? '' : 'primary big'}" id="e-retry">${r.win && r.mode === 'level' ? 'שחק שוב' : 'נסה שוב'}</button>
-      <button class="btn" id="e-shop">${Art.icon('shop')}חנות</button><button class="btn ghost" id="e-menu">תפריט</button>`;
+    if (coop) buttons = `<button class="btn primary big" id="e-lobby">${t('back_room')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
+    else buttons = `${hasNext ? `<button class="btn primary big" id="e-next">${t('next_level')}</button>` : ''}
+      <button class="btn ${hasNext ? '' : 'primary big'}" id="e-retry">${r.win && r.mode === 'level' ? t('play_again') : t('try_again')}</button>
+      <button class="btn" id="e-shop">${Art.icon('shop')}${t('shop')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
     modal(`<h2>${title}</h2>${stars}
-      ${sec ? `<div class="muted">✦ ${WORLDS[sec.w - 1].name} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">שלב ${r.level}${unlocked ? ' · שלב ' + (r.level + 1) + ' נפתח!' : ''}</div>` : ''}
+      ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
-      <div class="muted">ניקוד: <b style="color:#fff">${r.score.toLocaleString()}</b></div>
+      <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
-      <div class="muted small">נאספו ${r.collected} · בונוס ${r.bonus}</div>${buttons}`, m => {
+      <div class="muted small">${t('collected_bonus', { a: r.collected, b: r.bonus })}</div>${buttons}`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } } : { mode: 'level', level: r.level + 1, local2 }));
       on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2, secret: sec }));
@@ -729,7 +748,7 @@
     loadFriends();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
-  icons();
+  icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();
   // web: returning from CutVid's sign-in page (?code=…&state=…)
   if (!NATIVE && !window.SSDesktop && /[?&]code=/.test(location.search) && /[?&]state=/.test(location.search)) {
     const back = location.href; window.history.replaceState(null, '', location.pathname);

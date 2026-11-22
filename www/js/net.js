@@ -33,10 +33,10 @@
     // ---- sign in on another device ----
     loginToken: (handle, token) => rpc('login_token', { p_handle: handle, p_token: token }),
     regenToken: u => rpc('regen_token', { p_id: u.id, p_secret: u.secret }),
-    emailSetStart: (u, email) => fn('ss-email', { action: 'set_start', id: u.id, secret: u.secret, email }),
+    emailSetStart: (u, email, lang) => fn('ss-email', { action: 'set_start', id: u.id, secret: u.secret, email, lang }),
     emailSetConfirm: (u, code) => rpc('email_set_confirm', { p_id: u.id, p_secret: u.secret, p_code: code }),
     emailRemove: u => rpc('email_remove', { p_id: u.id, p_secret: u.secret }),
-    emailLoginStart: (handle, email) => fn('ss-email', { action: 'login_start', handle, email }),
+    emailLoginStart: (handle, email, lang) => fn('ss-email', { action: 'login_start', handle, email, lang }),
     emailLoginConfirm: (handle, code) => rpc('email_login_confirm', { p_handle: handle, p_code: code }),
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),

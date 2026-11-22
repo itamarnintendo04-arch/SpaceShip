@@ -49,12 +49,9 @@
   }
   // ---- secret worlds: found by doing something special in normal levels; their levels give diamonds ----
   const WORLDS = [
-    { id: 'w1', name: 'ערפילית הזהב', hue: 45, kinds: ['gold', 'rock', 'lava'], gems: [3, 4, 6],
-      hint: 'משהו זהוב חולף מהר בשלב 4… אל תיתן לו לברוח', how: 'הפלת את שביט הזהב' },
-    { id: 'w2', name: 'החור השחור', hue: 275, kinds: ['lava', 'rock', 'lava'], gems: [5, 6, 9],
-      hint: 'נצח את ספינת האם של שלב 10 בלי לאבד אף לב', how: 'ניצחת את בוס שלב 10 בלי להיפגע' },
-    { id: 'w3', name: 'ממלכת הקרח', hue: 190, kinds: ['ice', 'ice', 'rock'], gems: [7, 8, 12],
-      hint: 'בשלב 13 מסתתרים 3 גבישים נוצצים — אסוף את כולם', how: 'אספת את 3 הגבישים' },
+    { id: 'w1', hue: 45, kinds: ['gold', 'rock', 'lava'], gems: [3, 4, 6] },
+    { id: 'w2', hue: 275, kinds: ['lava', 'rock', 'lava'], gems: [5, 6, 9] },
+    { id: 'w3', hue: 190, kinds: ['ice', 'ice', 'rock'], gems: [7, 8, 12] },  // names & hints: i18n w1_name, w1_hint, w1_how…
   ];
   function secretCfg(w, k) {
     const W_ = WORLDS[w - 1], base = levelCfg(8 + w * 4 + k * 2);
@@ -257,7 +254,7 @@
       }
       if (this.comet) {
         const c = this.comet; c.x += c.vx * dt; c.t += dt; c.y += Math.sin(c.t * 5) * 30 * dt;
-        if (c.x < -60 || c.x > W + 60) { this.comet = null; this.float(W / 2, 150, 'השביט ברח…', '#fde68a', 1.4); }
+        if (c.x < -60 || c.x > W + 60) { this.comet = null; this.float(W / 2, 150, t('f_comet_gone'), '#fde68a', 1.4); }
         else if (Math.random() < 0.8) this.parts.push({ x: c.x - Math.sign(c.vx) * 12, y: c.y + rnd(-4, 4), vx: -c.vx * 0.2, vy: rnd(-20, 20), life: 0.5, max: 0.5, sz: rnd(2, 5), c: '#fde047' });
       }
       while (this.crystalAt.length && this.t > this.crystalAt[0]) {
@@ -380,17 +377,17 @@
       if (k.type === 'coin') { this.coins++; Sfx.coin(); this.float(k.x, k.y, '+1', '#facc15'); return; }
       if (k.type === 'crystal') {
         this.crystals++; Sfx.power(); this.spark(k.x, k.y, 16, 1);
-        if (this.crystals >= 3) this.discover('w3', k.x, k.y); else this.float(k.x, k.y, 'גביש ' + this.crystals + '/3', '#67e8f9', 1.2);
+        if (this.crystals >= 3) this.discover('w3', k.x, k.y); else this.float(k.x, k.y, t('f_crystal', { n: this.crystals }), '#67e8f9', 1.2);
         return;
       }
       Sfx.power(); this.fxQueue.push([k.x, k.y, -1, 0]);
-      if (k.type === 'shield') { p.shield = Math.min(6, p.shield + 1); this.float(k.x, k.y, 'מגן +1', '#38bdf8'); }
-      if (k.type === 'rapid') { p.rapid = 8; this.float(k.x, k.y, 'ירי מהיר!', '#fde047'); }
-      if (k.type === 'triple') { p.triple = 10; this.float(k.x, k.y, 'ירי משולש!', '#fb923c'); }
+      if (k.type === 'shield') { p.shield = Math.min(6, p.shield + 1); this.float(k.x, k.y, t('f_shield'), '#38bdf8'); }
+      if (k.type === 'rapid') { p.rapid = 8; this.float(k.x, k.y, t('f_rapid'), '#fde047'); }
+      if (k.type === 'triple') { p.triple = 10; this.float(k.x, k.y, t('f_triple'), '#fb923c'); }
       if (k.type === 'life') {
         const dead = this.players.find(q => !q.alive);
-        if (dead) { dead.alive = true; dead.lives = 1; dead.inv = 3; this.float(k.x, k.y, 'החבר חזר!', '#f43f5e'); }
-        else { p.lives = Math.min(9, p.lives + 1); this.float(k.x, k.y, 'חיים +1', '#f43f5e'); }
+        if (dead) { dead.alive = true; dead.lives = 1; dead.inv = 3; this.float(k.x, k.y, t('f_friend_back'), '#f43f5e'); }
+        else { p.lives = Math.min(9, p.lives + 1); this.float(k.x, k.y, t('f_life'), '#f43f5e'); }
       }
     }
     fire(p) {
@@ -416,7 +413,7 @@
       this.bossSpawned = true;
       const max = 60 + this.level * 22;
       this.boss = { x: W / 2, y: -80, hp: max, max, t: 0, flash: 0, shotT: 2 };
-      this.float(W / 2, this.H * 0.4, '!!! ספינת אם !!!', '#f43f5e', 2.5);
+      this.float(W / 2, this.H * 0.4, '!!! ' + t('mothership') + ' !!!', '#f43f5e', 2.5);
     }
     updateBoss(dt) {
       const B = this.boss; B.t += dt; B.flash = Math.max(0, B.flash - dt);
@@ -449,7 +446,7 @@
       if (win && this.mode === 'level' && !this.secret && this.level === 10 && this.livesLost === 0) this.discover('w2', W / 2, this.H * 0.35);
       const bonus = win && this.mode === 'level' ? 20 + this.level * 10 : Math.floor(this.score / 200);
       this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, mode: this.mode, secret: this.secret, found: this.found.slice() };
-      if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, 'השלב הושלם!', '#4ade80', 2); }
+      if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, t('f_level_done'), '#4ade80', 2); }
       if (this.coop) { this.sendState(); this.coop.room.send('end', this.result); }
     }
 
@@ -457,7 +454,7 @@
       if (this.found.includes(id)) return;
       this.found.push(id); Sfx.win(); this.shake = 10;
       for (let i = 0; i < 3; i++) this.spark(x, y, 20, i);
-      this.float(W / 2, this.H * 0.3, '✦ גילית עולם סודי! ✦', '#c084fc', 2.6);
+      this.float(W / 2, this.H * 0.3, t('f_found'), '#c084fc', 2.6);
     }
 
     // ----- particles / effects -----
@@ -625,7 +622,7 @@
         x.globalAlpha = Math.min(1, f.life / f.max * 2); x.fillStyle = f.color; x.textAlign = 'center';
         x.font = `800 ${f.max > 1 ? 30 : 16}px system-ui, sans-serif`; x.fillText(f.text, sx, sy);
       }
-      x.globalAlpha = 1; x.direction = 'rtl';
+      x.globalAlpha = 1; x.direction = I18N.dir;
       this.drawHud(x);
     }
     drawMeteor(x, m) {
@@ -682,7 +679,7 @@
       x.restore();
     }
     drawHud(x) {
-      x.direction = 'rtl';
+      x.direction = I18N.dir;
       const cw = this.cw, pad = 12, me = this.me, top = 10 + (this.o.safeTop || 0);
       x.textBaseline = 'middle';
       // lives & shields (left)
@@ -697,15 +694,15 @@
       // coins & score (right)
       x.textAlign = 'right'; x.font = '800 18px system-ui';
       x.fillStyle = '#facc15'; x.direction = 'ltr'; x.fillText('● ' + this.coins, cw - pad, top + 14);
-      x.fillStyle = '#e2e8f0'; x.font = '700 14px system-ui'; x.fillText(this.score.toLocaleString(), cw - pad, top + 38); x.direction = 'rtl';
+      x.fillStyle = '#e2e8f0'; x.font = '700 14px system-ui'; x.fillText(this.score.toLocaleString(), cw - pad, top + 38); x.direction = I18N.dir;
       // progress
       const bw = Math.min(260, cw * 0.4), bx = (cw - bw) / 2, by = top + 4;
       x.textAlign = 'center'; x.fillStyle = '#cbd5e1'; x.font = '700 12px system-ui';
       let label, frac;
-      if (this.boss) { label = 'ספינת אם'; frac = this.boss.hp / this.boss.max; x.fillStyle = '#fda4af'; }
-      else if (this.mode === 'endless') { label = 'אינסופי · רמה ' + this.cfg.n; frac = (this.t % 22) / 22; }
-      else if (this.secret) { label = '✦ ' + WORLDS[this.secret.w - 1].name + ' ' + this.secret.k + '/3' + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · בוס!' : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
-      else { label = 'שלב ' + this.level + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · בוס!' : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
+      if (this.boss) { label = t('mothership'); frac = this.boss.hp / this.boss.max; x.fillStyle = '#fda4af'; }
+      else if (this.mode === 'endless') { label = t('hud_endless', { n: this.cfg.n }); frac = (this.t % 22) / 22; }
+      else if (this.secret) { label = '✦ ' + t(WORLDS[this.secret.w - 1].id + '_name') + ' ' + this.secret.k + '/3' + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · ' + t('hud_boss') : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
+      else { label = t('level_n', { n: this.level }) + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · ' + t('hud_boss') : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
       x.fillText(label, cw / 2, by + 26);
       x.fillStyle = 'rgba(255,255,255,.12)'; roundRect(x, bx, by, bw, 9, 5); x.fill();
       const pg = x.createLinearGradient(bx, 0, bx + bw, 0);
@@ -715,7 +712,7 @@
       if (this.players.length > 1) {
         const other = this.players.find(p => p !== me);
         x.textAlign = 'center'; x.font = '600 12px system-ui'; x.fillStyle = other.alive ? '#fde68a' : '#94a3b8';
-        x.direction = 'ltr'; x.fillText('@' + other.handle + '  ' + (other.alive ? '♥' + other.lives + (other.shield ? ' ◈' + other.shield : '') : 'הופל'), cw / 2, by + 44);
+        x.direction = 'ltr'; x.fillText('@' + other.handle + '  ' + (other.alive ? '♥' + other.lives + (other.shield ? ' ◈' + other.shield : '') : t('down')), cw / 2, by + 44);
       }
     }
   }
