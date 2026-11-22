@@ -103,6 +103,14 @@
       case 'wisp': { x.globalAlpha = 0.75; const gr = x.createRadialGradient(0, 0, 1, 0, 0, 8); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(165,180,252,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, 8, 0, 7); x.fill();
         x.strokeStyle = c; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 4); x.quadraticCurveTo(Math.sin(t * 25) * 6, 12, 0, 22); x.stroke(); break; }
       case 'shard': x.fillStyle = '#a5f3fc'; x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(0, -8); x.lineTo(4, 2); x.lineTo(0, 12); x.lineTo(-4, 2); x.closePath(); x.fill(); x.stroke(); break;
+      case 'comet': { const gr = x.createLinearGradient(0, -4, 0, 26); gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, '#38bdf8'); gr.addColorStop(1, 'rgba(56,189,248,0)'); x.fillStyle = gr; x.beginPath(); x.moveTo(-4, 0); x.lineTo(0, -6); x.lineTo(4, 0); x.lineTo(0, 26); x.closePath(); x.fill(); break; }
+      case 'nebula': { const r = 7 + Math.sin(t * 18 + b.x) * 1.5, gr = x.createRadialGradient(0, 0, 1, 0, 0, r); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, '#e879f9'); gr.addColorStop(1, 'rgba(168,85,247,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); break; }
+      case 'beam': { x.strokeStyle = '#f97316'; x.lineWidth = 8; x.globalAlpha = 0.4; x.beginPath(); x.moveTo(0, -6); x.lineTo(0, 38); x.stroke(); x.globalAlpha = 1; x.strokeStyle = '#fed7aa'; x.lineWidth = 3; x.stroke(); x.strokeStyle = '#fff'; x.lineWidth = 1; x.stroke(); break; }
+      case 'vortex': { x.rotate(t * 16); x.strokeStyle = '#34d399'; x.lineWidth = 2.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 6, i * 2.1, i * 2.1 + 1.4); x.stroke(); } x.fillStyle = '#ecfdf5'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break; }
+      case 'void': { x.fillStyle = '#000'; x.strokeStyle = '#a78bfa'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 6.5, 0, 7); x.fill(); x.stroke(); x.globalAlpha = 0.5; x.beginPath(); x.arc(0, 0, 9 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); break; }
+      case 'aurora': { const h = 150 + 40 * Math.sin(t * 8 + b.x * 0.05); x.strokeStyle = `hsl(${h},90%,65%)`; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 6; i++) x[i ? 'lineTo' : 'moveTo'](Math.sin(t * 30 + i) * 3, i * 4); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'supernova': { const r = 9 + Math.sin(t * 25) * 1.5, gr = x.createRadialGradient(0, 0, 1, 0, 0, r); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, '#fde047'); gr.addColorStop(0.75, '#f97316'); gr.addColorStop(1, 'rgba(249,115,22,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill();
+        x.rotate(t * 12); x.strokeStyle = '#fff'; x.lineWidth = 1.2; for (let i = 0; i < 4; i++) { x.rotate(Math.PI / 4); x.beginPath(); x.moveTo(-r * 1.1, 0); x.lineTo(r * 1.1, 0); x.stroke(); } break; }
       case 'rainbow': { const h = (t * 400 + b.x) % 360; x.strokeStyle = `hsl(${h},95%,65%)`; x.lineWidth = 6; x.globalAlpha = 0.55; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 22); x.stroke();
         x.globalAlpha = 1; x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 3, 0, 7); x.fill(); break; }
       default: x.strokeStyle = c; x.lineWidth = 5; x.globalAlpha = 0.5; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 18); x.stroke(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.globalAlpha = 1; x.stroke();
@@ -164,6 +172,7 @@
         id: p.id, name: p.name, handle: p.handle, skin: p.skin || 'falcon', local,
         x: W / 2, y: 0, lives: (this.secret ? 1 : 3) + (st.life || 0), shield: st.shield || 0, plasma: !!st.plasma,
         weapon: st.weapon || 1, magnet: st.magnet || 0, inv: 2, alive: true, fireCd: 0, rapid: 0, triple: 0, tx: W / 2, ty: 0,
+        rate: st.rate || 0, power: st.power || 0, luck: st.luck || 0, revive: !!st.revive && !(this.o && this.o.mini), drone: !!st.drone, dn: 0,
       };
     }
     spreadPlayers() {
@@ -312,7 +321,7 @@
         if (!p.alive) continue;
         p.inv = Math.max(0, p.inv - dt); p.rapid = Math.max(0, p.rapid - dt); p.triple = Math.max(0, p.triple - dt);
         p.fireCd -= dt;
-        if (p.fireCd <= 0 && !this.over) { this.fire(p); p.fireCd = ((p.rapid > 0 ? 0.085 : 0.17) - p.weapon * 0.006) / gunOf(p.skin).rate; }
+        if (p.fireCd <= 0 && !this.over) { this.fire(p); p.fireCd = ((p.rapid > 0 ? 0.085 : 0.17) - p.weapon * 0.006) / gunOf(p.skin).rate / (1 + 0.07 * (p.rate || 0)); }
       }
 
       // bullets
@@ -437,8 +446,8 @@
       }
       Sfx.power(); this.fxQueue.push([k.x, k.y, -1, 0]);
       if (k.type === 'shield') { p.shield = Math.min(6, p.shield + 1); this.float(k.x, k.y, t('f_shield'), '#38bdf8'); }
-      if (k.type === 'rapid') { p.rapid = 8; this.float(k.x, k.y, t('f_rapid'), '#fde047'); }
-      if (k.type === 'triple') { p.triple = 10; this.float(k.x, k.y, t('f_triple'), '#fb923c'); }
+      if (k.type === 'rapid') { p.rapid = 8 + 2 * (p.power || 0); this.float(k.x, k.y, t('f_rapid'), '#fde047'); }
+      if (k.type === 'triple') { p.triple = 10 + 2 * (p.power || 0); this.float(k.x, k.y, t('f_triple'), '#fb923c'); }
       if (k.type === 'life') {
         const dead = this.players.find(q => !q.alive);
         if (dead) { dead.alive = true; dead.lives = 1; dead.inv = 3; this.float(k.x, k.y, t('f_friend_back'), '#f43f5e'); }
@@ -457,6 +466,8 @@
       else if (lvl === 4) { add(-6, 0); add(6, 0); add(-12, -0.18); add(12, 0.18); }
       else if (lvl === 5) { add(0, 0, 2); add(-8, -0.1); add(8, 0.1); add(-14, -0.25); add(14, 0.25); }
       else { add(-5, 0, 2); add(5, 0, 2); add(-10, -0.12); add(10, 0.12); add(-15, -0.28); add(15, 0.28); }
+      // the drone flies next to the ship and shoots with every second shot
+      if (p.drone && (p.dn ^= 1)) this.bullets.push({ x: p.x + 30, y: p.y - 6, vx: 0, vy: -820, dmg: 1.2 * g.dmg, owner, pierce, hits: pierce ? new Set() : null });
       if (p.local) Sfx.shoot();
     }
     hurt(p) {
@@ -465,6 +476,9 @@
       if (p.shield > 0) { p.shield--; p.inv = 1.2; this.fxQueue.push([p.x, p.y, -2, 1]); this.spark(p.x, p.y, 12, 1); return; }
       p.lives--; this.livesLost++; p.inv = 2;
       this.explode(p.x, p.y, 30, 2);
+      if (p.lives <= 0 && p.revive) { // the revive item: back once per game
+        p.revive = false; p.lives = 1; p.inv = 3; this.spark(p.x, p.y, 30, 1); this.float(p.x, p.y - 30, t('f_revive'), '#4ade80', 1.4); return;
+      }
       if (p.lives <= 0) { p.alive = false; this.explode(p.x, p.y, 60, 0); }
     }
     spawnBoss() {
@@ -668,6 +682,12 @@
         x.rotate(clamp((p.tx - p.x) * 0.01, -0.3, 0.3) * (p.local ? 1 : 0));
         Art.drawShip(x, p.skin, 22, t, 1);
         x.restore();
+        if (p.drone && p.alive) { // a small helper drone floating beside the ship
+          const dx = p.x + 30, dy = p.y - 4 + Math.sin(t * 5) * 3;
+          x.fillStyle = '#94a3b8'; x.strokeStyle = '#e2e8f0'; x.lineWidth = 1.5; x.beginPath(); x.arc(dx, dy, 7, 0, 7); x.fill(); x.stroke();
+          x.fillStyle = '#22d3ee'; x.beginPath(); x.arc(dx, dy - 1, 2.6, 0, 7); x.fill();
+          x.strokeStyle = 'rgba(226,232,240,.7)'; x.beginPath(); x.moveTo(dx - 11, dy - 7 + Math.sin(t * 40) * 1.5); x.lineTo(dx + 11, dy - 7 - Math.sin(t * 40) * 1.5); x.stroke();
+        }
         if (p.shield > 0 || p.inv > 1) {
           x.strokeStyle = `rgba(56,189,248,${0.5 + 0.3 * Math.sin(t * 6)})`; x.lineWidth = 2.5;
           x.beginPath(); x.arc(p.x, p.y + 2, 32, 0, 7); x.stroke();

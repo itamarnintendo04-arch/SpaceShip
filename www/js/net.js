@@ -60,6 +60,9 @@
     searchParties: (u, q) => rpc('search_parties', { p_id: u.id, p_secret: u.secret, p_q: q || '' }),
     joinParty: (u, id, code) => rpc('join_party', { p_id: u.id, p_secret: u.secret, p_party: id || null, p_code: code || null }),
     leaveParty: (u, id) => rpc('leave_party', { p_id: u.id, p_secret: u.secret, p_party: id }),
+    setPartyRole: (u, party, target, role) => rpc('set_party_role', { p_id: u.id, p_secret: u.secret, p_party: party, p_target: target, p_role: role }),
+    kickPartyMember: (u, party, target) => rpc('kick_party_member', { p_id: u.id, p_secret: u.secret, p_party: party, p_target: target }),
+    playerProfile: (u, target) => rpc('player_profile', { p_id: u.id, p_secret: u.secret, p_target: target }),
     // ---- sign in on another device ----
     loginToken: (handle, token) => rpc('login_token', { p_handle: handle, p_token: token }),
     regenToken: u => rpc('regen_token', { p_id: u.id, p_secret: u.secret }),

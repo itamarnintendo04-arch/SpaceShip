@@ -9,6 +9,8 @@
     { id: 'shield2', icon: 'shield', gems: 20 },
     { id: 'supermag', icon: 'magnet', gems: 15 },
     { id: 'goldheart', icon: 'heart', gems: 35, dkey: 'up_life_d' },
+    { id: 'revive', icon: 'revive', gems: 45 },
+    { id: 'drone', icon: 'drone', gems: 55 },
   ];
   const LEVELS = SS_CONFIG.LEVEL_COUNT;
   const Cap = window.Capacitor && window.Capacitor.Plugins || {};
@@ -21,6 +23,9 @@
     { id: 'shield', icon: 'shield', base: 0, costs: [150, 300, 600, 1000, 1600] },
     { id: 'magnet', icon: 'magnet', base: 0, costs: [200, 500, 1000] },
     { id: 'life', icon: 'heart', base: 0, costs: [800, 2000] },
+    { id: 'rate', icon: 'bolt', base: 0, costs: [400, 900, 1800, 3500] },
+    { id: 'power', icon: 'timer', base: 0, costs: [300, 800, 1600] },
+    { id: 'luck', icon: 'clover', base: 0, costs: [500, 1200, 2500, 5000] },
   ];
 
   // ---------- state ----------
@@ -90,6 +95,7 @@
     if (m.includes('code_not_found')) return t('e_code_not_found');
     if (m.includes('party_full')) return t('e_party_full');
     if (m.includes('party_not_found')) return t('e_party_not_found');
+    if (m.includes('not_allowed')) return t('e_not_allowed');
     if (m.includes('too_many_parties')) return t('e_too_many_parties');
     if (m.includes('self')) return t('e_self');
     if (m.includes('bad_login')) return t('e_bad_login');
@@ -694,7 +700,7 @@
     if (!user || user.offline) return;
     try { friends = await Net.friends(user) || []; } catch (e) { console.warn(e); }
     try { requests = await Net.friendRequests(user) || { incoming: [], outgoing: [] }; } catch (e) { console.warn(e); }
-    if (current === 'friends') renderFriendsList();
+    if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); }
     if (current === 'coop') renderCoopFriends();
     updateOnlineBadge();
   }
@@ -712,7 +718,7 @@
   $('#f-tabs').addEventListener('click', e => { const b = e.target.closest('[data-ft]'); if (!b) return; friendTab = b.dataset.ft; renderFriends(); });
   function personRow(f, actions) {
     const on = Net.isOnline(f.id);
-    return `<div class="person"><div class="avatar">${Art.avatar(f.avatar)}</div><div class="info"><b>${esc(f.name)}<span class="dot ${on ? 'on' : ''}"></span></b><small>@${esc(f.handle)}</small></div>${actions(f, on)}</div>`;
+    return `<div class="person" data-prof="${f.id}"><div class="avatar">${Art.avatar(f.avatar)}</div><div class="info"><b>${esc(f.name)}<span class="dot ${on ? 'on' : ''}"></span></b><small>@${esc(f.handle)}</small></div>${actions(f, on)}</div>`;
   }
   function renderFriendsList() {
     const inc = requests.incoming || [], out = requests.outgoing || [];
@@ -744,16 +750,15 @@
   $('#f-search').addEventListener('input', () => { clearTimeout(searchT); searchT = setTimeout(runSearch, 300); });
   // one click handler for the whole friends pane (search results, requests, friends)
   $('#f-pane-friends').addEventListener('click', async e => {
-    const b = e.target.closest('button'); if (!b || b.disabled || user.offline) return;
+    const b = e.target.closest('button');
+    if (!b) { const pr = e.target.closest('[data-prof]'); if (pr) openProfile(pr.dataset.prof); return; }
+    if (b.disabled || user.offline) return;
     const id = b.dataset.req || b.dataset.acc || b.dataset.dec || b.dataset.cancel || b.dataset.invite || b.dataset.rm || b.dataset.askjoin;
     if (!id) return;
     const who = [...friends, ...(requests.incoming || []), ...(requests.outgoing || [])].find(x => x.id === id) || { id, handle: (b.closest('.person') || {}).querySelector?.('small')?.textContent?.slice(1) || '' };
     try {
-      if (b.dataset.req) {
-        const r = await Net.sendFriendRequest(user, id);
-        if (r === 'friend') { toast(t('friend_added', { h: at(who.handle) })); Net.sendTo(id, 'friend_accepted', { handle: user.handle }).catch(() => {}); }
-        else { toast(t('request_sent', { h: at(who.handle) })); Net.sendTo(id, 'friend_request', { handle: user.handle, name: user.name }).catch(() => {}); }
-      } else if (b.dataset.acc || b.dataset.dec) {
+      if (b.dataset.req) await requestFriend(id, who.handle);
+      else if (b.dataset.acc || b.dataset.dec) {
         const ok = !!b.dataset.acc;
         await Net.respondFriendRequest(user, id, ok);
         if (ok) { toast(t('friend_added', { h: at(who.handle) })); Net.sendTo(id, 'friend_accepted', { handle: user.handle }).catch(() => {}); }
@@ -768,7 +773,22 @@
     } catch (er) { toast(errText(er)); }
   });
 
-  // ---------- parties: groups of up to 10 players ----------
+  // ---------- parties = clubs: ranks, members with live status, member actions, profiles ----------
+  const RANKS = { leader: 4, coleader: 3, senior: 2, member: 1 };
+  const rankOf = r => RANKS[r] || 1;
+  const RANK_ICON = { leader: '👑', coleader: '⭐', senior: '🔷', member: '•' };
+  const rankTag = r => `<span class="rank-tag r-${r || 'member'}">${RANK_ICON[r || 'member']} ${t('rank_' + (r || 'member'))}</span>`;
+  // a player's live status: offline / online / in a room (mine or another one)
+  function liveStatus(id) {
+    if (id === user.id) return room ? { k: 'room', room: room.code } : { k: 'online' };
+    if (!Net.isOnline(id)) return { k: 'off' };
+    const r = roomOf(id); return r ? { k: 'room', room: r } : { k: 'online' };
+  }
+  const statusHtml = st => st.k === 'off' ? `<span class="st off">● ${t('st_offline')}</span>`
+    : st.k === 'room' ? `<span class="st room">● ${room && room.code === st.room ? t('st_in_my_room') : t('st_in_room')}</span>`
+    : `<span class="st on">● ${t('st_online')}</span>`;
+  const whoOf = id => friends.find(f => f.id === id) || parties.flatMap(p => p.members || []).find(m => m.id === id) || { id, handle: '', name: '' };
+
   async function loadParties() {
     if (!user || user.offline) return;
     try { parties = await Net.myParties(user) || []; } catch (e) { console.warn(e); }
@@ -776,18 +796,110 @@
   }
   function renderParties() {
     $('#p-mine').innerHTML = parties.length ? parties.map(p => {
-      const on = (p.members || []).filter(m => m.id !== user.id && Net.isOnline(m.id)).length;
-      return `<div class="party">
-        <div class="party-head"><b>${esc(p.name)}</b><span class="chip">${p.is_public ? '🌐 ' + t('public_tag') : '🔒 ' + t('private_tag')}</span></div>
+      const ms = p.members || [], my = p.my_role || (p.mine ? 'leader' : 'member');
+      const sts = Object.fromEntries(ms.map(m => [m.id, liveStatus(m.id)]));
+      const on = ms.filter(m => m.id !== user.id && sts[m.id].k !== 'off').length, inRoom = ms.filter(m => m.id !== user.id && sts[m.id].k === 'room').length;
+      // online members first, then by rank (the server already sorts by rank)
+      const order = [...ms].sort((a, b) => (sts[b.id].k !== 'off') - (sts[a.id].k !== 'off'));
+      return `<div class="party club">
+        <div class="party-head"><div class="club-badge">${Art.icon('friends')}</div>
+          <div class="club-title"><b>${esc(p.name)}</b><small>${t('your_rank')}: ${rankTag(my)}</small></div>
+          <span class="chip">${p.is_public ? '🌐 ' + t('public_tag') : '🔒 ' + t('private_tag')}</span></div>
         ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
-        <div class="party-meta"><span>${t('members_n', { n: p.count })} · ${t('online_n', { n: on })}</span>
+        <div class="party-meta"><span>${t('members_n', { n: p.count })} · <b class="on-n">${t('online_n', { n: on })}</b>${inRoom ? ' · ' + t('in_room_n', { n: inRoom }) : ''}</span>
           <span class="code-chip" dir="ltr" data-pcopy="${esc(p.code)}">${esc(p.code)} ${Art.icon('copy')}</span></div>
-        <div class="party-members">${(p.members || []).map(m => `<div class="pm" title="@${esc(m.handle)}"><div class="avatar">${Art.avatar(m.avatar)}</div><span class="dot ${m.id !== user.id && Net.isOnline(m.id) ? 'on' : ''}"></span></div>`).join('')}</div>
+        <div class="club-members">${order.map(m => { const st = sts[m.id]; return `<button class="cm ${st.k}" data-pmem="${m.id}" data-party="${p.id}">
+            <div class="avatar">${Art.avatar(m.avatar)}<span class="dot ${st.k !== 'off' ? 'on' : ''} ${st.k === 'room' ? 'room' : ''}"></span></div>
+            <div class="info"><b>${esc(m.name)}${m.id === user.id ? ` <span class="muted">(${t('you')})</span>` : ''}</b><small dir="ltr">@${esc(m.handle)}</small></div>
+            <div class="cm-side">${rankTag(m.role)}${statusHtml(st)}</div></button>`; }).join('')}</div>
         <div class="row"><button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
-          ${p.mine ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
+          ${rankOf(my) >= 3 ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
           <button class="btn small ghost" data-pleave="${p.id}">${t('leave_party')}</button></div></div>`;
     }).join('') : '';
   }
+
+  // the "play" button for another player: ask to join their room, or invite them to mine
+  function playButton(id, st) {
+    if (st.k === 'room' && !(room && room.code === st.room)) return `<button class="btn gold" data-a="ask">${Art.icon('play')} ${t('ask_join')}</button>`;
+    if (st.k === 'room') return `<button class="btn" disabled>${t('st_in_my_room')}</button>`;
+    return `<button class="btn primary" data-a="invite" ${st.k === 'online' ? '' : 'disabled'}>${Art.icon('play')} ${st.k === 'online' ? t('play_with') : t('st_offline')}</button>`;
+  }
+  async function requestFriend(id, handle) {
+    const r = await Net.sendFriendRequest(user, id);
+    if (r === 'friend') { toast(t('friend_added', { h: at(handle) })); Net.sendTo(id, 'friend_accepted', { handle: user.handle }).catch(() => {}); }
+    else { toast(t('request_sent', { h: at(handle) })); Net.sendTo(id, 'friend_request', { handle: user.handle, name: user.name }).catch(() => {}); }
+    loadFriends();
+  }
+  // what you can do with a club member, by your rank and theirs
+  function memberSheet(pid, mid) {
+    const p = parties.find(x => x.id === pid), m = p && (p.members || []).find(x => x.id === mid); if (!m) return;
+    if (m.id === user.id) return openProfile(m.id);
+    const my = rankOf(p.my_role), their = rankOf(m.role), st = liveStatus(m.id);
+    const isFriend = m.friend || friends.some(f => f.id === m.id), out = (requests.outgoing || []).some(f => f.id === m.id);
+    const up = their === 1 ? 'senior' : 'coleader', down = their === 3 ? 'senior' : 'member';
+    const canUp = (my === 4 && their < 3) || (my === 3 && their === 1), canDown = (my === 4 && their > 1 && their < 4) || (my === 3 && their === 2);
+    const canKick = my >= 3 && their < my;
+    modal(`<div class="sheet">
+      <div class="avatar" style="width:84px;height:84px;margin:0 auto">${Art.avatar(m.avatar)}</div>
+      <h2>${esc(m.name)}</h2><div class="muted" dir="ltr">@${esc(m.handle)}</div>
+      <div class="sheet-tags">${rankTag(m.role)}${statusHtml(st)}</div>
+      ${playButton(m.id, st)}
+      <button class="btn" data-a="profile">${Art.icon('friends')} ${t('view_profile')}</button>
+      ${isFriend ? `<div class="chip center">${t('friends_already')}</div>` : out ? `<button class="btn" disabled>${t('requested')}</button>` : `<button class="btn" data-a="friend">${Art.icon('plus')} ${t('add_friend')}</button>`}
+      ${canUp || canDown || canKick || my === 4 ? `<div class="lbl">${t('manage_member')}</div><div class="row wrap">
+        ${canUp ? `<button class="btn small" data-a="role" data-r="${up}">⬆ ${t('promote_to', { r: t('rank_' + up) })}</button>` : ''}
+        ${canDown ? `<button class="btn small" data-a="role" data-r="${down}">⬇ ${t('demote_to', { r: t('rank_' + down) })}</button>` : ''}
+        ${my === 4 ? `<button class="btn small gold" data-a="leader">👑 ${t('make_leader')}</button>` : ''}
+        ${canKick ? `<button class="btn small danger" data-a="kick">${Art.icon('x')} ${t('kick')}</button>` : ''}</div>` : ''}
+      <button class="btn ghost" data-a="close">${t('close')}</button></div>`, c => {
+      c.onclick = async e => {
+        const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+        const a = b.dataset.a;
+        try {
+          if (a === 'close') return closeModal();
+          if (a === 'profile') return openProfile(m.id);
+          if (a === 'invite') { closeModal(); return inviteFriend(m.id, m); }
+          if (a === 'ask') { closeModal(); return askToJoin(m.id, m); }
+          if (a === 'friend') { await requestFriend(m.id, m.handle); closeModal(); return; }
+          if (a === 'role') { await Net.setPartyRole(user, p.id, m.id, b.dataset.r); toast(t('rank_changed', { h: at(m.handle), r: t('rank_' + b.dataset.r) })); }
+          if (a === 'leader') { if (!confirm(t('confirm_make_leader', { h: '@' + m.handle }))) return; await Net.setPartyRole(user, p.id, m.id, 'leader'); toast(t('rank_changed', { h: at(m.handle), r: t('rank_leader') })); }
+          if (a === 'kick') { if (!confirm(t('confirm_kick', { h: '@' + m.handle }))) return; await Net.kickPartyMember(user, p.id, m.id); toast(t('kicked', { h: at(m.handle) })); }
+          closeModal(); loadParties();
+        } catch (er) { toast(errText(er)); }
+      };
+    });
+  }
+  // any player's profile: ship, progress, shared clubs, and what you can do together
+  async function openProfile(id) {
+    if (!user || user.offline) return;
+    modal(`<div class="empty">${t('loading')}</div>`);
+    let p; try { p = await Net.playerProfile(user, id); } catch (e) { closeModal(); return toast(errText(e)); }
+    const me = p.rel === 'me', st = liveStatus(p.id);
+    const stat = (n, k, ic) => `<div class="pf-stat">${ic}<b>${Number(n || 0).toLocaleString()}</b><small>${t(k)}</small></div>`;
+    modal(`<div class="sheet profile">
+      <div class="pf-top"><div class="avatar">${Art.avatar(p.avatar)}</div><img class="pf-ship" src="${Art.shipPreview(p.skin, 140)}" alt=""></div>
+      <h2>${esc(p.name)}</h2><div class="muted" dir="ltr">@${esc(p.handle)}</div>
+      <div class="sheet-tags">${me ? '' : statusHtml(st)}<span class="chip">${t('ship_' + p.skin)}</span></div>
+      <div class="pf-stats">${stat(p.levels, 'p_levels', Art.icon('star'))}${stat(p.worlds, 'p_worlds', Art.icon('secret'))}${stat(p.ships, 'p_ships', Art.icon('rocket'))}${stat(p.best, 'p_best', Art.icon('trophy'))}</div>
+      ${(p.parties || []).length ? `<div class="lbl">${t('p_parties')}</div><div class="pf-parties">${p.parties.map(x => `<span class="chip">${esc(x.name)} · ${rankTag(x.role)}</span>`).join('')}</div>` : ''}
+      <div class="muted small">${t('p_joined', { d: new Date(p.joined).toLocaleDateString() })}</div>
+      ${me ? '' : playButton(p.id, st)}
+      ${me ? '' : p.rel === 'friend' ? `<div class="chip center">${t('friends_already')}</div>` : p.rel === 'sent' ? `<button class="btn" disabled>${t('requested')}</button>`
+        : p.rel === 'incoming' ? `<button class="btn primary" data-a="accept">${t('accept')}</button>` : `<button class="btn" data-a="friend">${Art.icon('plus')} ${t('add_friend')}</button>`}
+      <button class="btn ghost" data-a="close">${t('close')}</button></div>`, c => {
+      c.onclick = async e => {
+        const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+        try {
+          if (b.dataset.a === 'close') return closeModal();
+          if (b.dataset.a === 'invite') { closeModal(); return inviteFriend(p.id, p); }
+          if (b.dataset.a === 'ask') { closeModal(); return askToJoin(p.id, p); }
+          if (b.dataset.a === 'friend') { await requestFriend(p.id, p.handle); return openProfile(p.id); }
+          if (b.dataset.a === 'accept') { await Net.respondFriendRequest(user, p.id, true); toast(t('friend_added', { h: at(p.handle) })); Net.sendTo(p.id, 'friend_accepted', { handle: user.handle }).catch(() => {}); loadFriends(); return openProfile(p.id); }
+        } catch (er) { toast(errText(er)); }
+      };
+    });
+  }
+
   let partyT = null;
   async function searchParties() {
     const q = $('#p-search').value.trim(), box = $('#p-results');
@@ -825,6 +937,7 @@
   }
   $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
   $('#f-pane-parties').addEventListener('click', async e => {
+    const mem = e.target.closest('[data-pmem]'); if (mem) return memberSheet(mem.dataset.party, mem.dataset.pmem);
     const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy]'); if (!b || b.disabled) return;
     try {
       if (b.dataset.pcopy) return copy(b.dataset.pcopy);
@@ -834,7 +947,7 @@
       if (b.dataset.pplay) { // a room for the party: invite every member who is online
         const p = parties.find(x => x.id === b.dataset.pplay);
         if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
-        for (const m of p.members || []) if (m.id !== user.id && Net.isOnline(m.id))
+        for (const m of p.members || []) if (m.id !== user.id && Net.isOnline(m.id) && !roomOf(m.id))
           Net.sendInvite(m.id, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar }, party: p.name }).catch(() => {});
         toast(t('invite_sent', { h: p.name }));
         return;
@@ -848,15 +961,18 @@
     $('#b-list').innerHTML = `<div class="empty">${t('loading')}</div>`;
     try {
       const rows = await Net.leaderboard();
-      $('#b-list').innerHTML = rows.length ? rows.map((r, i) => `<div class="person ${r.id === user.id ? 'me-row' : ''}"><div class="rank">${i + 1}</div><div class="avatar">${Art.avatar(r.avatar)}</div><div class="info"><b>${esc(r.name)}</b><small>@${esc(r.handle)}</small></div><b style="color:var(--gold)">${r.best.toLocaleString()}</b></div>`).join('') : `<div class="empty">${t('no_records')}</div>`;
+      $('#b-list').innerHTML = rows.length ? rows.map((r, i) => `<div class="person ${r.id === user.id ? 'me-row' : ''}" data-prof="${r.id}"><div class="rank">${i + 1}</div><div class="avatar">${Art.avatar(r.avatar)}</div><div class="info"><b>${esc(r.name)}</b><small>@${esc(r.handle)}</small></div><b style="color:var(--gold)">${r.best.toLocaleString()}</b></div>`).join('') : `<div class="empty">${t('no_records')}</div>`;
     } catch (e) { $('#b-list').innerHTML = `<div class="empty">${t('e_offline')}<br>${t('your_best', { n: user.data.best.toLocaleString() })}</div>`; }
   }
+
+  $('#b-list').addEventListener('click', e => { const pr = e.target.closest('[data-prof]'); if (pr && !user.offline) openProfile(pr.dataset.prof); });
 
   // ---------- rooms: up to 10 players, everyone presses Ready, the host picks the level inside the game ----------
   const myStats = () => {
     const D = user.data, has = id => (D.items || []).includes(id);
     return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
-      life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma') };
+      life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma'),
+      rate: D.up.rate || 0, power: D.up.power || 0, luck: D.up.luck || 0, revive: has('revive'), drone: has('drone') };
   };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
@@ -974,15 +1090,15 @@
   $('#c-copy').addEventListener('click', () => share(t('share_room', { code: room.code })));
   $('#c-leave').addEventListener('click', () => leaveRoom());
   $('#c-go').addEventListener('click', () => startRoomGame());
-  async function inviteFriend(fid) {
-    const f = friends.find(x => x.id === fid); if (!f) return;
+  async function inviteFriend(fid, who) {
+    const f = friends.find(x => x.id === fid) || who; if (!f) return;
     if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
     try { await Net.sendInvite(fid, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('invite_sent', { h: at(f.handle) })); }
     catch (e) { toast(t('invite_fail')); }
   }
   // ask a friend who is in a room to let us in
-  async function askToJoin(fid) {
-    const f = friends.find(x => x.id === fid);
+  async function askToJoin(fid, who) {
+    const f = friends.find(x => x.id === fid) || who;
     try { await Net.sendTo(fid, 'join_request', { from: { id: user.id, handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('join_req_sent', { h: at(f ? f.handle : '') })); }
     catch (e) { toast(t('invite_fail')); }
   }
@@ -1074,6 +1190,9 @@
     if (!game) return;
     const coop = game.coop, local2 = game.local2, D = user.data;
     stopGame();
+    // the luck upgrade adds 10% per level to the coins of every game
+    const luck = Math.round(r.coins * 0.1 * (D.up.luck || 0));
+    r = Object.assign({}, r, { coins: r.coins + luck, bonus: r.bonus + luck });
     D.coins += r.coins;
     let newBest = false, unlocked = false, gemsWon = 0;
     D.gems = D.gems || 0; D.worlds = D.worlds || []; D.slevels = D.slevels || {}; D.items = D.items || [];
@@ -1174,7 +1293,7 @@
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
-    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') renderFriendsList(); if (current === 'coop' && !room) renderCoopFriends(); } });
+    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };

@@ -9,11 +9,18 @@
     { id: 'phantom', price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee', gun: { rate: 1.34, dmg: 1.9, side: 2, style: 'laser' }, aura: 'cloak' },
     { id: 'dragon',  price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af', gun: { rate: 1.4,  dmg: 2.2, side: 2, style: 'fireball' }, aura: 'embers' },
     { id: 'golden',  price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047', gun: { rate: 1.5,  dmg: 2.6, side: 3, style: 'star' }, aura: 'shine' },
+    { id: 'comet',   price: 7500, shape: 'arrow',   body: '#bae6fd', accent: '#0369a1', glow: '#38bdf8', gun: { rate: 1.58, dmg: 2.8, side: 3, style: 'comet' }, aura: 'trail' },
+    { id: 'nebula',  price: 10000, shape: 'saucer', body: '#f5d0fe', accent: '#a21caf', glow: '#e879f9', gun: { rate: 1.64, dmg: 3,   side: 3, style: 'nebula', pierce: true }, aura: 'orbit' },
+    { id: 'titan',   price: 15000, shape: 'titan',  body: '#cbd5e1', accent: '#334155', glow: '#f97316', gun: { rate: 1.7,  dmg: 3.3, side: 4, style: 'beam' }, aura: 'storm' },
+    { id: 'vortex',  price: 20000, shape: 'crystal', body: '#a7f3d0', accent: '#047857', glow: '#34d399', gun: { rate: 1.8,  dmg: 3.6, side: 4, style: 'vortex' }, aura: 'orbit' },
     // special ships - bought with diamonds
     { id: 'phoenix', gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c', gun: { rate: 1.45, dmg: 2.4, side: 2, style: 'fireball' }, aura: 'embers' },
     { id: 'ghost',   gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc', gun: { rate: 1.5,  dmg: 2.5, side: 2, style: 'wisp', pierce: true }, aura: 'cloak' },
     { id: 'crystal', gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9', gun: { rate: 1.6,  dmg: 3,   side: 3, style: 'shard' }, aura: 'prism' },
     { id: 'rainbow', gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc', gun: { rate: 1.75, dmg: 3.4, side: 4, style: 'rainbow' }, aura: 'shine' },
+    { id: 'void',    gems: 80, shape: 'titan', fx: 'ghost', body: '#1e1b4b', accent: '#7c3aed', glow: '#a78bfa', gun: { rate: 1.85, dmg: 3.8, side: 4, style: 'void', pierce: true }, aura: 'storm' },
+    { id: 'aurora',  gems: 100, shape: 'phoenix', fx: 'aurora', body: '#a7f3d0', accent: '#0e7490', glow: '#5eead4', gun: { rate: 1.95, dmg: 4, side: 5, style: 'aurora', pierce: true }, aura: 'orbit' },
+    { id: 'supernova', gems: 150, shape: 'nova', fx: 'rainbow', body: '#fff7ed', accent: '#ea580c', glow: '#fde047', gun: { rate: 2.1, dmg: 4.5, side: 5, style: 'supernova', pierce: true }, aura: 'shine' },
   ];
 
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
@@ -25,6 +32,7 @@
     ctx.save();
     if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
     if (k.aura) drawAura(ctx, k, s, t);
+    if (k.fx === 'aurora') { const h = 140 + 50 * Math.sin(t * 2); k = Object.assign({}, k, { body: `hsl(${h},80%,78%)`, glow: `hsl(${h + 20},90%,62%)` }); }
     if (k.fx === 'rainbow') { const h = (t * 90) % 360; k = Object.assign({}, k, { body: `hsl(${h},90%,75%)`, accent: `hsl(${(h + 60) % 360},80%,40%)`, glow: `hsl(${(h + 30) % 360},95%,65%)` }); }
     // engine flame
     const fl = (0.7 + 0.3 * Math.sin(t * 40)) * thrust;
@@ -80,11 +88,24 @@
         ctx.quadraticCurveTo(s * 0.3, s * 0.4, 0, s * 0.6); ctx.quadraticCurveTo(-s * 0.3, s * 0.4, -s * 0.85, s * 0.7);
         ctx.quadraticCurveTo(-s * 0.6, s * 0.2, -s * 1.0, -s * 0.1); ctx.quadraticCurveTo(-s * 0.3, -s * 0.3, 0, -s);
         ctx.fill(); ctx.stroke(); break;
+      case 'titan': // heavy wide hull with two side cannons
+        path(ctx, [0, -s * 0.9, s * 0.35, -s * 0.55, s * 0.4, -s * 0.1, s * 1.0, s * 0.15, s * 1.0, s * 0.6, s * 0.35, s * 0.7, 0, s * 0.55, -s * 0.35, s * 0.7, -s * 1.0, s * 0.6, -s * 1.0, s * 0.15, -s * 0.4, -s * 0.1, -s * 0.35, -s * 0.55]);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = k.glow; for (const sx of [-1, 1]) { ctx.fillRect(sx * s * 0.78 - s * 0.07, -s * 0.35, s * 0.14, s * 0.55); }
+        break;
+      case 'nova': { // a star with spikes that slowly turns
+        ctx.save(); ctx.rotate(t * 0.6);
+        ctx.beginPath(); for (let i = 0; i < 16; i++) { const r = i % 2 ? s * 0.45 : s * (0.95 + 0.06 * Math.sin(t * 6 + i)), a = i * Math.PI / 8; ctx[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); }
+        ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+        const cg = ctx.createRadialGradient(0, 0, 1, 0, 0, s * 0.4); cg.addColorStop(0, '#fff'); cg.addColorStop(1, k.glow);
+        ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, s * 0.35, 0, 7); ctx.fill();
+        break;
+      }
       default: // arrow
         path(ctx, [0, -s, s * 0.22, -s * 0.35, s * 0.3, s * 0.05, s * 0.95, s * 0.55, s * 0.9, s * 0.72, s * 0.3, s * 0.55, s * 0.2, s * 0.7, -s * 0.2, s * 0.7, -s * 0.3, s * 0.55, -s * 0.9, s * 0.72, -s * 0.95, s * 0.55, -s * 0.3, s * 0.05, -s * 0.22, -s * 0.35]);
         ctx.fill(); ctx.stroke();
     }
-    if (k.shape !== 'saucer' && k.shape !== 'crystal') { // cockpit
+    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova') { // cockpit
       ctx.shadowBlur = 0;
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
@@ -115,6 +136,17 @@
     } else if (k.aura === 'shine') {
       ctx.rotate(t * 0.8); ctx.globalAlpha = 0.45;
       for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); const gr = ctx.createLinearGradient(0, 0, 0, -s * 1.5); gr.addColorStop(0, g + 'cc'); gr.addColorStop(1, g + '00'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(-s * 0.08, 0); ctx.lineTo(0, -s * 1.5); ctx.lineTo(s * 0.08, 0); ctx.fill(); }
+    } else if (k.aura === 'trail') { // comet tail behind the ship
+      for (let i = 0; i < 7; i++) { const y = s * (0.6 + i * 0.25), w = s * (0.5 - i * 0.06); ctx.globalAlpha = 0.35 - i * 0.045; ctx.fillStyle = i % 2 ? '#fff' : g;
+        ctx.beginPath(); ctx.ellipse(Math.sin(t * 9 + i) * s * 0.08, y, Math.max(1, w), s * 0.14, 0, 0, 7); ctx.fill(); }
+    } else if (k.aura === 'orbit') { // two small moons going around
+      for (let i = 0; i < 2; i++) { const a = t * 2.4 + i * Math.PI; ctx.globalAlpha = 0.9; ctx.fillStyle = i ? '#fff' : g;
+        ctx.beginPath(); ctx.arc(Math.cos(a) * s * 1.25, Math.sin(a) * s * 0.5, s * 0.1, 0, 7); ctx.fill(); }
+      ctx.globalAlpha = 0.25; ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.03); ctx.beginPath(); ctx.ellipse(0, 0, s * 1.25, s * 0.5, 0, 0, 7); ctx.stroke();
+    } else if (k.aura === 'storm') { // little lightning arcs
+      ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.05); ctx.shadowColor = g; ctx.shadowBlur = s * 0.3;
+      for (let i = 0; i < 3; i++) { if (Math.sin(t * 13 + i * 2.1) < 0.2) continue; const a = i * 2.1 + Math.floor(t * 6) * 0.7; ctx.beginPath();
+        for (let j = 0; j <= 4; j++) { const r = s * (0.9 + j * 0.1), aa = a + (j % 2 ? 0.15 : -0.1); ctx[j ? 'lineTo' : 'moveTo'](Math.cos(aa) * r, Math.sin(aa) * r); } ctx.stroke(); }
     } else if (k.aura === 'prism') {
       ctx.rotate(t * 1.5); ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.05); ctx.globalAlpha = 0.6;
       ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * s * 1.3, Math.sin(a) * s * 1.3); } ctx.closePath(); ctx.stroke();
@@ -163,6 +195,11 @@
     swap: '<path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
     plasma: '<circle cx="12" cy="12" r="5" fill="#e879f9"/><circle cx="12" cy="12" r="9" fill="none" stroke="#c026d3" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#f0abfc" stroke-width="1.6" stroke-linecap="round"/>',
     x: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+    rocket: '<path d="M12 2c4 2.5 5.5 7 4.5 12h-9C6.5 9 8 4.5 12 2z" fill="#e2e8f0"/><circle cx="12" cy="9" r="2" fill="#38bdf8"/><path d="M7.5 14l-3 4 3.5-.5zm9 0l3 4-3.5-.5z" fill="#ef4444"/><path d="M9.5 15.5h5L12 21z" fill="#f97316"/>',
+    timer: '<circle cx="12" cy="13" r="8" fill="none" stroke="#fde047" stroke-width="2"/><path d="M12 13V8.5M12 13l3 2" stroke="#fde047" stroke-width="2" stroke-linecap="round"/><path d="M9.5 2.5h5" stroke="#fde047" stroke-width="2" stroke-linecap="round"/>',
+    clover: '<circle cx="9" cy="9" r="3.6" fill="#4ade80"/><circle cx="15" cy="9" r="3.6" fill="#22c55e"/><circle cx="9" cy="15" r="3.6" fill="#22c55e"/><circle cx="15" cy="15" r="3.6" fill="#4ade80"/><path d="M12 12q2 5 5 9" stroke="#15803d" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+    revive: '<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 10c0 5.8-8 11-8 11z" fill="#4ade80" stroke="#dcfce7" stroke-width="1.3"/><path d="M12 8.5v6M9 11.5h6" stroke="#14532d" stroke-width="2" stroke-linecap="round"/>',
+    drone: '<circle cx="12" cy="13" r="5" fill="#94a3b8" stroke="#e2e8f0" stroke-width="1.2"/><circle cx="12" cy="12.5" r="2" fill="#22d3ee"/><path d="M3 6h7M14 6h7M6.5 6v4M17.5 6v4" stroke="#e2e8f0" stroke-width="1.6" stroke-linecap="round"/>',
   };
 
   const AVATARS = [
@@ -178,7 +215,15 @@
     { id: 'crown', price: 1200, svg: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#facc15" stroke="#a16207" stroke-width="1.2" stroke-linejoin="round"/><circle cx="12" cy="14" r="1.6" fill="#ef4444"/><circle cx="7.5" cy="15" r="1.1" fill="#22d3ee"/><circle cx="16.5" cy="15" r="1.1" fill="#22d3ee"/>' },
     { id: 'diamond', gems: 8, svg: '<circle cx="12" cy="12" r="11" fill="#083344"/><path d="M7.5 7h9l3 4.5L12 20l-7.5-8.5z" fill="#22d3ee" stroke="#cffafe" stroke-width=".8"/><path d="M4.5 11.5h15M10 7l2 13M14 7l-2 13" stroke="#0e7490" stroke-width=".8" fill="none"/>' },
     { id: 'phoenix', gems: 12, svg: '<circle cx="12" cy="12" r="11" fill="#431407"/><path d="M12 19c-4-2-7-6-6-11 2 2 3 3 4 3 0-3 1-5 2-7 1 2 2 4 2 7 1 0 2-1 4-3 1 5-2 9-6 11z" fill="#fb923c"/><path d="M12 18c-2-1-3-3-2.5-5.5 1 1 1.6 1.2 2.5 1.2 0-1.4.3-2.4 1-3.4.6 1 .8 2 .8 3.4.9 0 1.5-.2 2.5-1.2.4 2.5-.6 4.5-2.8 5.5z" fill="#fde047"/>' },
+    { id: 'voidav', gems: 30, svg: '<circle cx="12" cy="12" r="11" fill="#0b0720"/><circle cx="12" cy="12" r="8" fill="none" stroke="#a78bfa" stroke-width="1.4" stroke-dasharray="1 2.2"/><circle cx="12" cy="12" r="5" fill="#000" stroke="#7c3aed" stroke-width="1.5"/><path d="M4 12c3-2 13-2 16 0" stroke="#c4b5fd" stroke-width="1" fill="none"/>' },
+    { id: 'auroraav', gems: 40, svg: '<circle cx="12" cy="12" r="11" fill="#022c22"/><path d="M3 14c3-6 6 2 9-4s6 0 9-3" stroke="#5eead4" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M3 18c3-5 6 1 9-3s6 0 9-2" stroke="#a7f3d0" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/><circle cx="7" cy="6" r=".7" fill="#fff"/><circle cx="17" cy="5" r=".7" fill="#fff"/>' },
+    { id: 'crownx', gems: 60, svg: '<circle cx="12" cy="12" r="11" fill="#1e1b4b"/><path d="M4 9l4 3.5L12 5l4 7.5L20 9l-2 9H6z" fill="#22d3ee" stroke="#cffafe" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="1.6" fill="#f0abfc"/>' },
     { id: 'galaxy', gems: 20, svg: '<circle cx="12" cy="12" r="11" fill="#1e1b4b"/><path d="M12 12c3-1 5 1 4 3.5s-5 3.5-8 1.5S4 10 7 7s9-3 11 1" fill="none" stroke="#f0abfc" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="#fff"/><circle cx="6" cy="17" r=".7" fill="#fff"/><circle cx="18" cy="6" r=".7" fill="#fff"/>' },
+    { id: 'satellite', price: 600, svg: '<rect x="9" y="9" width="6" height="6" rx="1" fill="#e2e8f0" transform="rotate(45 12 12)"/><rect x="1.5" y="10" width="6" height="4" fill="#38bdf8" stroke="#0369a1" stroke-width=".6" transform="rotate(45 12 12)"/><rect x="16.5" y="10" width="6" height="4" fill="#38bdf8" stroke="#0369a1" stroke-width=".6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="1.3" fill="#f43f5e"/>' },
+    { id: 'starfish', price: 800, svg: '<path d="M12 2l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7L12 16.3 6.1 20l1.7-6.7-5.3-4.4 6.9-.5z" fill="#fb923c" stroke="#c2410c" stroke-width="1"/><circle cx="10" cy="11" r="1" fill="#431407"/><circle cx="14" cy="11" r="1" fill="#431407"/><path d="M10.5 13.5q1.5 1 3 0" stroke="#431407" stroke-width=".9" fill="none"/>' },
+    { id: 'octo', price: 1000, svg: '<path d="M5 12a7 7 0 0114 0v2c0 1-1 1-1 3s1 3 0 4-2-1-3-2-1 2-3 2-2-3-3-2-2 3-3 2 0-2 0-4-1-2-1-3z" fill="#c084fc"/><circle cx="9.5" cy="11" r="1.8" fill="#fff"/><circle cx="14.5" cy="11" r="1.8" fill="#fff"/><circle cx="9.8" cy="11.3" r=".9" fill="#1e1b4b"/><circle cx="14.8" cy="11.3" r=".9" fill="#1e1b4b"/>' },
+    { id: 'fire', price: 1500, svg: '<path d="M12 22c-4.5 0-7-3-7-6.5 0-4 3-5.5 3.5-9.5 1.5 1.5 2.3 3 2.3 4.8C12 9 13 6 12.5 2c4 2.5 6.5 6.5 6.5 12 0 4.5-3 8-7 8z" fill="#f97316"/><path d="M12 21c-2.2 0-3.5-1.5-3.5-3.4 0-2 1.5-3 2-5 1 1 1.4 2 1.4 3 .8-.8 1.4-2 1.2-3.6 1.6 1.2 2.4 3 2.4 5.3 0 2.2-1.4 3.7-3.5 3.7z" fill="#fde047"/>' },
+    { id: 'dragonav', price: 2500, svg: '<circle cx="12" cy="12" r="11" fill="#450a0a"/><path d="M5 9l3-5 2 4h4l2-4 3 5-2 9H7z" fill="#ef4444"/><circle cx="9.5" cy="11.5" r="1.3" fill="#fde047"/><circle cx="14.5" cy="11.5" r="1.3" fill="#fde047"/><path d="M9.5 15.5l1 1 1.5-1 1.5 1 1-1" stroke="#fde047" stroke-width=".9" fill="none"/>' },
     { id: 'blackhole', price: 2000, svg: '<circle cx="12" cy="12" r="10" fill="#7c3aed" opacity=".35"/><circle cx="12" cy="12" r="7" fill="none" stroke="#f472b6" stroke-width="1.6" stroke-dasharray="6 3"/><circle cx="12" cy="12" r="4" fill="#000" stroke="#c084fc"/>' },
   ];
 
