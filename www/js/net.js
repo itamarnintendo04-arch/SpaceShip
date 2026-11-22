@@ -23,8 +23,10 @@
   let cv = null;
   const cutvid = () => cv || (cv = window.supabase.createClient(C.CUTVID_URL, C.CUTVID_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }));
   const cvErr = e => {
-    const m = String((e && (e.code || e.message)) || '');
+    const m = e ? [e.code, e.message, e.status].filter(Boolean).join(' ') : '';
     if (/otp_disabled|signups? not allowed|user_not_found/i.test(m)) return new Error('cv_no_account');
+    // CutVid could not send the email (mail server problem or its email sending limit)
+    if (/error sending|sending.*email|email_send|smtp|over_email_send_rate_limit|email rate limit|unexpected_failure|\b5\d\d\b/i.test(m)) return new Error('cv_send_failed');
     if (/email_not_confirmed|not confirmed/i.test(m)) return new Error('e_not_confirmed');
     if (/invalid_credentials|invalid login/i.test(m)) return new Error('e_bad_password');
     if (/weak_password|at least 6/i.test(m)) return new Error('e_pw_short');

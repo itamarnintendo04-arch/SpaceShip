@@ -303,6 +303,8 @@
         create: `<p class="small">${t('cv_new_account')}</p><p class="small" dir="ltr"><b>${esc(email)}</b></p>
           <label>${t('password')}<input id="ef-pass" type="password" dir="ltr" autocomplete="new-password"></label>
           <button class="btn primary" id="ef-go">${t('create_account')}</button>`,
+        later: `<div style="font-size:40px">⏳</div><p>${t('cv_try_later')}</p>
+          <button class="btn primary" id="ef-go">${t('try_again')}</button>`,
         confirm: `<p class="small">${t('cv_confirm_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>
           <button class="btn primary" id="ef-go">${t('i_confirmed')}</button>`,
       }[state];
@@ -321,7 +323,13 @@
               email = m.querySelector('#ef-email').value.trim().toLowerCase();
               if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('bad_email');
               try { await Net.cvEmailCode(email); step('code'); }
-              catch (e) { if (e.message === 'cv_no_account') step('create'); else throw e; }
+              catch (e) {
+                if (e.message === 'cv_no_account') step('create');
+                // The email can't be sent right now. It belongs to a CutVid account (otherwise CutVid would have said
+                // "no account"), so send the player to CutVid's own sign-in page (password / Google) instead.
+                else if (e.message === 'cv_send_failed') { closeModal(); toast(t('cv_send_redirect'), 4000); setTimeout(() => signInWithCutvid(intent), 900); }
+                else throw e;
+              }
             } else if (state === 'code') {
               await done(await Net.cvVerifyCode(email, m.querySelector('#ef-code').value));
             } else if (state === 'password') {
@@ -329,8 +337,12 @@
             } else if (state === 'create') {
               pw = m.querySelector('#ef-pass').value;
               if (pw.length < 6) throw new Error('e_pw_short');
-              const tok = await Net.cvSignUp(email, pw);
+              let tok;
+              try { tok = await Net.cvSignUp(email, pw); }
+              catch (e) { if (e.message === 'cv_send_failed') { step('later'); return; } throw e; } // not a CutVid user: try again later
               if (tok) await done(tok); else step('confirm');
+            } else if (state === 'later') {
+              step('email');
             } else if (state === 'confirm') {
               await done(await Net.cvPassword(email, pw));
             }
