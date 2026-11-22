@@ -440,6 +440,10 @@
       setTimeout(() => !this.dead && !this.over && this.finish(true), 1500);
     }
     finish(win) {
+      if (this.o.mini) { // loading-screen mini level never ends: the ship just comes back
+        for (const p of this.players) { p.alive = true; p.lives = 3; p.inv = 2; p.x = p.tx = W / 2; p.y = p.ty = this.H - 90; }
+        this.float(W / 2, this.H * 0.5, '↺', '#a5f3fc', 1); return;
+      }
       if (this.over) return;
       this.over = true; this.endT = win ? 1.6 : 1.8;
       const stars = win ? (this.livesLost === 0 ? 3 : this.livesLost === 1 ? 2 : 1) : 0;
@@ -679,6 +683,10 @@
       x.restore();
     }
     drawHud(x) {
+      if (this.o.mini) { // loading screen: just the score
+        x.direction = 'ltr'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '800 22px system-ui'; x.fillStyle = '#e2e8f0';
+        x.fillText(this.score.toLocaleString(), this.cw / 2, 30 + (this.o.safeTop || 0)); return;
+      }
       x.direction = I18N.dir;
       const cw = this.cw, pad = 12, me = this.me, top = 10 + (this.o.safeTop || 0);
       x.textBaseline = 'middle';

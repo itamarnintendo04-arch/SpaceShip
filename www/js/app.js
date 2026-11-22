@@ -28,11 +28,12 @@
   const defData = () => ({ coins: 100, ships: ['falcon'], avatars: [], skin: 'falcon', up: { weapon: 1, shield: 0, magnet: 0, life: 0 }, levels: {}, best: 0, ts: 0, gems: 0, worlds: [], slevels: {}, items: [] });
   let user = store.get('ss_user', null);
   let settings = store.get('ss_settings', { orientation: DESKTOP ? 'landscape' : 'portrait', sound: true });
+  let loadingGame = null;
   let friends = [], game = null, room = null, roomPeer = null, peerStats = null, current = null, history = [];
   if (user) user.data = Object.assign(defData(), user.data || {});
 
   const save = () => {
-    user.data.ts = Date.now(); store.set('ss_user', user);
+    user.data.ts = Date.now(); store.set('ss_user', user); if (!user.offline) store.set('ss_user_' + user.id, user);
     if (!user.offline) { clearTimeout(save.t); save.t = setTimeout(() => Net.save(user, user.data, user.data.best).catch(e => console.warn('save', e)), 800); }
   };
   const saveSettings = () => store.set('ss_settings', settings);
@@ -106,7 +107,8 @@
     if (current && push && current !== name) history.push(current);
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + name));
     current = name;
-    $('#bgfx').style.display = name === 'game' ? 'none' : '';
+    $('#bgfx').style.display = name === 'game' || name === 'loading' ? 'none' : '';
+    if (name !== 'loading' && loadingGame) { loadingGame.destroy(); loadingGame = null; }
     const r = renders[name]; r && r();
   }
   function back() {
@@ -354,21 +356,35 @@
   }
 
   // The login token is shown in full only here. It signs in on other devices together with the @handle.
+  // The login token is shown in full only here. It stays saved on this device until the player confirms they
+  // copied it, so leaving the app (to paste it somewhere) and coming back shows the same window again.
   function showToken(token, first) {
+    store.set('ss_pending_token', { token, first: !!first, id: user.id, handle: user.handle });
+    let copied = false;
     modal(`<h2>${first ? t('token_first') : t('token_new')}</h2>
       <p class="muted small">${t('token_help', { h: `<b dir="ltr">@${esc(user.handle)}</b>` })}</p>
       <div class="token-box" id="t-val">${esc(token)}</div>
-      <div class="row center"><button class="chip" id="t-copy">${Art.icon('copy')}${t('copy')}</button><button class="chip" id="t-share">${Art.icon('send')}${t('share')}</button><button class="chip" id="t-file">${t('save_file')}</button></div>
+      <button class="btn gold big" id="t-copy">${Art.icon('copy')}${t('copy')}</button>
+      <div class="row center"><button class="chip" id="t-share">${Art.icon('send')}${t('share')}</button><button class="chip" id="t-file">${t('save_file')}</button></div>
       <div class="warn">${t('token_warn')}${first ? '<br>' + t('token_warn_email') : ''}</div>
-      <label class="check"><input type="checkbox" id="t-ok"> ${t('saved_token')}</label>
-      <button class="btn primary" id="t-done" disabled>${t('continue')}</button>`, m => {
+      <p class="muted small">${t('token_wait')}</p>
+      <button class="btn primary" id="t-done" disabled>${t('continue')}</button>
+      <div class="status" id="t-st"></div>`, m => {
       const text = `SpaceShip\n@${user.handle}\n${token}`;
-      m.querySelector('#t-copy').onclick = () => copy(token);
-      m.querySelector('#t-share').onclick = () => share(text);
-      m.querySelector('#t-file').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text + '\n'], { type: 'text/plain' })); a.download = `SpaceShip-${user.handle}-token.txt`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
-      m.querySelector('#t-ok').onchange = e => { m.querySelector('#t-done').disabled = !e.target.checked; };
-      m.querySelector('#t-done').onclick = closeModal;
+      const ok = () => { copied = true; m.querySelector('#t-done').disabled = false; m.querySelector('#t-st').textContent = ''; };
+      m.querySelector('#t-copy').onclick = () => { copy(token); ok(); };
+      m.querySelector('#t-share').onclick = () => { share(text); ok(); };
+      m.querySelector('#t-file').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text + '\n'], { type: 'text/plain' })); a.download = `SpaceShip-${user.handle}-token.txt`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); ok(); };
+      m.querySelector('#t-done').onclick = () => {
+        if (!copied) { m.querySelector('#t-st').className = 'status err'; m.querySelector('#t-st').textContent = t('copy_first'); return; }
+        store.set('ss_pending_token', null); closeModal(); setTimeout(askNotifications, 600);
+      };
     });
+  }
+  const tokenShowing = () => !!document.querySelector('#modal:not(.hidden) #t-val');
+  function resumePendingToken() {
+    const p = store.get('ss_pending_token', null);
+    if (p && user && user.id === p.id && !tokenShowing()) showToken(p.token, p.first);
   }
 
   $('#r-offline').addEventListener('click', () => {
@@ -405,9 +421,80 @@
   $('#t-orient').addEventListener('click', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); renderMenu(); toast(settings.orientation === 'landscape' ? t('toast_land') : t('toast_port')); });
   $('#t-sound').addEventListener('click', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); renderMenu(); });
   $('#t-lang').addEventListener('click', pickLanguage);
+  $('#t-settings').addEventListener('click', () => { if (user) openSettings(); });
   $('#t-notif').addEventListener('click', () => setNotify(!settings.notify));
   $('#r-lang').addEventListener('click', pickLanguage);
   $('#m-reg').addEventListener('click', e => { e.preventDefault(); show('register'); });
+  // ---------- several accounts on one device ----------
+  function flushSave() {
+    if (!user || user.offline) return;
+    clearTimeout(save.t); store.set('ss_user_' + user.id, user);
+    Net.save(user, user.data, user.data.best).catch(() => {});
+  }
+  async function switchAccount(id) {
+    const a = savedAccounts().find(x => x.id === id); if (!a || (user && user.id === id)) return;
+    flushSave(); Net.stopPresence(); if (room) leaveRoom(); friends = [];
+    user = store.get('ss_user_' + id, null) || { id: a.id, secret: a.secret, handle: a.handle, name: a.name, avatar: a.avatar, data: defData() };
+    user.secret = a.secret; user.data = Object.assign(defData(), user.data || {});
+    store.set('ss_user', user); closeModal(); history = []; show('menu'); toast(t('welcome', { h: at(user.handle) }));
+    try {
+      const r = await Net.login(user.id, user.secret);
+      Object.assign(user, { handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, email: r.email || null, has_token: !!r.has_token });
+      if (r.data && (r.data.ts || 0) > (user.data.ts || 0)) user.data = Object.assign(defData(), r.data);
+      store.set('ss_user', user); store.set('ss_user_' + user.id, user); if (current === 'menu') renderMenu();
+    } catch (e) { toast(errText(e)); }
+    afterLogin();
+  }
+  function addAccount() {
+    flushSave(); Net.stopPresence(); if (room) leaveRoom(); friends = [];
+    user = null; store.set('ss_user', null); cvPending = null; closeModal(); history = [];
+    show('register', false); $('#r-tabs [data-rt="new"]').click();
+  }
+
+  // ---------- settings ----------
+  function openSettings() {
+    const accs = savedAccounts();
+    modal(`<h2>${Art.icon('gear')} ${t('settings')}</h2>
+      <div class="settings-chips">
+        <button class="chip" id="s-lang">${langLabel()}</button>
+        <button class="chip" id="s-sound">${settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted')}</button>
+        <button class="chip" id="s-orient">${settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port')}</button>
+        ${user.offline ? '' : `<button class="chip" id="s-notif">${settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off')}</button>`}
+      </div>
+      ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div>`
+        : `<div class="small muted">${t('email_instead_token')}</div>
+           <button class="btn small primary" id="s-email">${Art.icon('cutvid')}${t('add_email')}</button>
+           <button class="btn small" id="s-tok">${t('new_token')}</button>`}</div>`}
+      <div class="sec"><h3>${t('accounts')}</h3>
+        ${accs.map(a => `<div class="acc-row"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><br><small dir="ltr" style="color:var(--cyan)">@${esc(a.handle)}</small></div>
+          ${user && a.id === user.id ? `<span class="chip">${t('current_acc')}</span>` : `<button class="btn small" data-switch="${esc(a.id)}">${t('switch_to')}</button>`}</div>`).join('')}
+        <button class="btn small" id="s-add">${Art.icon('plus')}${t('add_account')}</button>
+      </div>
+      ${user.offline ? '' : `<button class="btn ghost" id="s-out">${t('sign_out')}</button>`}
+      <button class="btn ghost" id="s-x">${t('close')}</button>`, m => {
+      const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
+      on('#s-x', closeModal);
+      on('#s-lang', () => { closeModal(); pickLanguage(); });
+      on('#s-sound', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); openSettings(); });
+      on('#s-orient', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); openSettings(); });
+      on('#s-notif', async () => { await setNotify(!settings.notify); openSettings(); });
+      on('#s-email', () => { closeModal(); emailFlow('link'); });
+      on('#s-tok', async () => {
+        if (!confirm(t('confirm_new_token'))) return;
+        try { const tk = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(tk, false); } catch (e) { toast(errText(e)); }
+      });
+      on('#s-add', addAccount);
+      on('#s-out', signOut);
+      m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
+    });
+  }
+  function signOut() {
+    if (!confirm(t('confirm_signout'))) return;
+    flushSave(); Net.stopPresence(); user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
+    $('#r-tabs [data-rt="login"]').click();
+  }
+
   function editProfile() {
     modal(`<h2>${t('profile')}</h2><div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(user.avatar)}</div>
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
@@ -430,11 +517,7 @@
         if (!confirm(t('confirm_new_token'))) return;
         try { const t = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
       });
-      on('#p-out', () => {
-        if (!confirm(t('confirm_signout'))) return;
-        Net.stopPresence(); user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
-        $('#r-tabs [data-rt="login"]').click();
-      });
+      on('#p-out', signOut);
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
       const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => { closeModal(); signInWithCutvid('link'); };
@@ -826,6 +909,7 @@
   }
   function askNotifications() {
     if (settings.notifAsked || !user || user.offline || game) return;
+    if (!$('#modal').classList.contains('hidden') || store.get('ss_pending_token', null) || current !== 'menu') return setTimeout(askNotifications, 2500);
     settings.notifAsked = true; saveSettings();
     modal(`<div style="font-size:44px">🔔</div><h2>${t('notif_title')}</h2><p class="muted">${t('notif_body')}</p>
       <button class="btn primary big" id="n-yes">${t('allow')}</button><button class="btn ghost" id="n-no">${t('not_now')}</button>`, m => {
@@ -862,17 +946,42 @@
     const intent = store.get('ss_cv_intent', 'login'); store.set('ss_cv_intent', null);
     Net.cutvidOAuthFinish(back).then(token => intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e), 3500));
   }
-  if (!user) show('register');
-  else {
-    show('menu');
-    if (!user.offline) Net.login(user.id, user.secret).then(r => {
-      Object.assign(user, { handle: r.handle, friend_code: r.friend_code, email: r.email || null, has_token: !!r.has_token });
-      if (r.data && (r.data.ts || 0) > (user.data.ts || 0)) { user.data = Object.assign(defData(), r.data); store.set('ss_user', user); if (current === 'menu') renderMenu(); }
-      afterLogin();
-    }).catch(e => { console.warn('login', e); if (String(e.message).includes('unauthorized')) { user.offline = true; store.set('ss_user', user); renderMenu(); } });
+  // ---------- loading screen: a mini level to play while the game connects to the server ----------
+  function bootLoading() {
+    const enter = () => { if (!user) show('register'); else { show('menu'); if (!user.offline) afterLogin(); } resumePendingToken(); };
+    if (/[?&]skipintro\b/.test(location.search)) return enter();
+    show('loading', false);
+    let ready = false;
+    const fill = p => { $('#ld-fill').style.width = p + '%'; };
+    $('#ld-text').textContent = t('ld_hint'); fill(10);
+    setTimeout(() => {
+      if (current !== 'loading') return;
+      const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
+      loadingGame = new Game($('#ld-canvas'), {
+        mode: 'endless', mini: true, orientation: settings.orientation, safeTop: safeTop + 4, hd: DESKTOP,
+        me: { id: 'mini', handle: '', name: '', skin: user ? user.data.skin : 'falcon', stats: user ? myStats() : {} }, onEnd: () => {},
+      });
+    }, 30);
+    const tasks = [new Promise(r => setTimeout(r, 2200))];
+    if (user && !user.offline) tasks.push(Net.login(user.id, user.secret).then(r => {
+      Object.assign(user, { handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, email: r.email || null, has_token: !!r.has_token });
+      if (r.data && (r.data.ts || 0) > (user.data.ts || 0)) user.data = Object.assign(defData(), r.data);
+      store.set('ss_user', user); rememberAccount(user);
+    }).catch(e => { console.warn('login', e); if (String(e.message).includes('unauthorized')) { user.offline = true; store.set('ss_user', user); } }).finally(() => fill(85)));
+    setTimeout(() => fill(45), 600);
+    Promise.all(tasks).then(() => {
+      fill(100); ready = true;
+      $('#ld-text').textContent = t('ld_ready'); $('#ld-go').classList.remove('hidden');
+    });
+    const go = () => { if (!ready || current !== 'loading') return; removeEventListener('keydown', key); enter(); };
+    const key = e => { if (e.key === 'Enter') go(); };
+    $('#ld-go').onclick = go; addEventListener('keydown', key);
   }
+  bootLoading();
+
   // automatic sync: pull newer progress from the server whenever the app comes back to the front
   document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resumePendingToken();
     if (document.hidden || !user || user.offline || game) return;
     Net.login(user.id, user.secret).then(r => {
       Object.assign(user, { handle: r.handle, name: r.name, avatar: r.avatar, email: r.email || null, has_token: !!r.has_token });

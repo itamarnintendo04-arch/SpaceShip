@@ -13,6 +13,17 @@
 <canvas id="bgfx"></canvas>
 <div id="app">
 
+  <!-- Loading: a mini level to play while the game connects -->
+  <section id="s-loading" class="screen game">
+    <canvas id="ld-canvas"></canvas>
+    <div class="ld-ui">
+      <h1 class="title">SpaceShip</h1>
+      <div class="ld-bar"><i id="ld-fill"></i></div>
+      <div class="ld-text" id="ld-text"></div>
+      <button class="btn primary big hidden" id="ld-go"><span data-ic="play"></span><span data-t="play"></span></button>
+    </div>
+  </section>
+
   <!-- Register -->
   <section id="s-register" class="screen">
     <div class="card narrow">
@@ -75,6 +86,7 @@
         <button class="chip" id="t-sound"></button>
         <button class="chip" id="t-lang"></button>
         <button class="chip" id="t-notif"></button>
+        <button class="chip" id="t-settings"><span data-ic="gear"></span><span data-t="settings"></span></button>
       </div>
       <div id="m-desk" class="desk-hint hidden" data-t="desk_hint"></div>
       <div id="m-offline" class="offline hidden"><span data-t="offline_mode"></span> <a href="#" id="m-reg" data-t="connect_server"></a></div>

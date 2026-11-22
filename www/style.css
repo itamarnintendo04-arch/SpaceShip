@@ -143,6 +143,18 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .sec h3 { font-size: 15px; margin: 0; }
 .saved-acc { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
 .saved-acc .person { cursor: pointer; text-align: start; font: inherit; color: var(--text); width: 100%; }
+/* loading screen */
+#ld-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.ld-ui { position: absolute; left: 0; right: 0; top: calc(var(--st) + 56px); display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; padding: 0 16px; }
+.ld-ui .title { font-size: 38px; }
+.ld-bar { width: min(320px, 80%); height: 8px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+.ld-bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, #22d3ee, #a855f7); transition: width .4s ease; }
+.ld-text { font-size: 14px; color: var(--muted); text-align: center; text-shadow: 0 1px 6px #000; }
+#ld-go { pointer-events: auto; min-width: 200px; }
+.acc-row { display: flex; align-items: center; gap: 8px; }
+.acc-row .info { flex: 1; min-width: 0; text-align: start; }
+.acc-row .avatar { width: 38px; height: 38px; }
+.settings-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 /* languages */
 .cv-note { display: flex; gap: 6px; align-items: flex-start; text-align: start; }
 html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
