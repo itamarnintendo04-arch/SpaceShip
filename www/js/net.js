@@ -55,8 +55,12 @@
     cancelFriendRequest: (u, to) => rpc('cancel_friend_request', { p_id: u.id, p_secret: u.secret, p_to: to }),
     // parties (up to 10 players)
     myParties: u => rpc('my_parties', { p_id: u.id, p_secret: u.secret }),
-    createParty: (u, name, desc, pub) => rpc('create_party', { p_id: u.id, p_secret: u.secret, p_name: name, p_desc: desc, p_public: pub }),
-    updateParty: (u, id, name, desc, pub) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: pub }),
+    createParty: (u, name, desc, pub, logo) => rpc('create_party', { p_id: u.id, p_secret: u.secret, p_name: name, p_desc: desc, p_public: pub, p_logo: logo || 'l1' }),
+    updateParty: (u, id, name, desc, pub, logo) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: pub, p_logo: logo || null }),
+    setPartyLogo: (u, party, logo) => rpc('set_party_logo', { p_id: u.id, p_secret: u.secret, p_party: party, p_logo: logo }),
+    setPartyBannedWords: (u, party, words) => rpc('set_party_banned_words', { p_id: u.id, p_secret: u.secret, p_party: party, p_words: words }),
+    partyMessages: (u, party, after) => rpc('party_messages', { p_id: u.id, p_secret: u.secret, p_party: party, p_after: after || 0 }),
+    sendPartyMessage: (u, party, body) => rpc('send_party_message', { p_id: u.id, p_secret: u.secret, p_party: party, p_body: body }),
     searchParties: (u, q) => rpc('search_parties', { p_id: u.id, p_secret: u.secret, p_q: q || '' }),
     joinParty: (u, id, code) => rpc('join_party', { p_id: u.id, p_secret: u.secret, p_party: id || null, p_code: code || null }),
     leaveParty: (u, id) => rpc('leave_party', { p_id: u.id, p_secret: u.secret, p_party: id }),
@@ -128,7 +132,7 @@
     cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
-    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply }) {
+    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg }) {
       if (!sb || lobby) return;
       lobby = sb.channel('ss-lobby', { config: { presence: { key: user.id } } });
       lobby.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== user.id && onJoin) onJoin(key, newPresences && newPresences[0]); });
@@ -146,6 +150,7 @@
       inbox.on('broadcast', { event: 'friend_accepted' }, ({ payload }) => onFriendAccepted && onFriendAccepted(payload));
       inbox.on('broadcast', { event: 'join_request' }, ({ payload }) => onJoinRequest && onJoinRequest(payload));
       inbox.on('broadcast', { event: 'join_reply' }, ({ payload }) => onJoinReply && onJoinReply(payload));
+      inbox.on('broadcast', { event: 'party_msg' }, ({ payload }) => onPartyMsg && onPartyMsg(payload));
       inbox.subscribe();
     },
     stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; lobbySubscribed = false; },

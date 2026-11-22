@@ -1,4 +1,4 @@
-// SpaceShip music: three original tracks synthesised live with Web Audio (no audio files).
+// SpaceShip music: original tracks (one more for each world) synthesised live with Web Audio (no audio files).
 //   loading — light and curious, menu — dreamy, game — driving.
 // Music.play(name) picks the track, Music.setVolume(1..100), Music.setEnabled(bool).
 (function () {
@@ -30,6 +30,36 @@
       hats: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1], kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0],
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
       pad: 0.025,
+    },
+    // world 2 — frozen nebula: glassy, sparkling, a bit slower
+    game2: {
+      bpm: 116, chords: [62, 58, 53, 60], // Dm Bb F C
+      chordType: [[0, 3, 7, 10], [0, 4, 7, 11], [0, 4, 7, 9], [0, 4, 7]],
+      arp: [0, 2, 4, 2, 1, 3, 5, 3, 0, 2, 4, 6, 5, 3, 2, 1], arpOct: 24, arpWave: 'sine', arpGain: 0.08,
+      bass: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0], bassGain: 0.14,
+      hats: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      pad: 0.045,
+    },
+    // world 3 — lava galaxy: fast and heavy
+    game3: {
+      bpm: 150, chords: [57, 57, 53, 55], // Am Am F G
+      chordType: [[0, 3, 7], [0, 3, 7], [0, 4, 7], [0, 4, 7]],
+      arp: [0, 0, 1, 0, 2, 0, 1, 0, 0, 0, 1, 0, 3, 2, 1, 0], arpOct: 12, arpWave: 'sawtooth', arpGain: 0.035,
+      bass: [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1], bassGain: 0.16,
+      hats: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], kick: [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+      pad: 0.02,
+    },
+    // world 4 — void core: dark and mysterious
+    game4: {
+      bpm: 124, chords: [48, 44, 41, 43], // Cm Ab Fm G
+      chordType: [[0, 3, 7], [0, 4, 7], [0, 3, 7], [0, 4, 7, 10]],
+      arp: [0, -1, 2, -1, 1, -1, 3, 2, 0, -1, 2, -1, 4, 3, 2, -1], arpOct: 24, arpWave: 'square', arpGain: 0.04,
+      bass: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], bassGain: 0.17,
+      hats: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      pad: 0.055,
     },
   };
 

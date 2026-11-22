@@ -1,7 +1,7 @@
 // SpaceShip app: screens, profile, shop, friends, co-op lobby
 (function () {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-  const { Game, Sfx, levelCfg, WORLDS } = window.SSGame;
+  const { Game, Sfx, levelCfg, WORLDS, GALAXIES } = window.SSGame;
   const GEM_RATE = 10; // 1 diamond = 10 coins
   // special items - bought with diamonds
   const GEM_ITEMS = [
@@ -33,7 +33,7 @@
   const defData = () => ({ coins: 100, ships: ['falcon'], avatars: [], skin: 'falcon', up: { weapon: 1, shield: 0, magnet: 0, life: 0 }, levels: {}, best: 0, ts: 0, gems: 0, worlds: [], slevels: {}, items: [] });
   let user = store.get('ss_user', null);
   let settings = store.get('ss_settings', { orientation: DESKTOP ? 'landscape' : 'portrait', sound: true });
-  let loadingGame = null;
+  let loadingGame = null, gameTrack = 'game';
   let friends = [], game = null, room = null, current = null, history = [];
   if (user) user.data = Object.assign(defData(), user.data || {});
 
@@ -128,7 +128,7 @@
     current = name;
     $('#bgfx').style.display = name === 'game' || name === 'loading' ? 'none' : '';
     if (name !== 'loading' && loadingGame) { loadingGame.destroy(); loadingGame = null; }
-    Music.play(name === 'loading' ? 'loading' : name === 'game' ? 'game' : 'menu');
+    Music.play(name === 'loading' ? 'loading' : name === 'game' ? gameTrack : 'menu');
     const r = renders[name]; r && r();
   }
   function back() {
@@ -563,22 +563,40 @@
   // ---------- levels: 500 levels in chapters of 50, then the 20 secret worlds ----------
   const CHAPTER = 50;
   const bossLabel = () => t('hud_boss').replace(/[!！]/g, '');
-  const unlockedLevel = (D, n) => n === 1 || (D.levels[n - 1] || 0) > 0;
-  const topLevel = D => { let n = 1; while (n < LEVELS && unlockedLevel(D, n + 1)) n++; return n; };
+  // 4 worlds of 500 levels, in order: a world opens when the last level of the one before it is done.
+  // World 1 keeps its old keys (1..500) so saved progress stays; the others are saved as "2:15".
+  const GALS = GALAXIES.length;
+  const lvKey = (g, n) => g > 1 ? g + ':' + n : n;
+  const starsOf = (D, g, n) => D.levels[lvKey(g, n)] || 0;
+  const galOpen = (D, g) => g === 1 || starsOf(D, g - 1, LEVELS) > 0;
+  const unlockedLevel = (D, n, g = 1) => galOpen(D, g) && (n === 1 || starsOf(D, g, n - 1) > 0);
+  const topLevel = (D, g = 1) => { let n = 1; while (n < LEVELS && unlockedLevel(D, n + 1, g)) n++; return n; };
+  const topGal = D => { let g = 1; while (g < GALS && galOpen(D, g + 1)) g++; return g; };
+  const galDone = (D, g) => { let c = 0; for (let n = 1; n <= LEVELS; n++) if (starsOf(D, g, n)) c++; return c; };
+  const galIcons = ['☄️', '❄️', '🌋', '🌀'];
   // Shared picker: the levels screen and the room lobby both use it. sel = what is chosen in a room.
-  function levelPicker(D, chapter, sel) {
-    const chapters = Math.ceil(LEVELS / CHAPTER), top = topLevel(D);
-    let html = `<div class="chapters">${Array.from({ length: chapters }, (_, c) => {
+  function levelPicker(D, chapter, sel, g = 1) {
+    const chapters = Math.ceil(LEVELS / CHAPTER), top = topLevel(D, g);
+    let html = `<div class="gal-tabs">${GALAXIES.map(G => {
+      const k = G.n, open = galOpen(D, k);
+      return `<button class="gal-tab g${k} ${k === g ? 'on' : ''} ${open ? '' : 'locked'}" data-gal="${k}" ${open ? '' : 'disabled'}>
+        <span class="gal-ic">${open ? galIcons[k - 1] : Art.icon('lock')}</span><b>${t('gal_' + k)}</b>
+        <small>${open ? galDone(D, k) + '/' + LEVELS : t('gal_locked_short', { n: LEVELS })}</small></button>`;
+    }).join('')}</div>
+    ${g < GALS && !galOpen(D, g + 1) ? `<div class="gal-next muted small">${Art.icon('lock')} ${t('gal_unlock_hint', { w: t('gal_' + (g + 1)), n: LEVELS })}</div>` : ''}
+    <div class="chapters">${Array.from({ length: chapters }, (_, c) => {
       const a = c * CHAPTER + 1, b = Math.min(LEVELS, (c + 1) * CHAPTER), open = a <= top;
       return `<button class="chap ${c === chapter ? 'on' : ''} ${open ? '' : 'locked'}" data-chap="${c}" ${open ? '' : 'disabled'}>${open ? '' : Art.icon('lock')}${a}–${b}</button>`;
     }).join('')}</div><div class="lv-page">`;
     for (let n = chapter * CHAPTER + 1; n <= Math.min(LEVELS, (chapter + 1) * CHAPTER); n++) {
-      const stars = D.levels[n] || 0, open = unlockedLevel(D, n), next = open && !stars;
-      const chosen = sel && !sel.secret && sel.mode === 'level' && sel.level === n;
-      html += `<button data-bl="${bossLabel()}" class="lv ${levelCfg(n).boss ? 'boss' : ''} ${open ? '' : 'locked'} ${next ? 'next' : ''} ${chosen ? 'chosen' : ''}" data-lv="${n}" ${open ? '' : 'disabled'}>
+      const stars = starsOf(D, g, n), open = unlockedLevel(D, n, g), next = open && !stars;
+      const chosen = sel && !sel.secret && sel.mode === 'level' && sel.level === n && (sel.world || 1) === g;
+      html += `<button data-bl="${bossLabel()}" class="lv g${g} ${levelCfg(n, g).boss ? 'boss' : ''} ${open ? '' : 'locked'} ${next ? 'next' : ''} ${chosen ? 'chosen' : ''}" data-lv="${n}" data-g="${g}" ${open ? '' : 'disabled'}>
         ${open ? `<b>${n}</b><div class="stars">${[1, 2, 3].map(i => Art.icon(i <= stars ? 'star' : 'starOff')).join('')}</div>` : Art.icon('lock')}</button>`;
     }
-    html += `</div><div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
+    html += `</div>`;
+    if (g !== 1) return html; // the secret worlds are found in world 1
+    html += `<div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
     WORLDS.forEach((w, i) => {
       const wn = i + 1, hint = t('h_' + w.trig.type, { l: w.trig.level, n: w.trig.n });
       if (!D.worlds.includes(w.id)) {
@@ -598,19 +616,23 @@
   }
   // what a click in the picker means: {chap} to change page, or a game choice
   function pickerClick(e) {
+    const gt = e.target.closest('[data-gal]'); if (gt && !gt.disabled) return { gal: +gt.dataset.gal };
     const c = e.target.closest('[data-chap]'); if (c && !c.disabled) return { chap: +c.dataset.chap };
     const s = e.target.closest('[data-sw]'); if (s && !s.disabled) return { pick: { mode: 'level', level: 1, secret: { w: +s.dataset.sw, k: +s.dataset.sk } } };
-    const b = e.target.closest('[data-lv]'); if (b && !b.disabled) return { pick: { mode: 'level', level: +b.dataset.lv } };
+    const b = e.target.closest('[data-lv]'); if (b && !b.disabled) return { pick: { mode: 'level', level: +b.dataset.lv, world: +b.dataset.g || 1 } };
     return null;
   }
-  let lvChapter = null;
+  let lvChapter = null, lvGal = null;
   function renderLevels() {
     $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(user.data));
-    if (lvChapter === null) lvChapter = Math.floor((topLevel(user.data) - 1) / CHAPTER);
-    $('#lv-grid').innerHTML = levelPicker(user.data, lvChapter, null);
+    if (lvGal === null) { lvGal = topGal(user.data); lvChapter = null; }
+    if (lvChapter === null) lvChapter = Math.floor((topLevel(user.data, lvGal) - 1) / CHAPTER);
+    $('#lv-grid').innerHTML = levelPicker(user.data, lvChapter, null, lvGal);
+    $('#s-levels').dataset.world = lvGal;
   }
   $('#lv-grid').addEventListener('click', e => {
     const r = pickerClick(e); if (!r) return;
+    if (r.gal != null) { lvGal = r.gal; lvChapter = null; renderLevels(); $('#lv-grid').scrollTop = 0; return; }
     if (r.chap != null) { lvChapter = r.chap; renderLevels(); $('#lv-grid').scrollTop = 0; return; }
     startGame(r.pick);
   });
@@ -705,7 +727,7 @@
     updateOnlineBadge();
   }
   function updateOnlineBadge() {
-    const n = friends.filter(f => Net.isOnline(f.id)).length + (requests.incoming || []).length;
+    const n = friends.filter(f => Net.isOnline(f.id)).length + (requests.incoming || []).length + parties.filter(p => unread(p)).length;
     const b = $('#m-online'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n);
   }
   function renderFriends() {
@@ -773,7 +795,9 @@
     } catch (er) { toast(errText(er)); }
   });
 
-  // ---------- parties = clubs: ranks, members with live status, member actions, profiles ----------
+  // ---------- parties = clubs: ranks, logo, chat with blocked words, members with live status ----------
+  //   leader: everything · co-leader: name/description/logo, senior -> member, remove anyone but the leader
+  //   senior: the logo · member: regular
   const RANKS = { leader: 4, coleader: 3, senior: 2, member: 1 };
   const rankOf = r => RANKS[r] || 1;
   const RANK_ICON = { leader: '👑', coleader: '⭐', senior: '🔷', member: '•' };
@@ -787,22 +811,26 @@
   const statusHtml = st => st.k === 'off' ? `<span class="st off">● ${t('st_offline')}</span>`
     : st.k === 'room' ? `<span class="st room">● ${room && room.code === st.room ? t('st_in_my_room') : t('st_in_room')}</span>`
     : `<span class="st on">● ${t('st_online')}</span>`;
-  const whoOf = id => friends.find(f => f.id === id) || parties.flatMap(p => p.members || []).find(m => m.id === id) || { id, handle: '', name: '' };
+  // which chat messages I have already read, per party
+  const seenKey = () => 'ss_seen_' + user.id;
+  const seenOf = pid => (store.get(seenKey(), {})[pid] || 0);
+  const setSeen = (pid, id) => { const s = store.get(seenKey(), {}); if ((s[pid] || 0) < id) { s[pid] = id; store.set(seenKey(), s); } };
+  const unread = p => (p.last_msg || 0) > seenOf(p.id);
 
   async function loadParties() {
     if (!user || user.offline) return;
     try { parties = await Net.myParties(user) || []; } catch (e) { console.warn(e); }
     if (current === 'friends' && friendTab === 'parties') renderParties();
+    updateOnlineBadge();
   }
   function renderParties() {
     $('#p-mine').innerHTML = parties.length ? parties.map(p => {
-      const ms = p.members || [], my = p.my_role || (p.mine ? 'leader' : 'member');
+      const ms = p.members || [], my = p.my_role || (p.mine ? 'leader' : 'member'), r = rankOf(my);
       const sts = Object.fromEntries(ms.map(m => [m.id, liveStatus(m.id)]));
       const on = ms.filter(m => m.id !== user.id && sts[m.id].k !== 'off').length, inRoom = ms.filter(m => m.id !== user.id && sts[m.id].k === 'room').length;
-      // online members first, then by rank (the server already sorts by rank)
-      const order = [...ms].sort((a, b) => (sts[b.id].k !== 'off') - (sts[a.id].k !== 'off'));
+      const order = [...ms].sort((a, b) => (sts[b.id].k !== 'off') - (sts[a.id].k !== 'off')); // online first, then by rank
       return `<div class="party club">
-        <div class="party-head"><div class="club-badge">${Art.icon('friends')}</div>
+        <div class="party-head"><button class="club-logo" ${r >= 2 ? `data-plogo="${p.id}" title="${esc(t('change_logo'))}"` : 'disabled'}>${Art.logo(p.logo)}${r >= 2 ? `<span class="edit-dot">✎</span>` : ''}</button>
           <div class="club-title"><b>${esc(p.name)}</b><small>${t('your_rank')}: ${rankTag(my)}</small></div>
           <span class="chip">${p.is_public ? '🌐 ' + t('public_tag') : '🔒 ' + t('private_tag')}</span></div>
         ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
@@ -812,12 +840,23 @@
             <div class="avatar">${Art.avatar(m.avatar)}<span class="dot ${st.k !== 'off' ? 'on' : ''} ${st.k === 'room' ? 'room' : ''}"></span></div>
             <div class="info"><b>${esc(m.name)}${m.id === user.id ? ` <span class="muted">(${t('you')})</span>` : ''}</b><small dir="ltr">@${esc(m.handle)}</small></div>
             <div class="cm-side">${rankTag(m.role)}${statusHtml(st)}</div></button>`; }).join('')}</div>
-        <div class="row"><button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
-          ${rankOf(my) >= 3 ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
+        <div class="row wrap">
+          <button class="btn small chat-btn" data-pchat="${p.id}">💬 ${t('chat')}${unread(p) ? '<span class="badge-dot"></span>' : ''}</button>
+          <button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
+          ${r >= 3 ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
+          ${r === 4 ? `<button class="btn small" data-pwords="${p.id}">🚫 ${t('blocked_words')}</button>` : ''}
           <button class="btn small ghost" data-pleave="${p.id}">${t('leave_party')}</button></div></div>`;
     }).join('') : '';
   }
 
+  // a warning with CONFIRM / CANCEL (handing over the party, removing someone)
+  function confirmBox(title, body, okText, onOk) {
+    modal(`<div class="sheet warn"><div class="warn-ic">⚠️</div><h2>${title}</h2><p>${body}</p>
+      <button class="btn danger-fill big" data-a="ok">${okText}</button><button class="btn ghost" data-a="no">${t('cancel_caps')}</button></div>`, c => {
+      c.querySelector('[data-a=no]').onclick = closeModal;
+      c.querySelector('[data-a=ok]').onclick = async () => { closeModal(); try { await onOk(); } catch (e) { toast(errText(e)); } };
+    });
+  }
   // the "play" button for another player: ask to join their room, or invite them to mine
   function playButton(id, st) {
     if (st.k === 'room' && !(room && room.code === st.room)) return `<button class="btn gold" data-a="ask">${Art.icon('play')} ${t('ask_join')}</button>`;
@@ -830,27 +869,26 @@
     else { toast(t('request_sent', { h: at(handle) })); Net.sendTo(id, 'friend_request', { handle: user.handle, name: user.name }).catch(() => {}); }
     loadFriends();
   }
-  // what you can do with a club member, by your rank and theirs
+  // what you can do with a member, by your rank and theirs
   function memberSheet(pid, mid) {
     const p = parties.find(x => x.id === pid), m = p && (p.members || []).find(x => x.id === mid); if (!m) return;
     if (m.id === user.id) return openProfile(m.id);
-    const my = rankOf(p.my_role), their = rankOf(m.role), st = liveStatus(m.id);
+    const my = p.my_role || 'member', their = m.role || 'member', st = liveStatus(m.id);
     const isFriend = m.friend || friends.some(f => f.id === m.id), out = (requests.outgoing || []).some(f => f.id === m.id);
-    const up = their === 1 ? 'senior' : 'coleader', down = their === 3 ? 'senior' : 'member';
-    const canUp = (my === 4 && their < 3) || (my === 3 && their === 1), canDown = (my === 4 && their > 1 && their < 4) || (my === 3 && their === 2);
-    const canKick = my >= 3 && their < my;
+    let manage = '';
+    if (my === 'leader') manage = ['member', 'senior', 'coleader'].filter(r => r !== their).map(r => `<button class="btn small" data-a="role" data-r="${r}">${RANK_ICON[r]} ${t('set_rank', { r: t('rank_' + r) })}</button>`).join('')
+      + `<button class="btn small gold" data-a="leader">👑 ${t('make_leader')}</button><button class="btn small danger" data-a="kick">${Art.icon('x')} ${t('kick')}</button>`;
+    else if (my === 'coleader') manage = (their === 'senior' ? `<button class="btn small" data-a="role" data-r="member">⬇ ${t('demote_to', { r: t('rank_member') })}</button>` : '')
+      + (their !== 'leader' ? `<button class="btn small danger" data-a="kick">${Art.icon('x')} ${t('kick')}</button>` : '');
     modal(`<div class="sheet">
       <div class="avatar" style="width:84px;height:84px;margin:0 auto">${Art.avatar(m.avatar)}</div>
       <h2>${esc(m.name)}</h2><div class="muted" dir="ltr">@${esc(m.handle)}</div>
-      <div class="sheet-tags">${rankTag(m.role)}${statusHtml(st)}</div>
+      <div class="sheet-tags">${rankTag(their)}${statusHtml(st)}</div>
+      <div class="muted small">${t('perm_' + their)}</div>
       ${playButton(m.id, st)}
       <button class="btn" data-a="profile">${Art.icon('friends')} ${t('view_profile')}</button>
       ${isFriend ? `<div class="chip center">${t('friends_already')}</div>` : out ? `<button class="btn" disabled>${t('requested')}</button>` : `<button class="btn" data-a="friend">${Art.icon('plus')} ${t('add_friend')}</button>`}
-      ${canUp || canDown || canKick || my === 4 ? `<div class="lbl">${t('manage_member')}</div><div class="row wrap">
-        ${canUp ? `<button class="btn small" data-a="role" data-r="${up}">⬆ ${t('promote_to', { r: t('rank_' + up) })}</button>` : ''}
-        ${canDown ? `<button class="btn small" data-a="role" data-r="${down}">⬇ ${t('demote_to', { r: t('rank_' + down) })}</button>` : ''}
-        ${my === 4 ? `<button class="btn small gold" data-a="leader">👑 ${t('make_leader')}</button>` : ''}
-        ${canKick ? `<button class="btn small danger" data-a="kick">${Art.icon('x')} ${t('kick')}</button>` : ''}</div>` : ''}
+      ${manage ? `<div class="lbl">${t('manage_member')}</div><div class="row wrap">${manage}</div>` : ''}
       <button class="btn ghost" data-a="close">${t('close')}</button></div>`, c => {
       c.onclick = async e => {
         const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
@@ -861,10 +899,13 @@
           if (a === 'invite') { closeModal(); return inviteFriend(m.id, m); }
           if (a === 'ask') { closeModal(); return askToJoin(m.id, m); }
           if (a === 'friend') { await requestFriend(m.id, m.handle); closeModal(); return; }
-          if (a === 'role') { await Net.setPartyRole(user, p.id, m.id, b.dataset.r); toast(t('rank_changed', { h: at(m.handle), r: t('rank_' + b.dataset.r) })); }
-          if (a === 'leader') { if (!confirm(t('confirm_make_leader', { h: '@' + m.handle }))) return; await Net.setPartyRole(user, p.id, m.id, 'leader'); toast(t('rank_changed', { h: at(m.handle), r: t('rank_leader') })); }
-          if (a === 'kick') { if (!confirm(t('confirm_kick', { h: '@' + m.handle }))) return; await Net.kickPartyMember(user, p.id, m.id); toast(t('kicked', { h: at(m.handle) })); }
-          closeModal(); loadParties();
+          if (a === 'role') { await Net.setPartyRole(user, p.id, m.id, b.dataset.r); toast(t('rank_changed', { h: at(m.handle), r: t('rank_' + b.dataset.r) })); closeModal(); return loadParties(); }
+          if (a === 'leader') return confirmBox(t('warn_title'), t('warn_leader_body', { h: at(m.handle), x: esc(p.name) }), t('confirm_caps'), async () => {
+            await Net.setPartyRole(user, p.id, m.id, 'leader'); toast(t('rank_changed', { h: at(m.handle), r: t('rank_leader') })); loadParties();
+          });
+          if (a === 'kick') return confirmBox(t('kick'), t('confirm_kick', { h: at(m.handle) }), t('confirm_caps'), async () => {
+            await Net.kickPartyMember(user, p.id, m.id); toast(t('kicked', { h: at(m.handle) })); loadParties();
+          });
         } catch (er) { toast(errText(er)); }
       };
     });
@@ -900,6 +941,105 @@
     });
   }
 
+  // logos
+  const logoGrid = sel => `<div class="logo-grid">${Art.LOGOS.map(L => `<button class="logo-opt ${L.id === sel ? 'on' : ''}" data-logo="${L.id}">${Art.logo(L.id)}</button>`).join('')}</div>`;
+  function bindLogoGrid(c, onPick) {
+    c.querySelector('.logo-grid').onclick = e => { const b = e.target.closest('[data-logo]'); if (!b) return;
+      c.querySelectorAll('.logo-opt').forEach(x => x.classList.toggle('on', x === b)); onPick(b.dataset.logo); };
+  }
+  function logoPicker(p) {
+    let sel = p.logo || 'l1';
+    modal(`<h2>${t('party_logo')}</h2>${logoGrid(sel)}<div class="status" id="lg-st"></div>
+      <button class="btn primary" id="lg-go">${t('save')}</button><button class="btn ghost" id="lg-x">${t('cancel')}</button>`, c => {
+      bindLogoGrid(c, v => sel = v);
+      c.querySelector('#lg-x').onclick = closeModal;
+      c.querySelector('#lg-go').onclick = async () => {
+        try { await Net.setPartyLogo(user, p.id, sel); toast(t('logo_saved')); closeModal(); loadParties(); }
+        catch (e) { c.querySelector('#lg-st').className = 'status err'; c.querySelector('#lg-st').textContent = errText(e); }
+      };
+    });
+  }
+  // blocked words: only the leader. They show as # for every letter in the chat.
+  function blockedWords(p) {
+    const words = p.banned || [];
+    modal(`<h2>🚫 ${t('blocked_words')}</h2><p class="muted small">${t('blocked_hint')}</p>
+      <textarea id="bw-in" rows="6" placeholder="${esc(t('blocked_ph'))}">${esc(words.join('\n'))}</textarea>
+      <div class="muted small" id="bw-prev"></div><div class="status" id="bw-st"></div>
+      <button class="btn primary" id="bw-go">${t('save')}</button><button class="btn ghost" id="bw-x">${t('cancel')}</button>`, c => {
+      const list = () => [...new Set(c.querySelector('#bw-in').value.split(/[\n,]+/).map(w => w.trim()).filter(w => w && !w.includes('#')))];
+      const prev = () => { const l = list(); c.querySelector('#bw-prev').innerHTML = l.length ? t('blocked_n', { n: l.length }) + ' · ' + l.slice(0, 6).map(w => `<span dir="auto">${esc(w)}</span> → <b>${'#'.repeat([...w].length)}</b>`).join(' · ') : ''; };
+      c.querySelector('#bw-in').oninput = prev; prev();
+      c.querySelector('#bw-x').onclick = closeModal;
+      c.querySelector('#bw-go').onclick = async () => {
+        try { await Net.setPartyBannedWords(user, p.id, list().slice(0, 100)); toast(t('blocked_saved')); closeModal(); loadParties(); }
+        catch (e) { c.querySelector('#bw-st').className = 'status err'; c.querySelector('#bw-st').textContent = errText(e); }
+      };
+    });
+  }
+
+  // ---------- party chat ----------
+  let chat = null; // { pid, last, timer }
+  function openChat(pid) {
+    const p = parties.find(x => x.id === pid); if (!p) return;
+    if (chat) clearInterval(chat.timer);
+    chat = { pid, last: 0, timer: null, busy: false };
+    modal(`<div class="chat"><div class="chat-head"><div class="club-logo sm">${Art.logo(p.logo)}</div><b>${esc(p.name)}</b>
+        <span class="muted small">${t('online_n', { n: (p.members || []).filter(m => m.id !== user.id && Net.isOnline(m.id)).length })}</span>
+        <button class="icon-btn" id="ch-x">${Art.icon('x')}</button></div>
+      <div class="chat-list" id="ch-list"><div class="empty small">${t('loading')}</div></div>
+      <form class="chat-form" id="ch-form"><input id="ch-in" maxlength="300" autocomplete="off" placeholder="${esc(t('chat_ph'))}"><button class="btn primary small" id="ch-send">${Art.icon('send')}</button></form></div>`, c => {
+      c.querySelector('#ch-x').onclick = closeChat;
+      c.querySelector('#ch-form').onsubmit = async e => {
+        e.preventDefault();
+        const inp = c.querySelector('#ch-in'), body = inp.value.trim(); if (!body) return;
+        inp.value = '';
+        try {
+          await Net.sendPartyMessage(user, pid, body);
+          await loadChat();
+          for (const m of p.members || []) if (m.id !== user.id && Net.isOnline(m.id)) Net.sendTo(m.id, 'party_msg', { party: pid, name: p.name, h: user.handle }).catch(() => {});
+        } catch (er) { inp.value = body; toast(errText(er)); }
+      };
+      setTimeout(() => c.querySelector('#ch-in').focus(), 50);
+    });
+    loadChat();
+    chat.timer = setInterval(loadChat, 4000);
+  }
+  function closeChat() { if (chat) clearInterval(chat.timer); chat = null; closeModal(); renderParties(); }
+  async function loadChat() {
+    const box = $('#ch-list');
+    if (!chat || !box) { if (chat) clearInterval(chat.timer); chat = null; return; } // the chat was closed or replaced
+    if (chat.busy) return; chat.busy = true;
+    const pid = chat.pid;
+    try {
+      const rows = await Net.partyMessages(user, pid, chat.last);
+      if (!chat || chat.pid !== pid) return;
+      if (!chat.last) box.innerHTML = '';
+      if (!rows.length && !chat.last) box.innerHTML = `<div class="empty small">${t('no_msgs')}</div>`;
+      if (rows.length) {
+        const empty = box.querySelector('.empty'); if (empty) empty.remove();
+        const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+        box.insertAdjacentHTML('beforeend', rows.map(msgHtml).join(''));
+        chat.last = rows[rows.length - 1].id; setSeen(pid, chat.last);
+        const p = parties.find(x => x.id === pid); if (p) p.last_msg = chat.last;
+        if (near || rows.some(r => r.from && r.from.id === user.id)) box.scrollTop = box.scrollHeight;
+      }
+    } catch (e) { console.warn(e); } finally { if (chat) chat.busy = false; }
+  }
+  function msgHtml(m) {
+    const mine = m.from && m.from.id === user.id, time = new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `<div class="msg ${mine ? 'me' : ''}">${mine ? '' : `<div class="avatar">${Art.avatar(m.from ? m.from.avatar : 'alien')}</div>`}
+      <div class="bubble">${mine ? '' : `<b>${esc(m.from ? m.from.name : t('deleted_player'))}</b>`}<span dir="auto">${esc(m.body)}</span><small>${time}</small></div></div>`;
+  }
+  function onPartyMsg(p) {
+    if (!p || !p.party) return;
+    if (chat && chat.pid === p.party && $('#ch-list')) { loadChat(); return; }
+    const party = parties.find(x => x.id === p.party);
+    if (party) party.last_msg = (party.last_msg || 0) + 1e9; // unread until the chat is opened
+    notify(p.name || 'SpaceShip', t('n_party_msg', { h: '@' + (p.h || '') }));
+    if (current === 'friends' && friendTab === 'parties') renderParties();
+    updateOnlineBadge();
+  }
+
   let partyT = null;
   async function searchParties() {
     const q = $('#p-search').value.trim(), box = $('#p-results');
@@ -914,14 +1054,17 @@
   }
   $('#p-search').addEventListener('input', () => { clearTimeout(partyT); partyT = setTimeout(searchParties, 300); });
   function partyForm(p) {
+    let logo = p ? p.logo || 'l1' : Art.LOGOS[Math.random() * Art.LOGOS.length | 0].id;
     modal(`<h2>${p ? t('edit') : t('create_party')}</h2>
       <label>${t('party_name')}<input id="pf-name" maxlength="30" value="${esc(p ? p.name : '')}"></label>
       <label>${t('party_desc')}<textarea id="pf-desc" maxlength="200" rows="3">${esc(p ? p.description : '')}</textarea></label>
+      <div class="lbl">${t('party_logo')}</div>${logoGrid(logo)}
       <div class="seg" id="pf-vis"><button data-v="1" class="${!p || p.is_public ? 'on' : ''}">🌐 ${t('public_tag')}</button><button data-v="0" class="${p && !p.is_public ? 'on' : ''}">🔒 ${t('private_tag')}</button></div>
       <p class="muted small" id="pf-hint">${!p || p.is_public ? t('public_party') : t('private_party')}</p>
       <div class="status" id="pf-st"></div>
       <button class="btn primary" id="pf-go">${p ? t('save') : t('create_party')}</button><button class="btn ghost" id="pf-x">${t('cancel')}</button>`, m => {
       let pub = !p || p.is_public;
+      bindLogoGrid(m, v => logo = v);
       m.querySelector('#pf-x').onclick = closeModal;
       m.querySelector('#pf-vis').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pub = b.dataset.v === '1';
         m.querySelectorAll('#pf-vis button').forEach(x => x.classList.toggle('on', x === b)); m.querySelector('#pf-hint').textContent = pub ? t('public_party') : t('private_party'); };
@@ -929,7 +1072,7 @@
         const name = m.querySelector('#pf-name').value.trim(), desc = m.querySelector('#pf-desc').value.trim();
         if (!name) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = t('write_name'); return; }
         try {
-          if (p) await Net.updateParty(user, p.id, name, desc, pub); else { await Net.createParty(user, name, desc, pub); toast(t('party_created')); }
+          if (p) await Net.updateParty(user, p.id, name, desc, pub, logo); else { await Net.createParty(user, name, desc, pub, logo); toast(t('party_created')); }
           closeModal(); loadParties();
         } catch (e) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = errText(e); }
       };
@@ -938,12 +1081,16 @@
   $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
   $('#f-pane-parties').addEventListener('click', async e => {
     const mem = e.target.closest('[data-pmem]'); if (mem) return memberSheet(mem.dataset.party, mem.dataset.pmem);
-    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy]'); if (!b || b.disabled) return;
+    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo]'); if (!b || b.disabled) return;
     try {
+      if (b.dataset.pchat) return openChat(b.dataset.pchat);
+      if (b.dataset.pwords) return blockedWords(parties.find(x => x.id === b.dataset.pwords));
+      if (b.dataset.plogo) return logoPicker(parties.find(x => x.id === b.dataset.plogo));
       if (b.dataset.pcopy) return copy(b.dataset.pcopy);
       if (b.dataset.pjoin) { const p = await Net.joinParty(user, b.dataset.pjoin, b.dataset.pcode); toast(t('joined_party', { x: p.name })); $('#p-search').value = ''; $('#p-results').innerHTML = ''; }
       if (b.dataset.pedit) return partyForm(parties.find(x => x.id === b.dataset.pedit));
-      if (b.dataset.pleave) { const p = parties.find(x => x.id === b.dataset.pleave); if (!confirm(t('confirm_leave_party', { x: p.name }))) return; await Net.leaveParty(user, p.id); }
+      if (b.dataset.pleave) { const p = parties.find(x => x.id === b.dataset.pleave);
+        return confirmBox(t('leave_party'), t('confirm_leave_party', { x: esc(p.name) }), t('confirm_caps'), async () => { await Net.leaveParty(user, p.id); loadParties(); }); }
       if (b.dataset.pplay) { // a room for the party: invite every member who is online
         const p = parties.find(x => x.id === b.dataset.pplay);
         if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
@@ -977,10 +1124,11 @@
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
   const ROOM_MAX = 10;
-  let roomChapter = null;
+  let roomChapter = null, roomGal = null;
   const roomMembers = () => room ? [...room.members].sort((a, b) => (b.role === 'host') - (a.role === 'host') || String(a.joined).localeCompare(String(b.joined))) : [];
   const roomHost = () => roomMembers().find(m => m.role === 'host');
-  const pickLabel = p => !p ? '' : p.mode === 'endless' ? t('endless') : p.secret ? '✦ ' + t(WORLDS[p.secret.w - 1].id + '_name') + ' ' + p.secret.k + '/3' : t('level_n', { n: p.level });
+  const pickLabel = p => !p ? '' : p.mode === 'endless' ? t('endless') : p.secret ? '✦ ' + t(WORLDS[p.secret.w - 1].id + '_name') + ' ' + p.secret.k + '/3'
+    : ((p.world || 1) > 1 ? galIcons[p.world - 1] + ' ' + t('gal_' + p.world) + ' · ' : '') + t('level_n', { n: p.level });
   // which room a friend is in (from the lobby presence), so they can be asked to let us in
   const roomOf = id => { const m = Net.presenceOf(id); return m && m.room ? m.room : null; };
 
@@ -1013,8 +1161,9 @@
     $('#c-hostctl').classList.toggle('hidden', !isHost);
     $('#c-wait').classList.toggle('hidden', isHost);
     if (isHost) {
-      if (roomChapter === null) roomChapter = Math.floor(((room.pick && !room.pick.secret && room.pick.level) || topLevel(user.data)) - 1) / CHAPTER | 0;
-      $('#c-pick').innerHTML = `<button class="btn small ${room.pick && room.pick.mode === 'endless' ? 'primary' : ''}" data-endless>${Art.icon('infinity')}${t('endless')}</button>` + levelPicker(user.data, roomChapter, room.pick);
+      if (roomGal === null) roomGal = (room.pick && !room.pick.secret && room.pick.world) || topGal(user.data);
+      if (roomChapter === null) roomChapter = Math.floor(((room.pick && !room.pick.secret && (room.pick.world || 1) === roomGal && room.pick.level) || topLevel(user.data, roomGal)) - 1) / CHAPTER | 0;
+      $('#c-pick').innerHTML = `<button class="btn small ${room.pick && room.pick.mode === 'endless' ? 'primary' : ''}" data-endless>${Art.icon('infinity')}${t('endless')}</button>` + levelPicker(user.data, roomChapter, room.pick, roomGal);
       const allReady = ms.length >= 2 && ms.every(m => m.ready);
       $('#c-go').disabled = !allReady || !room.pick;
       $('#c-need').classList.toggle('hidden', allReady);
@@ -1026,6 +1175,7 @@
     if (!room || room.role !== 'host') return;
     if (e.target.closest('[data-endless]')) { setPick({ mode: 'endless', level: 1 }); return; }
     const r = pickerClick(e); if (!r) return;
+    if (r.gal != null) { roomGal = r.gal; roomChapter = null; renderLobby(); return; }
     if (r.chap != null) { roomChapter = r.chap; renderLobby(); return; }
     setPick(r.pick);
   });
@@ -1033,7 +1183,9 @@
   function nextPick(p) { // the level after the one just played, in order
     if (!p || p.mode === 'endless') return p;
     if (p.secret) return p.secret.k < 3 ? { mode: 'level', level: 1, secret: { w: p.secret.w, k: p.secret.k + 1 } } : p;
-    return { mode: 'level', level: Math.min(LEVELS, p.level + 1) };
+    const w = p.world || 1;
+    if (p.level < LEVELS) return { mode: 'level', level: p.level + 1, world: w };
+    return w < GALS ? { mode: 'level', level: 1, world: w + 1 } : p;
   }
 
   function openRoom(code, role) {
@@ -1060,14 +1212,14 @@
         if (current === 'coop') renderLobby();
       },
       onMessage: (ev, p) => {
-        if (ev === 'start' && role === 'guest') startGame({ mode: p.mode, level: p.level, secret: p.secret, H: p.H, coop: { room, role: 'guest' }, roster: p.roster });
+        if (ev === 'start' && role === 'guest') startGame({ mode: p.mode, level: p.level, world: p.world || 1, secret: p.secret, H: p.H, coop: { room, role: 'guest' }, roster: p.roster });
         else if (ev === 'end' && role === 'guest' && game) { const r = p; setTimeout(() => game && onGameEnd(r), 200); }
         else if (game) game.onNet(ev, p);
       },
       onError: () => toast(t('room_conn')),
     });
-    if (role === 'host') { room.pick = { mode: 'level', level: topLevel(user.data) }; room.setMeta({ pick: room.pick }); }
-    roomChapter = null;
+    if (role === 'host') { const g = topGal(user.data); room.pick = { mode: 'level', level: topLevel(user.data, g), world: g }; room.setMeta({ pick: room.pick }); }
+    roomChapter = null; roomGal = null;
     Net.setLobbyMeta({ room: code });
     if (role === 'guest') setTimeout(() => { if (room && room.code === code && !foundHost) { toast(t('room_not_found')); leaveRoom(); } }, 8000);
     if (current !== 'coop') show('coop'); else renderCoop();
@@ -1083,7 +1235,7 @@
     const p = pick || room.pick; if (!p) return;
     room.pick = p; room.setMeta({ pick: p });
     const roster = roomMembers().map(m => ({ id: m.id, handle: m.handle, name: m.name, avatar: m.avatar, skin: m.skin, stats: m.stats }));
-    startGame({ mode: p.mode, level: p.level, secret: p.secret, coop: { room, role: 'host' }, roster });
+    startGame({ mode: p.mode, level: p.level, world: p.world || 1, secret: p.secret, coop: { room, role: 'host' }, roster });
   }
   $('#c-create').addEventListener('click', () => openRoom(roomCode(), 'host'));
   $('#c-join').addEventListener('click', () => { const c = $('#c-code').value.trim().toUpperCase(); if (c.length !== 5) { $('#c-status').className = 'status err'; $('#c-status').textContent = t('room5'); return; } openRoom(c, 'guest'); });
@@ -1137,6 +1289,7 @@
   function startGame(o) {
     Sfx.init(); closeModal();
     if (game) game.destroy();
+    gameTrack = o.secret ? 'game' : GALAXIES[(o.world || 1) - 1].music; // every world has its own music
     show('game', false);
     lockOrientation(settings.orientation);
     const wantLand = settings.orientation === 'landscape';
@@ -1145,12 +1298,12 @@
     const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
     const start = () => {
       game = new Game($('#game'), {
-        mode: o.mode, level: o.level, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
+        mode: o.mode, level: o.level, world: o.world || 1, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
         me: meInfo(), roster: o.roster, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
         p2: o.local2 ? { id: 'p2', handle: 'player2', name: t('player2'), skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
         onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
       });
-      if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, secret: o.secret || null, H: game.H, roster: o.roster }); }
+      if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, world: o.world || 1, secret: o.secret || null, H: game.H, roster: o.roster }); }
       $('#g-pause').innerHTML = Art.icon(o.coop ? 'x' : 'pause');
     };
     setTimeout(start, Cap.ScreenOrientation ? 350 : 50);
@@ -1183,7 +1336,7 @@
 
   function endGameAbrupt(msg) {
     if (!game) return;
-    const r = game.result || { win: false, stars: 0, coins: game.coins, collected: game.coins, bonus: 0, score: game.score, level: game.level, mode: game.mode };
+    const r = game.result || { win: false, stars: 0, coins: game.coins, collected: game.coins, bonus: 0, score: game.score, level: game.level, world: game.galN, mode: game.mode };
     toast(msg); onGameEnd(r);
   }
   function onGameEnd(r) {
@@ -1194,24 +1347,30 @@
     const luck = Math.round(r.coins * 0.1 * (D.up.luck || 0));
     r = Object.assign({}, r, { coins: r.coins + luck, bonus: r.bonus + luck });
     D.coins += r.coins;
-    let newBest = false, unlocked = false, gemsWon = 0;
+    let newBest = false, unlocked = false, gemsWon = 0, newGal = 0;
+    const wld = r.world || 1;
     D.gems = D.gems || 0; D.worlds = D.worlds || []; D.slevels = D.slevels || {}; D.items = D.items || [];
     const sec = r.secret, skey = sec ? sec.w + '-' + sec.k : null;
     if (r.mode === 'endless' && r.score > D.best) { D.best = r.score; newBest = true; }
     if (sec && r.win) {
       if (!D.slevels[skey]) gemsWon = WORLDS[sec.w - 1].gems[sec.k - 1];   // diamonds for the first clear
       D.slevels[skey] = Math.max(D.slevels[skey] || 0, r.stars);
-    } else if (r.mode === 'level' && r.win) { unlocked = !D.levels[r.level] && r.level < LEVELS; D.levels[r.level] = Math.max(D.levels[r.level] || 0, r.stars); }
+    } else if (r.mode === 'level' && r.win) {
+      const k = lvKey(wld, r.level);
+      unlocked = !D.levels[k] && r.level < LEVELS;
+      newGal = !D.levels[k] && r.level === LEVELS && wld < GALS ? wld + 1 : 0; // finished a world: the next one opens
+      D.levels[k] = Math.max(D.levels[k] || 0, r.stars);
+    }
     D.gems += gemsWon;
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
     D.worlds.push(...newWorlds);
     save();
     // in a room the next level is chosen for the host right away (levels are played in order)
     const roomNext = coop && room && room.role === 'host' && r.win && r.mode === 'level' ? nextPick(room.pick) : null;
-    if (roomNext && (roomNext.secret || unlockedLevel(D, roomNext.level))) { room.pick = roomNext; room.setMeta({ pick: roomNext }); }
+    if (roomNext && (roomNext.secret || unlockedLevel(D, roomNext.level, roomNext.world || 1))) { room.pick = roomNext; room.setMeta({ pick: roomNext }); }
     const title = r.mode === 'endless' ? (newBest ? t('new_best') : t('game_over')) : r.win ? t('victory') : t('ship_hit');
     const stars = r.mode === 'level' && r.win ? `<div class="big-stars">${[1, 2, 3].map(i => Art.icon(i <= r.stars ? 'star' : 'starOff')).join('')}</div>` : '';
-    const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && r.level < LEVELS;
+    const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && (r.level < LEVELS || wld < GALS);
     const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} ${t('found_world')} <b>${t(w.id + '_name')}</b><br><small>${t('waits_levels')}</small></div>`; }).join('');
     let buttons;
     if (coop) buttons = (room && room.role === 'host' && roomNext ? `<button class="btn primary big" id="e-rnext">${t('next_level')}: ${esc(pickLabel(room.pick))}</button>` : '')
@@ -1220,14 +1379,16 @@
       <button class="btn ${hasNext ? '' : 'primary big'}" id="e-retry">${r.win && r.mode === 'level' ? t('play_again') : t('try_again')}</button>
       <button class="btn" id="e-shop">${Art.icon('shop')}${t('shop')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
     modal(`<h2>${title}</h2>${stars}
-      ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
+      ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${wld > 1 ? galIcons[wld - 1] + ' ' + t('gal_' + wld) + ' · ' : ''}${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
+      ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}</div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
       <div class="muted small">${t('collected_bonus', { a: r.collected, b: r.bonus })}</div>${buttons}`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
-      on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } } : { mode: 'level', level: r.level + 1, local2 }));
-      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2, secret: sec }));
+      on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } }
+        : r.level < LEVELS ? { mode: 'level', level: r.level + 1, world: wld, local2 } : { mode: 'level', level: 1, world: wld + 1, local2 }));
+      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, world: wld, local2, secret: sec }));
       on('#e-shop', () => { closeModal(); history = ['menu']; show('shop', false); });
       on('#e-menu', () => { closeModal(); if (coop) leaveRoom(); history = []; show('menu', false); });
       on('#e-rnext', () => { closeModal(); startRoomGame(room.pick); });
@@ -1293,8 +1454,8 @@
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
-    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
-    loadFriends();
+    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
+    loadFriends(); loadParties();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();

@@ -34,19 +34,36 @@
     win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, f, 0.18, 'triangle', 0.08), i * 120)); },
   };
 
+  // ---------- the 4 worlds, 500 levels each, played in order ----------
+  // each has its own meteors, enemy ships, boss colours, background and music
+  const GALAXIES = [
+    { n: 1, ship: 'scout',   music: 'game',  star: '#ffffff', boss: ['#64748b', '#1e1b4b', '#f43f5e'] },
+    { n: 2, ship: 'saucer',  music: 'game2', star: '#e0f2fe', boss: ['#bae6fd', '#0c4a6e', '#38bdf8'] },
+    { n: 3, ship: 'raider',  music: 'game3', star: '#fed7aa', boss: ['#fb923c', '#450a0a', '#fde047'] },
+    { n: 4, ship: 'warship', music: 'game4', star: '#e9d5ff', boss: ['#4c1d95', '#020617', '#c084fc'] },
+  ];
+  const ENEMY_SHIPS = ['scout', 'saucer', 'raider', 'warship'];
+
   // ---------- level design ----------
-  function levelCfg(n) {
-    const d = 1 - Math.exp(-n / 70); // 0 -> 1, eases off so level 500 is hard but fair
+  function levelCfg(n, g = 1) {
+    const eff = n + (g - 1) * 45; // later worlds start harder
+    const d = 1 - Math.exp(-eff / 70); // 0 -> 1, eases off so level 500 is hard but fair
+    const kinds = g === 2 ? (n < 4 ? ['ice', 'frost'] : ['ice', 'frost', 'frost', 'rock'])
+      : g === 3 ? (n < 4 ? ['lava', 'magma'] : ['lava', 'magma', 'magma', 'rock'])
+      : g === 4 ? (n < 4 ? ['dark', 'frost'] : ['dark', 'dark', 'magma', 'frost'])
+      : n < 3 ? ['rock'] : n < 6 ? ['rock', 'rock', 'ice'] : n < 10 ? ['rock', 'ice', 'lava'] : ['rock', 'ice', 'lava', 'lava'];
+    const hue = g === 2 ? 190 + (n * 13) % 40 : g === 3 ? 4 + (n * 11) % 30 : g === 4 ? 262 + (n * 7) % 40 : (200 + n * 47) % 360;
     return {
+      gal: g, enemy: g === 1 ? (n < 6 ? 0 : Math.min(0.16, 0.03 + d * 0.13)) : Math.min(0.3, 0.08 + d * 0.22), enemyD: d,
       n, goal: 12 + Math.min(n * 3, 100),
       spawn: Math.max(0.22, 1.05 - d * 0.8),
       speed: 1 + d * 1.9,
       bigChance: Math.min(0.55, 0.12 + d * 0.43),
-      kinds: n < 3 ? ['rock'] : n < 6 ? ['rock', 'rock', 'ice'] : n < 10 ? ['rock', 'ice', 'lava'] : ['rock', 'ice', 'lava', 'lava'],
+      kinds,
       goldChance: 0.03 + d * 0.05,
-      hpBonus: Math.floor(Math.min(n, 160) / 8),
+      hpBonus: Math.floor(Math.min(eff, 200) / 8),
       boss: n % 5 === 0,
-      hue: (200 + n * 47) % 360,
+      hue,
     };
   }
   // ---- secret worlds: found by doing something special in normal levels; their levels give diamonds ----
@@ -79,6 +96,9 @@
     ice:  { c1: '#bae6fd', c2: '#0369a1', hp: 2, sp: 0.85 },
     lava: { c1: '#fdba74', c2: '#7c2d12', hp: 1.3, sp: 1.35 },
     gold: { c1: '#fde68a', c2: '#a16207', hp: 1.5, sp: 1 },
+    frost: { c1: '#f0f9ff', c2: '#38bdf8', hp: 1.6, sp: 1.1 },
+    magma: { c1: '#fecaca', c2: '#b91c1c', hp: 1.5, sp: 1.25 },
+    dark: { c1: '#a78bfa', c2: '#1e1b4b', hp: 2.2, sp: 0.95 },
   };
   const FX_COLORS = ['#fbbf24', '#60a5fa', '#f87171', '#a3e635', '#e879f9', '#ffffff'];
   const PICK_TYPES = ['coin', 'shield', 'rapid', 'triple', 'life', 'crystal'];
@@ -128,11 +148,12 @@
       this.isGuest = this.coop && this.coop.role === 'guest';
       this.local2 = !!opts.local2; this.hd = !!opts.hd; this.padPrev = {};
       this.level = opts.level || 1;
+      this.galN = Math.max(1, Math.min(4, opts.world || 1)); this.gal = GALAXIES[this.galN - 1];
       this.secret = opts.secret || null; // {w, k}
-      this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level);
+      this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level, this.galN);
       if (this.secret) { this.level = 8 + this.secret.w * 4 + this.secret.k * 2; this.cfg = secretCfg(this.secret.w, this.secret.k); }
       this.found = []; this.crystals = 0; this.comet = null; this.goldKills = 0; this.hits = 0;
-      const normal = this.mode === 'level' && !this.secret && !opts.mini;
+      const normal = this.mode === 'level' && !this.secret && !opts.mini && this.galN === 1; // secret worlds hide in world 1
       // the secret worlds that can be found in this level
       this.trigs = normal ? WORLDS.filter(w => w.trig.level === this.level) : [];
       const trig = type => this.trigs.find(w => w.trig.type === type);
@@ -289,7 +310,7 @@
       this.updateParticles(dt);
       if (this.isGuest) return this.guestUpdate(dt);
 
-      if (this.mode === 'endless') { const n = 1 + Math.floor(this.t / 22); if (n !== this.cfg.n) { const h = this.cfg.hue; this.cfg = levelCfg(n); this.cfg.boss = false; this.cfg.hue = h; } }
+      if (this.mode === 'endless') { const n = 1 + Math.floor(this.t / 22); if (n !== this.cfg.n) { const h = this.cfg.hue; this.cfg = levelCfg(n, this.galN); this.cfg.boss = false; this.cfg.hue = h; } }
       const cfg = this.cfg;
 
       // spawning
@@ -297,7 +318,7 @@
       if (levelDone && cfg.boss && !this.bossSpawned) this.spawnBoss();
       if (!levelDone || this.mode === 'endless') {
         this.spawnT -= dt;
-        if (this.spawnT <= 0) { this.spawnT = cfg.spawn * rnd(0.6, 1.3) * (this.players.length > 1 ? 0.8 : 1); this.spawnMeteor(); }
+        if (this.spawnT <= 0) { this.spawnT = cfg.spawn * rnd(0.6, 1.3) * (this.players.length > 1 ? 0.8 : 1); if (Math.random() < (cfg.enemy || 0)) this.spawnEnemy(); else this.spawnMeteor(); }
       } else if (!cfg.boss && !this.over && this.meteors.length === 0) this.finish(true);
 
       // secret: the golden comet (level 4) and the hidden crystals (level 13)
@@ -330,6 +351,7 @@
 
       // meteors
       for (const m of this.meteors) {
+        if (m.ship) this.updateEnemy(m, dt);
         m.x += m.vx * dt; m.y += m.vy * dt; m.rot += m.vr * dt;
         if (m.x < m.r && m.vx < 0 || m.x > W - m.r && m.vx > 0) m.vx *= -1;
         m.flash = Math.max(0, m.flash - dt);
@@ -411,6 +433,32 @@
         hp: Math.ceil([1, 3, 6][tier] * K.hp + (cfg.hpBonus != null ? cfg.hpBonus : Math.floor(cfg.n / 6)) * (tier + 1) * 0.5),
       };
       this.meteors.push(m); return m;
+    }
+    // enemy ships: each world has its own kind; they sway, and shoot at the nearest ship
+    spawnEnemy() {
+      const cfg = this.cfg, type = this.gal.ship, d = cfg.enemyD || 0;
+      const spec = { scout: [17, 2, 1], saucer: [20, 3, 1], raider: [19, 3, 1.3], warship: [25, 6, 0.8] }[type];
+      const m = {
+        id: nextId++, ship: type, tier: 0, kind: 'rock', r: spec[0], pts: [], craters: [], rot: 0, vr: 0, flash: 0,
+        x: rnd(40, W - 40), y: -30, vx: 0, vy: (55 + d * 60) * spec[2], ph: Math.random() * 7, shotT: rnd(1.2, 2.4),
+        hp: Math.ceil(spec[1] + (cfg.hpBonus || 0) * 0.6),
+      };
+      this.meteors.push(m); return m;
+    }
+    updateEnemy(m, dt) {
+      m.ph += dt;
+      m.vx = Math.cos(m.ph * (m.ship === 'raider' ? 2.6 : 1.6)) * (m.ship === 'warship' ? 40 : 90);
+      if (m.x < 24 && m.vx < 0 || m.x > W - 24 && m.vx > 0) m.vx *= -1;
+      m.shotT -= dt;
+      if (m.shotT <= 0 && m.y > 20 && m.y < this.H * 0.65 && !this.over) {
+        const d = this.cfg.enemyD || 0;
+        m.shotT = rnd(1.8, 3.2) / (1 + d * 0.8);
+        const alive = this.players.filter(p => p.alive); if (!alive.length) return;
+        const tgt = alive.reduce((a, p) => Math.hypot(p.x - m.x, p.y - m.y) < Math.hypot(a.x - m.x, a.y - m.y) ? p : a);
+        const a0 = Math.atan2(tgt.x - m.x, tgt.y - m.y), sp = 190 + d * 90;
+        const angles = m.ship === 'warship' ? [-0.25, 0, 0.25] : m.ship === 'saucer' ? [0] : m.ship === 'raider' ? [-0.08, 0.08] : [0];
+        for (const da of angles) this.bullets.push({ x: m.x, y: m.y + m.r * 0.6, vx: Math.sin(a0 + da) * sp, vy: Math.cos(a0 + da) * sp, enemy: true, dmg: 1 });
+      }
     }
     killMeteor(m, owner) {
       if (m.dead) return; m.dead = true;
@@ -524,7 +572,7 @@
         if ((tt === 'boss' && this.livesLost === 0) || (tt === 'nohit' && this.hits === 0) || (tt === 'fast' && this.t <= w.trig.n)) this.discover(w.id, W / 2, this.H * 0.35);
       }
       const bonus = win && this.mode === 'level' ? 20 + Math.min(this.level, 150) * 10 : Math.floor(this.score / 200);
-      this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, mode: this.mode, secret: this.secret, found: this.found.slice() };
+      this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, world: this.galN, mode: this.mode, secret: this.secret, found: this.found.slice() };
       if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, t('f_level_done'), '#4ade80', 2); }
       if (this.coop) { this.sendState(); this.coop.room.send('end', this.result); }
     }
@@ -562,7 +610,7 @@
     sendState() {
       const r1 = v => Math.round(v);
       const st = {
-        m: this.meteors.map(m => [m.id, r1(m.x), r1(m.y), r1(m.vx), r1(m.vy), m.tier, m.kind[0], +m.rot.toFixed(2), +m.vr.toFixed(2), +m.r.toFixed(1)]),
+        m: this.meteors.map(m => [m.id, r1(m.x), r1(m.y), r1(m.vx), r1(m.vy), m.tier, m.kind[0], +m.rot.toFixed(2), +m.vr.toFixed(2), +m.r.toFixed(1), m.ship ? ENEMY_SHIPS.indexOf(m.ship) + 1 : 0]),
         b: this.bullets.map(b => [r1(b.x), r1(b.y), r1(b.vx), r1(b.vy), b.enemy ? 1 : 0, b.owner | 0]),
         k: this.pickups.map(k => [r1(k.x), r1(k.y), PICK_TYPES.indexOf(k.type)]),
         pl: this.players.map(p => [p.lives, p.shield, +p.inv.toFixed(1), p.alive ? 1 : 0, r1(p.x), r1(p.y), p.rapid > 0 ? 1 : 0, p.triple > 0 ? 1 : 0]),
@@ -578,12 +626,12 @@
       else if (ev === 'st' && this.isGuest) this.applyState(p);
     }
     applyState(st) {
-      const kinds = { r: 'rock', i: 'ice', l: 'lava', g: 'gold' };
+      const kinds = { r: 'rock', i: 'ice', l: 'lava', g: 'gold', f: 'frost', m: 'magma', d: 'dark' };
       const old = new Map(this.meteors.map(m => [m.id, m]));
       this.meteors = st.m.map(a => {
         const o = old.get(a[0]);
         const m = o || { id: a[0], pts: null, craters: null, flash: 0 };
-        Object.assign(m, { x: a[1], y: a[2], vx: a[3], vy: a[4], tier: a[5], kind: kinds[a[6]], rot: a[7], vr: a[8], r: a[9] });
+        Object.assign(m, { x: a[1], y: a[2], vx: a[3], vy: a[4], tier: a[5], kind: kinds[a[6]], rot: a[7], vr: a[8], r: a[9], ship: a[10] ? ENEMY_SHIPS[a[10] - 1] : null });
         if (!m.pts) { const n = 9 + m.tier * 2; m.pts = []; for (let i = 0; i < n; i++) { const q = i / n * Math.PI * 2; m.pts.push([Math.cos(q) * rnd(0.75, 1.05), Math.sin(q) * rnd(0.75, 1.05)]); } m.craters = Array.from({ length: 1 + m.tier }, () => [rnd(-0.45, 0.45), rnd(-0.45, 0.45), rnd(0.12, 0.25)]); }
         return m;
       });
@@ -629,6 +677,25 @@
         x.fillStyle = pg; x.beginPath(); x.arc(px, py, pr, 0, 7); x.fill();
         if (i === 0) { x.strokeStyle = `hsla(${h2 + 40},80%,75%,.45)`; x.lineWidth = Math.max(1, pr * 0.12); x.beginPath(); x.ellipse(px, py, pr * 1.8, pr * 0.45, -0.35, 0, 7); x.stroke(); }
       }
+      const g = this.galN, w = c.width, h = c.height;
+      if (g === 2) { // northern lights over an icy sky
+        for (let i = 0; i < 3; i++) {
+          x.strokeStyle = `hsla(${150 + i * 25},90%,60%,${0.11 - i * 0.025})`; x.lineWidth = h * 0.045; x.filter = "blur(6px)"; x.beginPath();
+          for (let k = 0; k <= 20; k++) { const px = k / 20 * w, py = h * (0.18 + i * 0.12) + Math.sin(k * 0.7 + i * 2) * h * 0.05; x[k ? 'lineTo' : 'moveTo'](px, py); }
+          x.stroke();
+        }
+        x.filter = 'none';
+        x.fillStyle = 'rgba(224,242,254,.06)'; for (let i = 0; i < 40; i++) x.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+      } else if (g === 3) { // a burning glow from below and floating embers
+        const lg = x.createLinearGradient(0, h, 0, h * 0.45); lg.addColorStop(0, 'rgba(239,68,68,.35)'); lg.addColorStop(1, 'rgba(239,68,68,0)');
+        x.fillStyle = lg; x.fillRect(0, 0, w, h);
+        for (let i = 0; i < 60; i++) { x.fillStyle = `hsla(${rnd(10, 45)},100%,60%,${rnd(0.15, 0.5)})`; x.beginPath(); x.arc(Math.random() * w, Math.random() * h, rnd(0.6, 1.8), 0, 7); x.fill(); }
+      } else if (g === 4) { // a black hole in the middle of the void
+        const cx = w * 0.62, cy = h * 0.32, R = Math.min(w, h) * 0.16;
+        for (let i = 4; i >= 1; i--) { x.strokeStyle = `hsla(${280 + i * 8},90%,65%,${0.08 * i})`; x.lineWidth = R * 0.12; x.beginPath(); x.ellipse(cx, cy, R * (1 + i * 0.35), R * (0.35 + i * 0.1), -0.3, 0, 7); x.stroke(); }
+        const bh = x.createRadialGradient(cx, cy, 0, cx, cy, R); bh.addColorStop(0, '#000'); bh.addColorStop(0.8, '#000'); bh.addColorStop(1, 'rgba(168,85,247,.5)');
+        x.fillStyle = bh; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill();
+      }
       this.bgHue = hue;
     }
     draw() {
@@ -638,7 +705,7 @@
       x.drawImage(this.bgC, 0, 0, this.cv.width, this.cv.height);
       // stars (screen space; flow opposite to flight direction)
       x.setTransform(d, 0, 0, d, 0, 0);
-      x.fillStyle = '#fff';
+      x.fillStyle = this.gal.star;
       for (const L of this.stars) for (const s of L) {
         const sx = this.landscape ? (1 - s.y) * this.cw : s.x * this.cw, sy = this.landscape ? s.x * this.ch : s.y * this.ch;
         x.globalAlpha = 0.35 + s.s * 0.3;
@@ -709,10 +776,45 @@
       x.globalAlpha = 1; x.direction = I18N.dir;
       this.drawHud(x);
     }
+    drawEnemy(x, m) {
+      const t = this.t, fl = m.flash > 0;
+      x.save(); x.translate(m.x, m.y);
+      x.rotate(clamp(m.vx * 0.003, -0.35, 0.35));
+      const r = m.r;
+      if (m.ship === 'scout') { // small red fighter pointing down
+        x.shadowColor = '#f43f5e'; x.shadowBlur = 12;
+        x.fillStyle = fl ? '#fff' : '#94a3b8'; x.beginPath(); x.moveTo(0, r); x.lineTo(r, -r * 0.7); x.lineTo(0, -r * 0.3); x.lineTo(-r, -r * 0.7); x.closePath(); x.fill();
+        x.fillStyle = '#f43f5e'; x.beginPath(); x.moveTo(0, r * 0.6); x.lineTo(r * 0.3, -r * 0.2); x.lineTo(-r * 0.3, -r * 0.2); x.closePath(); x.fill();
+        x.fillStyle = '#fb923c'; x.beginPath(); x.arc(0, -r * 0.5, r * 0.18 + Math.sin(t * 30) * 2, 0, 7); x.fill();
+      } else if (m.ship === 'saucer') { // icy flying saucer
+        x.shadowColor = '#38bdf8'; x.shadowBlur = 16;
+        x.fillStyle = fl ? '#fff' : '#bae6fd'; x.beginPath(); x.ellipse(0, 0, r, r * 0.42, 0, 0, 7); x.fill();
+        x.fillStyle = 'rgba(14,165,233,.85)'; x.beginPath(); x.ellipse(0, -r * 0.15, r * 0.45, r * 0.45, 0, Math.PI, 0); x.fill();
+        for (let i = 0; i < 5; i++) { const a = t * 4 + i * 1.256; x.fillStyle = i % 2 ? '#e0f2fe' : '#0ea5e9'; x.beginPath(); x.arc(Math.cos(a) * r * 0.72, Math.sin(a) * r * 0.2 + r * 0.05, 2.2, 0, 7); x.fill(); }
+      } else if (m.ship === 'raider') { // spiky lava raider with flames
+        x.shadowColor = '#f97316'; x.shadowBlur = 16;
+        x.fillStyle = fl ? '#fff' : '#7f1d1d'; x.beginPath();
+        for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 + Math.PI / 2, rr = i % 2 ? r * 0.55 : r; x[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr); }
+        x.closePath(); x.fill(); x.strokeStyle = '#fb923c'; x.lineWidth = 2; x.stroke();
+        const g = x.createRadialGradient(0, 0, 1, 0, 0, r * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(1, '#f97316');
+        x.fillStyle = g; x.beginPath(); x.arc(0, 0, r * 0.35 + Math.sin(t * 12) * 1.5, 0, 7); x.fill();
+      } else { // heavy void warship
+        x.shadowColor = '#a855f7'; x.shadowBlur = 18;
+        x.fillStyle = fl ? '#fff' : '#1e1b4b'; x.beginPath();
+        x.moveTo(0, r); x.lineTo(r * 0.5, r * 0.4); x.lineTo(r, r * 0.5); x.lineTo(r * 0.9, -r * 0.6); x.lineTo(r * 0.3, -r * 0.4); x.lineTo(0, -r * 0.8);
+        x.lineTo(-r * 0.3, -r * 0.4); x.lineTo(-r * 0.9, -r * 0.6); x.lineTo(-r, r * 0.5); x.lineTo(-r * 0.5, r * 0.4); x.closePath(); x.fill();
+        x.strokeStyle = '#c084fc'; x.lineWidth = 2; x.stroke();
+        x.fillStyle = `rgba(192,132,252,${0.6 + 0.4 * Math.sin(t * 6)})`; x.beginPath(); x.arc(0, 0, r * 0.22, 0, 7); x.fill();
+        for (const sx of [-1, 1]) { x.fillStyle = '#e879f9'; x.fillRect(sx * r * 0.7 - 2, r * 0.35, 4, 7); }
+      }
+      x.restore();
+    }
     drawMeteor(x, m) {
+      if (m.ship) return this.drawEnemy(x, m);
       const K = KIND[m.kind];
       x.save(); x.translate(m.x, m.y); x.rotate(m.rot);
-      if (m.kind === 'lava' || m.kind === 'gold') { x.shadowColor = m.kind === 'lava' ? '#f97316' : '#facc15'; x.shadowBlur = 16; }
+      const glow = { lava: '#f97316', gold: '#facc15', magma: '#ef4444', dark: '#a855f7', frost: '#7dd3fc' }[m.kind];
+      if (glow) { x.shadowColor = glow; x.shadowBlur = 16; }
       const g = x.createRadialGradient(-m.r * 0.3, -m.r * 0.3, m.r * 0.1, 0, 0, m.r);
       g.addColorStop(0, m.flash > 0 ? '#fff' : K.c1); g.addColorStop(1, K.c2);
       x.fillStyle = g; x.beginPath();
@@ -721,7 +823,9 @@
       x.shadowBlur = 0; x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 2; x.stroke();
       x.fillStyle = 'rgba(0,0,0,.22)';
       for (const c of m.craters) { x.beginPath(); x.arc(c[0] * m.r, c[1] * m.r, c[2] * m.r, 0, 7); x.fill(); }
-      if (m.kind === 'lava') { x.strokeStyle = '#fbbf24'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-m.r * 0.5, 0); x.lineTo(0, m.r * 0.2); x.lineTo(m.r * 0.4, -m.r * 0.3); x.stroke(); }
+      if (m.kind === 'dark') { x.strokeStyle = 'rgba(216,180,254,.7)'; x.lineWidth = 1.2; x.beginPath(); x.arc(0, 0, m.r * 0.55, 0, 4.5); x.stroke(); }
+      if (m.kind === 'frost') { x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 1.2; x.beginPath(); for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; x.moveTo(Math.cos(a) * m.r * 0.5, Math.sin(a) * m.r * 0.5); x.lineTo(-Math.cos(a) * m.r * 0.5, -Math.sin(a) * m.r * 0.5); } x.stroke(); }
+      if (m.kind === 'lava' || m.kind === 'magma') { x.strokeStyle = '#fbbf24'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-m.r * 0.5, 0); x.lineTo(0, m.r * 0.2); x.lineTo(m.r * 0.4, -m.r * 0.3); x.stroke(); }
       x.restore();
     }
     drawPickup(x, k, t) {
@@ -751,12 +855,13 @@
     }
     drawBoss(x, B) {
       x.save(); x.translate(B.x, B.y);
-      x.shadowColor = '#f43f5e'; x.shadowBlur = 25;
+      const bc = this.gal.boss;
+      x.shadowColor = bc[2]; x.shadowBlur = 25;
       const g = x.createLinearGradient(0, -40, 0, 40);
-      g.addColorStop(0, B.flash > 0 ? '#fff' : '#64748b'); g.addColorStop(1, '#1e1b4b');
+      g.addColorStop(0, B.flash > 0 ? '#fff' : bc[0]); g.addColorStop(1, bc[1]);
       x.fillStyle = g;
       x.beginPath(); x.moveTo(-100, -5); x.lineTo(-60, -30); x.lineTo(60, -30); x.lineTo(100, -5); x.lineTo(70, 30); x.lineTo(20, 40); x.lineTo(-20, 40); x.lineTo(-70, 30); x.closePath(); x.fill();
-      x.shadowBlur = 0; x.strokeStyle = '#f43f5e'; x.lineWidth = 2; x.stroke();
+      x.shadowBlur = 0; x.strokeStyle = bc[2]; x.lineWidth = 2; x.stroke();
       x.fillStyle = '#a78bfa'; x.beginPath(); x.ellipse(0, -20, 30, 20, 0, Math.PI, 0); x.fill();
       for (let i = -3; i <= 3; i++) { x.fillStyle = (Math.floor(B.t * 6) + i) % 2 ? '#fde047' : '#f43f5e'; x.beginPath(); x.arc(i * 22, 8, 4, 0, 7); x.fill(); }
       x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(0, 30, 9 + Math.sin(B.t * 8) * 2, 0, 7); x.fill();
@@ -790,7 +895,7 @@
       if (this.boss) { label = t('mothership'); frac = this.boss.hp / this.boss.max; x.fillStyle = '#fda4af'; }
       else if (this.mode === 'endless') { label = t('hud_endless', { n: this.cfg.n }); frac = (this.t % 22) / 22; }
       else if (this.secret) { label = '✦ ' + t(WORLDS[this.secret.w - 1].id + '_name') + ' ' + this.secret.k + '/3' + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · ' + t('hud_boss') : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
-      else { label = t('level_n', { n: this.level }) + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · ' + t('hud_boss') : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
+      else { label = (this.galN > 1 ? t('gal_' + this.galN) + ' · ' : '') + t('level_n', { n: this.level }) + (this.cfg.boss && this.kills >= this.cfg.goal ? ' · ' + t('hud_boss') : ''); frac = Math.min(1, this.kills / this.cfg.goal); }
       x.fillText(label, cw / 2, by + 26);
       x.fillStyle = 'rgba(255,255,255,.12)'; roundRect(x, bx, by, bw, 9, 5); x.fill();
       const pg = x.createLinearGradient(bx, 0, bx + bw, 0);
@@ -808,5 +913,5 @@
   }
   function roundRect(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
 
-  window.SSGame = { Game, Sfx, levelCfg, WORLDS };
+  window.SSGame = { GALAXIES, Game, Sfx, levelCfg, WORLDS };
 })();

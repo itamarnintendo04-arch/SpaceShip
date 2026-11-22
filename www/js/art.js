@@ -227,8 +227,23 @@
     { id: 'blackhole', price: 2000, svg: '<circle cx="12" cy="12" r="10" fill="#7c3aed" opacity=".35"/><circle cx="12" cy="12" r="7" fill="none" stroke="#f472b6" stroke-width="1.6" stroke-dasharray="6 3"/><circle cx="12" cy="12" r="4" fill="#000" stroke="#c084fc"/>' },
   ];
 
+  // party logos: a shield badge in two colours with a symbol from the icons or avatars
+  const LOGOS = [
+    ['#f59e0b', '#7c3aed', 'I', 'star'], ['#0ea5e9', '#1e3a8a', 'I', 'bolt'], ['#ef4444', '#7f1d1d', 'A', 'fire'], ['#22c55e', '#14532d', 'A', 'alien'],
+    ['#a855f7', '#1e1b4b', 'A', 'skull'], ['#facc15', '#a16207', 'A', 'crown'], ['#06b6d4', '#164e63', 'I', 'gem'], ['#f43f5e', '#831843', 'I', 'heart'],
+    ['#64748b', '#0f172a', 'I', 'shield'], ['#fb923c', '#7c2d12', 'A', 'dragonav'], ['#38bdf8', '#0c4a6e', 'A', 'planet'], ['#e879f9', '#701a75', 'I', 'plasma'],
+    ['#fde047', '#713f12', 'I', 'trophy'], ['#94a3b8', '#1e293b', 'A', 'ufo'], ['#c084fc', '#3b0764', 'A', 'octo'], ['#2dd4bf', '#134e4a', 'A', 'rocket'],
+  ].map((l, i) => ({ id: 'l' + (i + 1), c1: l[0], c2: l[1], src: l[2], sym: l[3] }));
+  let logoN = 0;
+  function logo(id) {
+    const L = LOGOS.find(x => x.id === id) || LOGOS[0], n = ++logoN;
+    const sym = L.src === 'I' ? I[L.sym] : (AVATARS.find(a => a.id === L.sym) || AVATARS[0]).svg;
+    return `<svg class="logo" viewBox="0 0 24 24"><defs><linearGradient id="plg${n}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${L.c1}"/><stop offset="1" stop-color="${L.c2}"/></linearGradient></defs>
+      <path d="M12 1.2l9.3 3.6v6.6c0 5.6-3.9 9.9-9.3 11.6-5.4-1.7-9.3-6-9.3-11.6V4.8z" fill="url(#plg${n})" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>
+      <g transform="translate(5.6 5.2) scale(.53)">${sym}</g></svg>`;
+  }
   function icon(name, cls = '') { return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`; }
   function avatar(id, cls = '') { const a = AVATARS.find(x => x.id === id) || AVATARS[0]; return `<svg class="av ${cls}" viewBox="0 0 24 24">${a.svg}</svg>`; }
 
-  window.Art = { SHIPS, AVATARS, drawShip, shipPreview, icon, avatar };
+  window.Art = { SHIPS, AVATARS, LOGOS, drawShip, shipPreview, icon, avatar, logo };
 })();
