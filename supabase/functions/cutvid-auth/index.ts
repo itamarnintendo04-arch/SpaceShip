@@ -27,7 +27,13 @@ Deno.serve(async (req) => {
     else if (action === 'link') res = await db.rpc('cutvid_link', { p_cutvid: u.id, p_id: id, p_secret: secret });
     else return json({ error: 'bad_action' }, 400);
     if (res.error) return json({ error: res.error.message }, 400);
-    return json({ profile: res.data, email: u.email });
+    // The game email becomes the CutVid email (only when CutVid has verified it).
+    let gameEmail: string | null = null;
+    if (res.data && u.email && (u.email_confirmed_at || u.confirmed_at)) {
+      const r2 = await db.rpc('cutvid_set_email', { p_cutvid: u.id, p_email: u.email });
+      if (!r2.error) gameEmail = r2.data;
+    }
+    return json({ profile: res.data, email: u.email, game_email: gameEmail });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

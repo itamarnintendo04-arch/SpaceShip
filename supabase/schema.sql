@@ -315,9 +315,22 @@ begin
   return public.login(p_id, p_secret);
 end $$;
 
+-- The game email of a CutVid player is their (verified) CutVid email. Like any game email it replaces the token.
+-- Returns the email that was set, or null when another player already uses it.
+create or replace function public.cutvid_set_email(p_cutvid uuid, p_email text) returns text
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  p_email := lower(trim(p_email));
+  if p_email is null or p_email = '' then return null; end if;
+  if exists (select 1 from public.profiles where email = p_email and cutvid_id is distinct from p_cutvid) then return null; end if;
+  update public.profiles set email = p_email, token_hash = null where cutvid_id = p_cutvid;
+  delete from public.email_codes where profile_id in (select id from public.profiles where cutvid_id = p_cutvid) and purpose = 'set';
+  return p_email;
+end $$;
+
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function public.cutvid_login(uuid), public.cutvid_register(uuid, text, text, text),
-  public.cutvid_link(uuid, uuid, text), public.email_set_start(uuid, text, text),
+  public.cutvid_link(uuid, uuid, text), public.cutvid_set_email(uuid, text), public.email_set_start(uuid, text, text),
   public.email_login_start(text, text) to service_role;
 grant execute on function public.handle_available(text), public.register(text, text, text),
   public.login(uuid, text), public.save_progress(uuid, text, jsonb, integer, text, text),

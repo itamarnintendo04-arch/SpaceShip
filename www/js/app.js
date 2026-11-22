@@ -174,12 +174,15 @@
     if (!/^[a-z0-9_.]{3,20}$/.test(h)) { st.className = 'status err'; st.textContent = errText({ message: 'bad_handle' }); return; }
     $('#r-go').disabled = true;
     try {
-      const r = cvPending ? (await Net.cutvidCall({ action: 'register', token: cvPending.token, handle: h, name, avatar: regAvatar })).profile : await Net.register(h, name, regAvatar);
+      const cres = cvPending ? await Net.cutvidCall({ action: 'register', token: cvPending.token, handle: h, name, avatar: regAvatar }) : null;
+      const r = cres ? cres.profile : await Net.register(h, name, regAvatar);
+      const gameEmail = cres && cres.game_email;
       const data = user && user.offline ? user.data : defData();
-      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, has_token: !!r.token };
+      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, email: gameEmail || null, has_token: !!r.token && !gameEmail };
       cvPending = null;
       save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast(t('welcome', { h: at(r.handle) }));
-      if (r.token) showToken(r.token, true);
+      if (gameEmail) toast(t('email_from_cutvid') + ': ' + gameEmail, 4000);
+      else if (r.token) showToken(r.token, true);
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
@@ -216,12 +219,14 @@
     closeModal();
     if (res.profile) {
       const r = res.profile;
-      finishLogin(r, { cutvid: res.email || email });
+      finishLogin(r, res.game_email ? { cutvid: res.email || email, email: res.game_email, has_token: false } : { cutvid: res.email || email });
     } else { cvPending = { token, email: res.email || email }; show('register', false); }
   }
   async function cutvidLink(token, email) {
     const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
-    user.cutvid = res.email || email; store.set('ss_user', user); closeModal(); toast(t('cv_linked'));
+    user.cutvid = res.email || email;
+    if (res.game_email) { user.email = res.game_email; user.has_token = false; }
+    store.set('ss_user', user); closeModal(); toast(t('cv_linked') + (res.game_email ? ' · ' + t('email_from_cutvid') : ''), 4000);
   }
   $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
 
@@ -345,7 +350,7 @@
       <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">${t('handle_note')}</p>
       ${user.offline ? '' : `<div class="sec"><h3>${t('other_devices')}</h3>${user.email
-        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span>${user.cutvid && user.cutvid.toLowerCase() === String(user.email).toLowerCase() ? `<br><span class="muted">${Art.icon('cutvid')} ${t('email_from_cutvid')}</span>` : ''}</div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
         : `<div class="small muted">${t('token_mode')}</div>
            <div class="row"><input id="p-email" type="email" dir="ltr" placeholder="you@gmail.com"><button class="btn small" id="p-em-send">${t('send_code_short')}</button></div>
            <div class="row hidden" id="p-em-code-row"><input id="p-em-code" inputmode="numeric" maxlength="6" dir="ltr" placeholder="123456"><button class="btn small primary" id="p-em-ok">${t('verify')}</button></div>
