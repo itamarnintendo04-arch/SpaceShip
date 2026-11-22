@@ -186,7 +186,7 @@
       user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, email: gameEmail || null, has_token: !!r.token && !gameEmail };
       cvPending = null;
       save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast(t('welcome', { h: at(r.handle) }));
-      if (!gameEmail && r.token) showToken(r.token, true);
+      if (!gameEmail) askEmail();
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
@@ -233,7 +233,6 @@
     store.set('ss_user', user); closeModal(); toast(t('cv_linked'), 3000);
   }
   $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
-  $('#r-email').addEventListener('click', () => emailFlow('login'));
 
   // ---------- existing account: saved login key, @ + token, or @ + email code ----------
   function finishLogin(r, extra) {
@@ -242,22 +241,12 @@
     store.set('ss_user', user); rememberAccount(user); Net.stopPresence(); afterLogin();
     closeModal(); history = []; show('menu'); toast(t('welcome_sync', { h: at(r.handle) }));
   }
-  let loginMethod = 'token', codeSent = false;
   $('#r-tabs').addEventListener('click', e => {
     const b = e.target.closest('[data-rt]'); if (!b) return;
     $$('#r-tabs .tab').forEach(t => t.classList.toggle('on', t === b));
     $('#r-new').classList.toggle('hidden', b.dataset.rt !== 'new'); $('#r-login').classList.toggle('hidden', b.dataset.rt !== 'login');
     if (b.dataset.rt === 'login') renderSaved();
   });
-  $('#l-method').addEventListener('click', e => {
-    const b = e.target.closest('[data-lm]'); if (!b) return;
-    loginMethod = b.dataset.lm; codeSent = false;
-    $$('#l-method button').forEach(x => x.classList.toggle('on', x === b));
-    $('#l-token-box').classList.toggle('hidden', loginMethod !== 'token'); $('#l-email-box').classList.toggle('hidden', loginMethod !== 'email');
-    $('#l-handle-row').classList.toggle('hidden', loginMethod === 'email');
-    $('#l-go').textContent = loginMethod === 'email' ? t('continue_email') : t('login'); $('#l-status').textContent = '';
-  });
-  $('#l-handle').addEventListener('input', e => { const v = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''); if (v !== e.target.value) e.target.value = v; });
   function renderSaved() {
     const list = savedAccounts();
     $('#l-saved').innerHTML = list.length ? `<div class="lbl">${t('saved_keys')}</div><div class="saved-acc">${list.map(a =>
@@ -273,50 +262,43 @@
       if (String(er.message).includes('unauthorized')) { store.set('ss_accounts', savedAccounts().filter(x => x.id !== a.id)); renderSaved(); }
     }
   });
-  $('#l-go').addEventListener('click', async () => {
-    Sfx.init();
-    if (loginMethod === 'email') return emailFlow('login');
-    const h = $('#l-handle').value.trim(), st = $('#l-status'), btn = $('#l-go');
-    if (h.length < 3) { st.className = 'status err'; st.textContent = t('write_handle'); return; }
-    btn.disabled = true; st.className = 'status'; st.textContent = t('wait');
-    try {
-      const tok = $('#l-token').value.trim();
-      if (tok.replace(/[^a-z0-9]/gi, '').length < 12) throw new Error('bad_login');
-      finishLogin(await Net.loginToken(h, tok));
-    } catch (e) { st.className = 'status err'; st.textContent = errText(e); }
-    finally { btn.disabled = false; }
-  });
+  $('#l-go').addEventListener('click', () => { Sfx.init(); emailFlow('login'); });
 
-  // Email = a CutVid account. Existing accounts get a one-time code from CutVid (or use their password);
-  // new emails get a CutVid account created. The CutVid session then signs in to / links the SpaceShip player.
+  // Email with 6-digit codes (sent from SpaceShip's own email address).
+  //   intent 'add'   — verify an email for the signed-in player
+  //   intent 'login' — sign in on this device with an email that belongs to a player
+  // If our email can't be sent: a CutVid account gets a code from CutVid instead (or CutVid's sign-in page if CutVid
+  // can't send either); anyone else is asked to try again later.
   function emailFlow(intent) {
-    let email = '', pw = '';
-    const done = async token => { if (intent === 'link') await cutvidLink(token, email); else await cutvidLogin(token, email); };
+    let email = '';
+    const finish = r => { if (!r || r.error) throw new Error('bad_code'); finishLogin(r); };
+    const cutvidFallback = async () => {
+      try { await Net.cvEmailCode(email); step('cvcode'); }
+      catch (e) {
+        if (e.message === 'cv_no_account') step(intent === 'login' ? 'noplayer' : 'later');
+        else if (e.message === 'cv_send_failed') { closeModal(); toast(t('cv_send_redirect'), 4000); setTimeout(() => signInWithCutvid(intent === 'add' ? 'link' : 'login'), 900); }
+        else step('later');
+      }
+    };
+    const sendFailed = e => /send_failed|smtp_not_configured|offline|Failed to fetch|FunctionsFetchError/i.test(String(e && e.message));
     const step = (state, msg) => {
+      const codeInput = `<input id="ef-code" inputmode="numeric" maxlength="8" dir="ltr" autocomplete="one-time-code" placeholder="123456" style="text-align:center;font-size:24px;letter-spacing:6px">`;
       const body = {
         email: `<label>${t('email_label')}<input id="ef-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com" value="${esc(email)}"></label>
           <button class="btn primary" id="ef-go">${t('next')}</button>`,
-        code: `<p class="small">${t('cv_code_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>
-          <input id="ef-code" inputmode="numeric" maxlength="8" dir="ltr" autocomplete="one-time-code" placeholder="123456">
-          <button class="btn primary" id="ef-go">${t('login')}</button><button class="btn ghost small" id="ef-pw">${t('use_password')}</button>`,
-        password: `<p class="small" dir="ltr"><b>${esc(email)}</b></p>
-          <label>${t('password')}<input id="ef-pass" type="password" dir="ltr" autocomplete="current-password"></label>
-          <button class="btn primary" id="ef-go">${t('login')}</button>`,
-        create: `<p class="small">${t('cv_new_account')}</p><p class="small" dir="ltr"><b>${esc(email)}</b></p>
-          <label>${t('password')}<input id="ef-pass" type="password" dir="ltr" autocomplete="new-password"></label>
-          <button class="btn primary" id="ef-go">${t('create_account')}</button>`,
-        later: `<div style="font-size:40px">⏳</div><p>${t('cv_try_later')}</p>
-          <button class="btn primary" id="ef-go">${t('try_again')}</button>`,
-        confirm: `<p class="small">${t('cv_confirm_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>
-          <button class="btn primary" id="ef-go">${t('i_confirmed')}</button>`,
+        code: `<p class="small">${t('email_6_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
+          <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
+        cvcode: `<p class="small">${Art.icon('cutvid')} ${t('cv_code_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
+          <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
+        later: `<div style="font-size:40px">⏳</div><p>${t('cv_try_later')}</p><button class="btn primary" id="ef-go">${t('try_again')}</button>`,
+        noplayer: `<p>${t('no_player_email')}</p><button class="btn primary" id="ef-go">${t('tab_new')}</button>`,
       }[state];
-      modal(`<div style="width:56px;height:56px;margin:0 auto">${Art.icon('cutvid', 'av')}</div><h2>${t('continue_email')}</h2>
-        <p class="muted small">${t('cv_email_note')}</p>${body}<div class="status ${msg && msg.ok ? 'ok' : 'err'}" id="ef-st">${msg ? esc(msg.text) : ''}</div>
+      modal(`<div style="font-size:40px">✉️</div><h2>${intent === 'add' ? t('add_email') : t('login_email_title')}</h2>
+        ${state === 'email' && intent === 'add' ? `<p class="muted small">${t('ask_email_body')}</p>` : ''}
+        ${body}<div class="status ${msg && msg.ok ? 'ok' : 'err'}" id="ef-st">${msg ? esc(msg.text) : ''}</div>
         <button class="btn ghost" id="ef-x">${t('cancel')}</button>`, m => {
         m.querySelector('#ef-x').onclick = closeModal;
         const st = m.querySelector('#ef-st'), go = m.querySelector('#ef-go');
-        const fail = e => { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); };
-        const pwBtn = m.querySelector('#ef-pw'); if (pwBtn) pwBtn.onclick = () => step('password');
         const input = m.querySelector('input'); if (input) { input.focus(); input.onkeydown = e => { if (e.key === 'Enter') go.click(); }; }
         go.onclick = async () => {
           go.disabled = true; st.className = 'status'; st.textContent = t('wait');
@@ -324,35 +306,44 @@
             if (state === 'email') {
               email = m.querySelector('#ef-email').value.trim().toLowerCase();
               if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('bad_email');
-              try { await Net.cvEmailCode(email); step('code'); }
-              catch (e) {
-                if (e.message === 'cv_no_account') step('create');
-                // The email can't be sent right now. It belongs to a CutVid account (otherwise CutVid would have said
-                // "no account"), so send the player to CutVid's own sign-in page (password / Google) instead.
-                else if (e.message === 'cv_send_failed') { closeModal(); toast(t('cv_send_redirect'), 4000); setTimeout(() => signInWithCutvid(intent), 900); }
-                else throw e;
+              if (intent === 'add') {
+                try { await Net.emailSetStart(user, email, I18N.lang); step('code'); }
+                catch (e) { if (sendFailed(e)) await cutvidFallback(); else throw e; }
+              } else {
+                let r;
+                try { r = await Net.emailLoginStartByEmail(email, I18N.lang); }
+                catch (e) { if (sendFailed(e)) return cutvidFallback(); throw e; }
+                if (r && r.found) step('code'); else await cutvidFallback(); // not a SpaceShip email: maybe a CutVid account
               }
             } else if (state === 'code') {
-              await done(await Net.cvVerifyCode(email, m.querySelector('#ef-code').value));
-            } else if (state === 'password') {
-              await done(await Net.cvPassword(email, m.querySelector('#ef-pass').value));
-            } else if (state === 'create') {
-              pw = m.querySelector('#ef-pass').value;
-              if (pw.length < 6) throw new Error('e_pw_short');
-              let tok;
-              try { tok = await Net.cvSignUp(email, pw); }
-              catch (e) { if (e.message === 'cv_send_failed') { step('later'); return; } throw e; } // not a CutVid user: try again later
-              if (tok) await done(tok); else step('confirm');
-            } else if (state === 'later') {
-              step('email');
-            } else if (state === 'confirm') {
-              await done(await Net.cvPassword(email, pw));
-            }
-          } catch (e) { fail(e); }
+              const code = m.querySelector('#ef-code').value.trim();
+              if (intent === 'add') {
+                const em = await Net.emailSetConfirm(user, code);
+                if (!em) throw new Error('bad_code');
+                user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast(t('email_verified'), 3000);
+                if (current === 'menu') renderMenu();
+              } else finish(await Net.emailLoginConfirmByEmail(email, code));
+            } else if (state === 'cvcode') {
+              const tok = await Net.cvVerifyCode(email, m.querySelector('#ef-code').value);
+              if (intent === 'add') await cutvidLink(tok, email); else await cutvidLogin(tok, email);
+            } else if (state === 'later') step('email');
+            else if (state === 'noplayer') { closeModal(); $('#r-tabs [data-rt="new"]').click(); }
+          } catch (e) { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); }
         };
       });
     };
     step('email');
+  }
+
+  // Right after sign-up: offer to add an email (verified with a 6-digit code). No token any more.
+  function askEmail() {
+    if (!user || user.offline || user.email) return;
+    modal(`<div style="font-size:44px">✉️</div><h2>${t('ask_email_title')}</h2><p class="muted">${t('ask_email_body')}</p>
+      <button class="btn primary big" id="ae-yes">${t('add_email')}</button>
+      <button class="btn ghost" id="ae-no">${t('not_now')}</button><p class="muted small">${t('no_email_note')}</p>`, m => {
+      m.querySelector('#ae-yes').onclick = () => emailFlow('add');
+      m.querySelector('#ae-no').onclick = closeModal;
+    });
   }
 
   // The login token is shown in full only here. It signs in on other devices together with the @handle.
@@ -462,10 +453,9 @@
         ${user.offline ? '' : `<button class="chip" id="s-notif">${settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off')}</button>`}
       </div>
       ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
-        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div>`
-        : `<div class="small muted">${t('email_instead_token')}</div>
-           <button class="btn small primary" id="s-email">${Art.icon('cutvid')}${t('add_email')}</button>
-           <button class="btn small" id="s-tok">${t('new_token')}</button>`}</div>`}
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
+        : `<div class="small muted">${t('ask_email_body')}</div>
+           <button class="btn small primary" id="s-email">✉️ ${t('add_email')}</button>`}</div>`}
       <div class="sec"><h3>${t('accounts')}</h3>
         ${accs.map(a => `<div class="acc-row"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><br><small dir="ltr" style="color:var(--cyan)">@${esc(a.handle)}</small></div>
           ${user && a.id === user.id ? `<span class="chip">${t('current_acc')}</span>` : `<button class="btn small" data-switch="${esc(a.id)}">${t('switch_to')}</button>`}</div>`).join('')}
@@ -479,11 +469,7 @@
       on('#s-sound', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); openSettings(); });
       on('#s-orient', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); openSettings(); });
       on('#s-notif', async () => { await setNotify(!settings.notify); openSettings(); });
-      on('#s-email', () => { closeModal(); emailFlow('link'); });
-      on('#s-tok', async () => {
-        if (!confirm(t('confirm_new_token'))) return;
-        try { const tk = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(tk, false); } catch (e) { toast(errText(e)); }
-      });
+      on('#s-email', () => emailFlow('add'));
       on('#s-add', addAccount);
       on('#s-out', signOut);
       m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
@@ -501,14 +487,13 @@
       <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">${t('handle_note')}</p>
       ${user.offline ? '' : `<div class="sec"><h3>${t('other_devices')}</h3>${user.email
-        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
-        : `<div class="small muted">${t('token_mode')}</div>
-           <button class="btn small" id="p-em-add">${Art.icon('cutvid')}${t('add_email')}</button>
-           <button class="btn small" id="p-tok">${t('new_token')}</button>`}</div>`}
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
+        : `<div class="small muted">${t('ask_email_body')}</div>
+           <button class="btn small primary" id="p-em-add">✉️ ${t('add_email')}</button>`}</div>`}
       ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} ${t('linked_cutvid')} <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}${t('link_cutvid')}</button>`}
       <button class="btn primary" id="p-save">${t('save')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
-      on('#p-em-add', () => { closeModal(); emailFlow('link'); });
+      on('#p-em-add', () => emailFlow('add'));
       on('#p-em-rm', async () => {
         if (!confirm(t('confirm_rm_email'))) return;
         try { const t = await Net.emailRemove(user); user.email = null; user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }

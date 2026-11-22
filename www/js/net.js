@@ -52,6 +52,8 @@
     emailSetStart: (u, email, lang) => fn('ss-email', { action: 'set_start', id: u.id, secret: u.secret, email, lang }),
     emailSetConfirm: (u, code) => rpc('email_set_confirm', { p_id: u.id, p_secret: u.secret, p_code: code }),
     emailRemove: u => rpc('email_remove', { p_id: u.id, p_secret: u.secret }),
+    emailLoginStartByEmail: (email, lang) => fn('ss-email', { action: 'login_start_email', email, lang }),
+    emailLoginConfirmByEmail: (email, code) => rpc('email_login_confirm_by_email', { p_email: email, p_code: code }),
     emailLoginStart: (handle, email, lang) => fn('ss-email', { action: 'login_start', handle, email, lang }),
     emailLoginConfirm: (handle, code) => rpc('email_login_confirm', { p_handle: handle, p_code: code }),
     leaderboard: () => rpc('leaderboard'),

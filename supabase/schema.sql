@@ -286,6 +286,27 @@ begin
   return v_secret;
 end $$;
 
+-- sign in on another device with just the email: a 6-digit code goes to that email
+create or replace function public.email_login_start_by_email(p_email text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare v_row public.profiles;
+begin
+  select * into v_row from public.profiles where email = lower(trim(p_email));
+  if v_row.id is null then return null; end if;
+  return jsonb_build_object('email', v_row.email, 'name', v_row.name, 'code', public.ss_email_code(v_row.id, 'login', v_row.email));
+end $$;
+
+create or replace function public.email_login_confirm_by_email(p_email text, p_code text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare v_row public.profiles;
+begin
+  select * into v_row from public.profiles where email = lower(trim(p_email));
+  if v_row.id is null or public.ss_email_check(v_row.id, 'login', p_code) is null then
+    return jsonb_build_object('error', 'bad_code');
+  end if;
+  return public.ss_session_login(v_row);
+end $$;
+
 -- ---- Sign in with CutVid (called only by the cutvid-auth edge function with the service role) ----
 create or replace function public.cutvid_login(p_cutvid uuid) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
@@ -331,10 +352,11 @@ end $$;
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function public.cutvid_login(uuid), public.cutvid_register(uuid, text, text, text),
   public.cutvid_link(uuid, uuid, text), public.cutvid_set_email(uuid, text), public.email_set_start(uuid, text, text),
-  public.email_login_start(text, text) to service_role;
+  public.email_login_start(text, text), public.email_login_start_by_email(text) to service_role;
 grant execute on function public.handle_available(text), public.register(text, text, text),
   public.login(uuid, text), public.save_progress(uuid, text, jsonb, integer, text, text),
   public.add_friend(uuid, text, text), public.remove_friend(uuid, text, uuid),
   public.list_friends(uuid, text), public.leaderboard(),
   public.login_token(text, text), public.regen_token(uuid, text), public.email_set_confirm(uuid, text, text),
-  public.email_remove(uuid, text), public.email_login_confirm(text, text) to anon, authenticated;
+  public.email_remove(uuid, text), public.email_login_confirm(text, text),
+  public.email_login_confirm_by_email(text, text) to anon, authenticated;

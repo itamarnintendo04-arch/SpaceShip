@@ -2,6 +2,7 @@
 // Secrets (Edge Functions -> Secrets): GMAIL_USER (the Gmail address), GMAIL_APP_PASSWORD (a Google "App password").
 //   set_start   {id, secret, email}  -> code to confirm a new email on the account
 //   login_start {handle, email}      -> code to sign in with @handle + email
+//   login_start_email {email}        -> code to sign in with just the email ({found:false} if no player has it)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.16';
 
@@ -54,6 +55,14 @@ Deno.serve(async (req) => {
       // Same answer whether or not @handle and email match, so nobody can probe which emails are used.
       if (data) await mail(data.email, L, L.loginSub, L.loginIntro(data.name), data.code);
       return json({ ok: true });
+    }
+    if (b.action === 'login_start_email') {
+      // sign in with just the email; found:false lets the game offer CutVid or a new player instead
+      const { data, error } = await db.rpc('email_login_start_by_email', { p_email: b.email });
+      if (error) return json({ error: error.message }, 400);
+      if (!data) return json({ ok: true, found: false });
+      await mail(data.email, L, L.loginSub, L.loginIntro(data.name), data.code);
+      return json({ ok: true, found: true });
     }
     return json({ error: 'bad_action' }, 400);
   } catch (e) {
