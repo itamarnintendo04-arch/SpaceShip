@@ -19,6 +19,20 @@
     return data;
   }
 
+  // CutVid accounts (email sign-in / sign-up goes to CutVid's servers)
+  let cv = null;
+  const cutvid = () => cv || (cv = window.supabase.createClient(C.CUTVID_URL, C.CUTVID_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }));
+  const cvErr = e => {
+    const m = String((e && (e.code || e.message)) || '');
+    if (/otp_disabled|signups? not allowed|user_not_found/i.test(m)) return new Error('cv_no_account');
+    if (/email_not_confirmed|not confirmed/i.test(m)) return new Error('e_not_confirmed');
+    if (/invalid_credentials|invalid login/i.test(m)) return new Error('e_bad_password');
+    if (/weak_password|at least 6/i.test(m)) return new Error('e_pw_short');
+    if (/rate|too many|over_email_send/i.test(m)) return new Error('too_soon');
+    if (/otp_expired|token has expired|invalid.*otp|invalid.*token/i.test(m)) return new Error('bad_code');
+    return new Error(m || 'offline');
+  };
+
   let lobby = null, inbox = null, online = new Set();
 
   const Net = {
@@ -40,6 +54,18 @@
     emailLoginConfirm: (handle, code) => rpc('email_login_confirm', { p_handle: handle, p_code: code }),
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),
+
+    // ---- email = CutVid account ----
+    // existing CutVid account: a one-time code is emailed by CutVid (throws cv_no_account for new emails)
+    async cvEmailCode(email) { const { error } = await cutvid().auth.signInWithOtp({ email, options: { shouldCreateUser: false } }); if (error) throw cvErr(error); },
+    async cvVerifyCode(email, code) { const { data, error } = await cutvid().auth.verifyOtp({ email, token: code.trim(), type: 'email' }); if (error) throw cvErr(error); return data.session.access_token; },
+    async cvPassword(email, password) { const { data, error } = await cutvid().auth.signInWithPassword({ email, password }); if (error) throw cvErr(error); return data.session.access_token; },
+    // new CutVid account: returns the token right away, or null when CutVid first wants the email confirmed
+    async cvSignUp(email, password) {
+      const { data, error } = await cutvid().auth.signUp({ email, password, options: { emailRedirectTo: 'https://cutvid.vercel.app/apps/spaceship?confirmed=1' } });
+      if (error) throw cvErr(error);
+      return data.session ? data.session.access_token : null;
+    },
 
     // ---- Sign in with CutVid (OAuth 2.1 + PKCE against the CutVid Supabase project) ----
     // Returns the CutVid access token. `openAuth(url, redirect)` opens the CutVid sign-in page and
@@ -78,9 +104,11 @@
     cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
-    startPresence(user, { onInvite, onOnline }) {
+    startPresence(user, { onInvite, onOnline, onFriendAdded, onJoin, onNews }) {
       if (!sb || lobby) return;
       lobby = sb.channel('ss-lobby', { config: { presence: { key: user.id } } });
+      lobby.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== user.id && onJoin) onJoin(key, newPresences && newPresences[0]); });
+      lobby.on('broadcast', { event: 'news' }, ({ payload }) => onNews && onNews(payload)); // announcements to every player
       lobby.on('presence', { event: 'sync' }, () => {
         online = new Set(Object.keys(lobby.presenceState()));
         onOnline && onOnline(online);
@@ -88,18 +116,20 @@
       lobby.subscribe(st => { if (st === 'SUBSCRIBED') lobby.track({ h: user.handle }); });
       inbox = sb.channel('ss-user-' + user.id, { config: { broadcast: { self: false } } });
       inbox.on('broadcast', { event: 'invite' }, ({ payload }) => onInvite && onInvite(payload));
+      inbox.on('broadcast', { event: 'friend_added' }, ({ payload }) => onFriendAdded && onFriendAdded(payload));
       inbox.subscribe();
     },
     stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; },
 
-    sendInvite(friendId, payload) {
+    sendInvite(friendId, payload) { return Net.sendTo(friendId, 'invite', payload); },
+    sendTo(friendId, event, payload) {
       return new Promise((resolve, reject) => {
         if (!sb) return reject(new Error('offline'));
         const ch = sb.channel('ss-user-' + friendId, { config: { broadcast: { self: false, ack: true } } });
         const to = setTimeout(() => { sb.removeChannel(ch); reject(new Error('timeout')); }, 8000);
         ch.subscribe(async st => {
           if (st !== 'SUBSCRIBED') return;
-          await ch.send({ type: 'broadcast', event: 'invite', payload });
+          await ch.send({ type: 'broadcast', event, payload });
           clearTimeout(to); setTimeout(() => sb.removeChannel(ch), 500); resolve();
         });
       });

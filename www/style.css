@@ -144,6 +144,7 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .saved-acc { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
 .saved-acc .person { cursor: pointer; text-align: start; font: inherit; color: var(--text); width: 100%; }
 /* languages */
+.cv-note { display: flex; gap: 6px; align-items: flex-start; text-align: start; }
 html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .lang-chip { align-self: center; }
 .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

@@ -19,6 +19,12 @@ if (existsSync(manifest)) {
     writeFileSync(manifest, xml);
     console.log('android: URL scheme registered');
   }
+  // real-time update notifications (Android 13+ asks the player)
+  if (!xml.includes('android.permission.POST_NOTIFICATIONS')) {
+    xml = xml.replace('</manifest>', '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>');
+    writeFileSync(manifest, xml);
+    console.log('android: notification permission added');
+  }
 }
 
 const plist = 'ios/App/App/Info.plist';

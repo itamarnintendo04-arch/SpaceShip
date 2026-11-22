@@ -87,6 +87,9 @@
     if (m.includes('too_soon')) return t('e_too_soon');
     if (m.includes('smtp_not_configured')) return t('e_smtp');
     if (m.includes('send_failed')) return t('e_send_failed');
+    if (m.includes('e_bad_password')) return t('e_bad_password');
+    if (m.includes('e_pw_short')) return t('e_pw_short');
+    if (m.includes('e_not_confirmed')) return t('e_not_confirmed');
     if (m.includes('oauth_not_configured')) return t('e_oauth_off');
     if (m.includes('oauth_denied')) return t('e_oauth_denied');
     if (m.includes('oauth_failed')) return t('e_oauth_failed');
@@ -181,8 +184,7 @@
       user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, email: gameEmail || null, has_token: !!r.token && !gameEmail };
       cvPending = null;
       save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast(t('welcome', { h: at(r.handle) }));
-      if (gameEmail) toast(t('email_from_cutvid') + ': ' + gameEmail, 4000);
-      else if (r.token) showToken(r.token, true);
+      if (!gameEmail && r.token) showToken(r.token, true);
     } catch (e) {
       st.className = 'status err'; st.textContent = errText(e);
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
@@ -220,15 +222,16 @@
     if (res.profile) {
       const r = res.profile;
       finishLogin(r, res.game_email ? { cutvid: res.email || email, email: res.game_email, has_token: false } : { cutvid: res.email || email });
-    } else { cvPending = { token, email: res.email || email }; show('register', false); }
+    } else { cvPending = { token, email: res.email || email }; show('register', false); $('#r-tabs [data-rt="new"]').click(); }
   }
   async function cutvidLink(token, email) {
     const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
     user.cutvid = res.email || email;
     if (res.game_email) { user.email = res.game_email; user.has_token = false; }
-    store.set('ss_user', user); closeModal(); toast(t('cv_linked') + (res.game_email ? ' · ' + t('email_from_cutvid') : ''), 4000);
+    store.set('ss_user', user); closeModal(); toast(t('cv_linked'), 3000);
   }
   $('#r-cutvid').addEventListener('click', () => signInWithCutvid('login'));
+  $('#r-email').addEventListener('click', () => emailFlow('login'));
 
   // ---------- existing account: saved login key, @ + token, or @ + email code ----------
   function finishLogin(r, extra) {
@@ -249,7 +252,8 @@
     loginMethod = b.dataset.lm; codeSent = false;
     $$('#l-method button').forEach(x => x.classList.toggle('on', x === b));
     $('#l-token-box').classList.toggle('hidden', loginMethod !== 'token'); $('#l-email-box').classList.toggle('hidden', loginMethod !== 'email');
-    $('#l-code-row').classList.add('hidden'); $('#l-go').textContent = loginMethod === 'email' ? t('send_code') : t('login'); $('#l-status').textContent = '';
+    $('#l-handle-row').classList.toggle('hidden', loginMethod === 'email');
+    $('#l-go').textContent = loginMethod === 'email' ? t('continue_email') : t('login'); $('#l-status').textContent = '';
   });
   $('#l-handle').addEventListener('input', e => { const v = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''); if (v !== e.target.value) e.target.value = v; });
   function renderSaved() {
@@ -269,28 +273,73 @@
   });
   $('#l-go').addEventListener('click', async () => {
     Sfx.init();
+    if (loginMethod === 'email') return emailFlow('login');
     const h = $('#l-handle').value.trim(), st = $('#l-status'), btn = $('#l-go');
     if (h.length < 3) { st.className = 'status err'; st.textContent = t('write_handle'); return; }
     btn.disabled = true; st.className = 'status'; st.textContent = t('wait');
     try {
-      if (loginMethod === 'token') {
-        const t = $('#l-token').value.trim();
-        if (t.replace(/[^a-z0-9]/gi, '').length < 12) throw new Error('bad_login');
-        finishLogin(await Net.loginToken(h, t));
-      } else if (!codeSent) {
-        const em = $('#l-email').value.trim();
-        if (!/^\S+@\S+\.\S+$/.test(em)) throw new Error('bad_email');
-        await Net.emailLoginStart(h, em, I18N.lang);
-        codeSent = true; $('#l-code-row').classList.remove('hidden'); btn.textContent = t('login');
-        st.className = 'status ok'; st.textContent = t('code_sent_maybe'); $('#l-code').focus();
-      } else {
-        const r = await Net.emailLoginConfirm(h, $('#l-code').value.trim());
-        if (!r || r.error) throw new Error('bad_code');
-        finishLogin(r);
-      }
+      const tok = $('#l-token').value.trim();
+      if (tok.replace(/[^a-z0-9]/gi, '').length < 12) throw new Error('bad_login');
+      finishLogin(await Net.loginToken(h, tok));
     } catch (e) { st.className = 'status err'; st.textContent = errText(e); }
     finally { btn.disabled = false; }
   });
+
+  // Email = a CutVid account. Existing accounts get a one-time code from CutVid (or use their password);
+  // new emails get a CutVid account created. The CutVid session then signs in to / links the SpaceShip player.
+  function emailFlow(intent) {
+    let email = '', pw = '';
+    const done = async token => { if (intent === 'link') await cutvidLink(token, email); else await cutvidLogin(token, email); };
+    const step = (state, msg) => {
+      const body = {
+        email: `<label>${t('email_label')}<input id="ef-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com" value="${esc(email)}"></label>
+          <button class="btn primary" id="ef-go">${t('next')}</button>`,
+        code: `<p class="small">${t('cv_code_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>
+          <input id="ef-code" inputmode="numeric" maxlength="8" dir="ltr" autocomplete="one-time-code" placeholder="123456">
+          <button class="btn primary" id="ef-go">${t('login')}</button><button class="btn ghost small" id="ef-pw">${t('use_password')}</button>`,
+        password: `<p class="small" dir="ltr"><b>${esc(email)}</b></p>
+          <label>${t('password')}<input id="ef-pass" type="password" dir="ltr" autocomplete="current-password"></label>
+          <button class="btn primary" id="ef-go">${t('login')}</button>`,
+        create: `<p class="small">${t('cv_new_account')}</p><p class="small" dir="ltr"><b>${esc(email)}</b></p>
+          <label>${t('password')}<input id="ef-pass" type="password" dir="ltr" autocomplete="new-password"></label>
+          <button class="btn primary" id="ef-go">${t('create_account')}</button>`,
+        confirm: `<p class="small">${t('cv_confirm_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>
+          <button class="btn primary" id="ef-go">${t('i_confirmed')}</button>`,
+      }[state];
+      modal(`<div style="width:56px;height:56px;margin:0 auto">${Art.icon('cutvid', 'av')}</div><h2>${t('continue_email')}</h2>
+        <p class="muted small">${t('cv_email_note')}</p>${body}<div class="status ${msg && msg.ok ? 'ok' : 'err'}" id="ef-st">${msg ? esc(msg.text) : ''}</div>
+        <button class="btn ghost" id="ef-x">${t('cancel')}</button>`, m => {
+        m.querySelector('#ef-x').onclick = closeModal;
+        const st = m.querySelector('#ef-st'), go = m.querySelector('#ef-go');
+        const fail = e => { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); };
+        const pwBtn = m.querySelector('#ef-pw'); if (pwBtn) pwBtn.onclick = () => step('password');
+        const input = m.querySelector('input'); if (input) { input.focus(); input.onkeydown = e => { if (e.key === 'Enter') go.click(); }; }
+        go.onclick = async () => {
+          go.disabled = true; st.className = 'status'; st.textContent = t('wait');
+          try {
+            if (state === 'email') {
+              email = m.querySelector('#ef-email').value.trim().toLowerCase();
+              if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('bad_email');
+              try { await Net.cvEmailCode(email); step('code'); }
+              catch (e) { if (e.message === 'cv_no_account') step('create'); else throw e; }
+            } else if (state === 'code') {
+              await done(await Net.cvVerifyCode(email, m.querySelector('#ef-code').value));
+            } else if (state === 'password') {
+              await done(await Net.cvPassword(email, m.querySelector('#ef-pass').value));
+            } else if (state === 'create') {
+              pw = m.querySelector('#ef-pass').value;
+              if (pw.length < 6) throw new Error('e_pw_short');
+              const tok = await Net.cvSignUp(email, pw);
+              if (tok) await done(tok); else step('confirm');
+            } else if (state === 'confirm') {
+              await done(await Net.cvPassword(email, pw));
+            }
+          } catch (e) { fail(e); }
+        };
+      });
+    };
+    step('email');
+  }
 
   // The login token is shown in full only here. It signs in on other devices together with the @handle.
   function showToken(token, first) {
@@ -322,6 +371,8 @@
     $('#m-coins').innerHTML = walletHtml(user.data);
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
     $('#t-lang').innerHTML = langLabel();
+    $('#t-notif').innerHTML = (settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off'));
+    $('#t-notif').classList.toggle('hidden', !!user.offline);
     $('#t-sound').innerHTML = settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted');
     $('#m-offline').classList.toggle('hidden', !user.offline);
     $('#m-local2').classList.toggle('hidden', !DESKTOP); $('#m-desk').classList.toggle('hidden', !DESKTOP);
@@ -342,6 +393,7 @@
   $('#t-orient').addEventListener('click', () => { settings.orientation = settings.orientation === 'landscape' ? 'portrait' : 'landscape'; saveSettings(); renderMenu(); toast(settings.orientation === 'landscape' ? t('toast_land') : t('toast_port')); });
   $('#t-sound').addEventListener('click', () => { settings.sound = Sfx.on = !settings.sound; saveSettings(); renderMenu(); });
   $('#t-lang').addEventListener('click', pickLanguage);
+  $('#t-notif').addEventListener('click', () => setNotify(!settings.notify));
   $('#r-lang').addEventListener('click', pickLanguage);
   $('#m-reg').addEventListener('click', e => { e.preventDefault(); show('register'); });
   function editProfile() {
@@ -350,30 +402,14 @@
       <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">${t('handle_note')}</p>
       ${user.offline ? '' : `<div class="sec"><h3>${t('other_devices')}</h3>${user.email
-        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span>${user.cutvid && user.cutvid.toLowerCase() === String(user.email).toLowerCase() ? `<br><span class="muted">${Art.icon('cutvid')} ${t('email_from_cutvid')}</span>` : ''}</div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
+        ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_mode')}</span></div><button class="btn small" id="p-em-rm">${t('remove_email')}</button>`
         : `<div class="small muted">${t('token_mode')}</div>
-           <div class="row"><input id="p-email" type="email" dir="ltr" placeholder="you@gmail.com"><button class="btn small" id="p-em-send">${t('send_code_short')}</button></div>
-           <div class="row hidden" id="p-em-code-row"><input id="p-em-code" inputmode="numeric" maxlength="6" dir="ltr" placeholder="123456"><button class="btn small primary" id="p-em-ok">${t('verify')}</button></div>
-           <div class="status" id="p-em-st"></div>
+           <button class="btn small" id="p-em-add">${Art.icon('cutvid')}${t('add_email')}</button>
            <button class="btn small" id="p-tok">${t('new_token')}</button>`}</div>`}
       ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} ${t('linked_cutvid')} <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}${t('link_cutvid')}</button>`}
       <button class="btn primary" id="p-save">${t('save')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
-      const st = m.querySelector('#p-em-st');
-      const say = (t, ok) => { if (st) { st.className = 'status ' + (ok ? 'ok' : 'err'); st.textContent = t; } else toast(t); };
-      on('#p-em-send', async () => {
-        const em = m.querySelector('#p-email').value.trim();
-        if (!/^\S+@\S+\.\S+$/.test(em)) return say(errText({ message: 'bad_email' }));
-        try { await Net.emailSetStart(user, em, I18N.lang); m.querySelector('#p-em-code-row').classList.remove('hidden'); say(t('code_sent_to', { e: em }), true); }
-        catch (e) { say(errText(e)); }
-      });
-      on('#p-em-ok', async () => {
-        try {
-          const em = await Net.emailSetConfirm(user, m.querySelector('#p-em-code').value.trim());
-          if (!em) return say(errText({ message: 'bad_code' }));
-          user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast(t('email_saved'), 4000);
-        } catch (e) { say(errText(e)); }
-      });
+      on('#p-em-add', () => { closeModal(); emailFlow('link'); });
       on('#p-em-rm', async () => {
         if (!confirm(t('confirm_rm_email'))) return;
         try { const t = await Net.emailRemove(user); user.email = null; user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
@@ -539,7 +575,8 @@
     const code = $('#f-code').value.trim().toUpperCase(), st = $('#f-status');
     if (user.offline) return toast(t('need_server'));
     if (code.length < 6) { st.className = 'status err'; st.textContent = t('code6'); return; }
-    try { const f = await Net.addFriend(user, code); st.className = 'status ok'; st.textContent = '✓ ' + t('friend_added', { h: at(f.handle) }); $('#f-code').value = ''; loadFriends(); }
+    try { const f = await Net.addFriend(user, code); st.className = 'status ok'; st.textContent = '✓ ' + t('friend_added', { h: at(f.handle) }); $('#f-code').value = ''; loadFriends();
+      Net.sendTo(f.id, 'friend_added', { handle: user.handle, name: user.name }).catch(() => {}); }
     catch (e) { st.className = 'status err'; st.textContent = errText(e); }
   });
 
@@ -638,6 +675,7 @@
   }
   function onInvite(p) {
     if (game || !p || !p.code) return;
+    notify(t('game_invite'), t('n_invite', { h: '@' + p.from.handle }));
     Sfx.init(); Sfx.power();
     modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>${t('game_invite')}</h2>
       <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> ${t('invites_you')}</p>
@@ -746,10 +784,62 @@
     });
   }
 
+  // ---------- real-time updates (system notifications) ----------
+  const LN = Cap.LocalNotifications;
+  let notifId = 1, presenceSince = 0;
+  const lastOnline = {};
+  async function notifPermission() {
+    try {
+      if (NATIVE && LN) { const r = await LN.requestPermissions(); return r.display === 'granted'; }
+      if ('Notification' in window) return (await Notification.requestPermission()) === 'granted';
+    } catch (e) {}
+    return false;
+  }
+  // Shows a system notification when the app is in the background, a toast when it is on screen.
+  function notify(title, body) {
+    const away = document.hidden || (document.hasFocus && !document.hasFocus());
+    if (!away || !settings.notify) { toast(body ? title + ' — ' + body : title, 3500); return; }
+    try {
+      if (NATIVE && LN) LN.schedule({ notifications: [{ id: notifId++, title, body }] });
+      else if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification(title, { body, icon: 'icon.png', tag: 'ss-' + notifId++ });
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    } catch (e) {}
+  }
+  async function setNotify(on) {
+    if (on && !(await notifPermission())) { settings.notify = false; saveSettings(); toast(t('notif_blocked'), 3500); }
+    else { settings.notify = on; saveSettings(); }
+    if (current === 'menu') renderMenu();
+  }
+  function askNotifications() {
+    if (settings.notifAsked || !user || user.offline || game) return;
+    settings.notifAsked = true; saveSettings();
+    modal(`<div style="font-size:44px">🔔</div><h2>${t('notif_title')}</h2><p class="muted">${t('notif_body')}</p>
+      <button class="btn primary big" id="n-yes">${t('allow')}</button><button class="btn ghost" id="n-no">${t('not_now')}</button>`, m => {
+      m.querySelector('#n-yes').onclick = () => { closeModal(); setNotify(true); };
+      m.querySelector('#n-no').onclick = () => { closeModal(); setNotify(false); };
+    });
+  }
+  const realtime = {
+    onFriendAdded: p => { if (!p) return; notify('SpaceShip', t('n_friend_added', { h: '@' + p.handle })); loadFriends(); },
+    onJoin: (id, pres) => {
+      // ignore the burst of "joins" right after connecting; at most one per friend every 10 minutes
+      if (Date.now() - presenceSince < 6000 || !friends.some(f => f.id === id)) return;
+      if (lastOnline[id] && Date.now() - lastOnline[id] < 600000) return;
+      lastOnline[id] = Date.now();
+      const f = friends.find(x => x.id === id);
+      notify('SpaceShip', t('n_online', { h: '@' + ((pres && pres.h) || f.handle) }));
+    },
+    onNews: p => { if (p && (p.title || p.body)) notify(p.title || 'SpaceShip', p.body || ''); },
+  };
+
   // ---------- boot ----------
   async function afterLogin() {
     if (!user || user.offline) return;
-    Net.startPresence(user, { onInvite, onOnline: () => { updateOnlineBadge(); if (current === 'friends') renderFriendsList(); if (current === 'coop' && !room) renderCoopFriends(); } });
+    presenceSince = Date.now();
+    setTimeout(askNotifications, 1500);
+    Net.startPresence(user, { onInvite, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') renderFriendsList(); if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };

@@ -34,20 +34,18 @@
       </div>
       <div id="r-login" class="col hidden">
         <div id="l-saved"></div>
-        <label><span data-t="username"></span>
+        <label id="l-handle-row"><span data-t="username"></span>
           <div class="handle-input"><span>@</span><input id="l-handle" maxlength="20" dir="ltr" autocapitalize="off" autocomplete="username" spellcheck="false" placeholder="dani_pilot"></div>
         </label>
         <div class="seg" id="l-method"><button class="on" data-lm="token"><span data-t="with_token"></span></button><button data-lm="email"><span data-t="with_email"></span></button></div>
         <div id="l-token-box"><label><span data-t="token_label"></span><input id="l-token" dir="ltr" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="SS-XXXX-XXXX-XXXX-XXXX-XXXX"></label></div>
-        <div id="l-email-box" class="hidden">
-          <label><span data-t="email_label"></span><input id="l-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com"></label>
-          <label id="l-code-row" class="hidden"><span data-t="code_label"></span><input id="l-code" inputmode="numeric" maxlength="6" dir="ltr" autocomplete="one-time-code" placeholder="123456"></label>
-        </div>
+        <div id="l-email-box" class="hidden"><p class="muted small cv-note"><span data-ic="cutvid"></span> <span data-t="cv_email_note"></span></p></div>
         <div id="l-status" class="status"></div>
         <button id="l-go" class="btn primary big" data-t="login"></button>
       </div>
       <div class="or"><span data-t="or"></span></div>
       <button id="r-cutvid" class="btn cutvid"><span data-ic="cutvid"></span><span data-t="cutvid_btn"></span></button>
+      <button id="r-email" class="btn"><span data-ic="cutvid"></span><span data-t="continue_email"></span></button>
       <button id="r-offline" class="btn ghost hidden" data-t="play_offline"></button>
     </div>
   </section>
@@ -76,6 +74,7 @@
         <button class="chip" id="t-orient"></button>
         <button class="chip" id="t-sound"></button>
         <button class="chip" id="t-lang"></button>
+        <button class="chip" id="t-notif"></button>
       </div>
       <div id="m-desk" class="desk-hint hidden" data-t="desk_hint"></div>
       <div id="m-offline" class="offline hidden"><span data-t="offline_mode"></span> <a href="#" id="m-reg" data-t="connect_server"></a></div>
