@@ -1,19 +1,19 @@
 // Art: ship skins, icons, avatars
 (function () {
   const SHIPS = [
-    { id: 'falcon',  price: 0,    shape: 'arrow',   body: '#d7e3ff', accent: '#3b82f6', glow: '#60a5fa' },
-    { id: 'viper',   price: 300,  shape: 'delta',   body: '#bbf7d0', accent: '#16a34a', glow: '#4ade80' },
-    { id: 'nova',    price: 600,  shape: 'arrow',   body: '#fecaca', accent: '#dc2626', glow: '#f87171' },
-    { id: 'saucer',  price: 900,  shape: 'saucer',  body: '#e9d5ff', accent: '#9333ea', glow: '#c084fc' },
-    { id: 'twin',    price: 1400, shape: 'twin',    body: '#fde68a', accent: '#ea580c', glow: '#fb923c' },
-    { id: 'phantom', price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee' },
-    { id: 'dragon',  price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af' },
-    { id: 'golden',  price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047' },
+    { id: 'falcon',  price: 0,    shape: 'arrow',   body: '#d7e3ff', accent: '#3b82f6', glow: '#60a5fa', gun: { rate: 1,    dmg: 1,   side: 0, style: 'line' } },
+    { id: 'viper',   price: 300,  shape: 'delta',   body: '#bbf7d0', accent: '#16a34a', glow: '#4ade80', gun: { rate: 1.12, dmg: 1.2, side: 0, style: 'needle' }, aura: 'pulse' },
+    { id: 'nova',    price: 600,  shape: 'arrow',   body: '#fecaca', accent: '#dc2626', glow: '#f87171', gun: { rate: 1.18, dmg: 1.3, side: 1, style: 'flame' }, aura: 'sparks' },
+    { id: 'saucer',  price: 900,  shape: 'saucer',  body: '#e9d5ff', accent: '#9333ea', glow: '#c084fc', gun: { rate: 1.22, dmg: 1.4, side: 1, style: 'ring' }, aura: 'spin' },
+    { id: 'twin',    price: 1400, shape: 'twin',    body: '#fde68a', accent: '#ea580c', glow: '#fb923c', gun: { rate: 1.28, dmg: 1.6, side: 1, style: 'twin' }, aura: 'pulse' },
+    { id: 'phantom', price: 2000, shape: 'stealth', body: '#334155', accent: '#22d3ee', glow: '#22d3ee', gun: { rate: 1.34, dmg: 1.9, side: 2, style: 'laser' }, aura: 'cloak' },
+    { id: 'dragon',  price: 3000, shape: 'dragon',  body: '#fb7185', accent: '#7f1d1d', glow: '#fda4af', gun: { rate: 1.4,  dmg: 2.2, side: 2, style: 'fireball' }, aura: 'embers' },
+    { id: 'golden',  price: 5000, shape: 'stealth', body: '#facc15', accent: '#a16207', glow: '#fde047', gun: { rate: 1.5,  dmg: 2.6, side: 3, style: 'star' }, aura: 'shine' },
     // special ships - bought with diamonds
-    { id: 'phoenix', gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c' },
-    { id: 'ghost',   gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc' },
-    { id: 'crystal', gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9' },
-    { id: 'rainbow', gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc' },
+    { id: 'phoenix', gems: 15, shape: 'phoenix', body: '#fdba74', accent: '#c2410c', glow: '#fb923c', gun: { rate: 1.45, dmg: 2.4, side: 2, style: 'fireball' }, aura: 'embers' },
+    { id: 'ghost',   gems: 25, shape: 'stealth', fx: 'ghost', body: '#e0e7ff', accent: '#6366f1', glow: '#a5b4fc', gun: { rate: 1.5,  dmg: 2.5, side: 2, style: 'wisp', pierce: true }, aura: 'cloak' },
+    { id: 'crystal', gems: 40, shape: 'crystal', body: '#cffafe', accent: '#0891b2', glow: '#67e8f9', gun: { rate: 1.6,  dmg: 3,   side: 3, style: 'shard' }, aura: 'prism' },
+    { id: 'rainbow', gems: 60, shape: 'phoenix', fx: 'rainbow', body: '#f0abfc', accent: '#7e22ce', glow: '#f0abfc', gun: { rate: 1.75, dmg: 3.4, side: 4, style: 'rainbow' }, aura: 'shine' },
   ];
 
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
@@ -24,6 +24,7 @@
     t = t || 0;
     ctx.save();
     if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
+    if (k.aura) drawAura(ctx, k, s, t);
     if (k.fx === 'rainbow') { const h = (t * 90) % 360; k = Object.assign({}, k, { body: `hsl(${h},90%,75%)`, accent: `hsl(${(h + 60) % 360},80%,40%)`, glow: `hsl(${(h + 30) % 360},95%,65%)` }); }
     // engine flame
     const fl = (0.7 + 0.3 * Math.sin(t * 40)) * thrust;
@@ -88,6 +89,35 @@
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
       ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(0, -s * 0.25, s * 0.12, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawAura(ctx, k, s, t) {
+    ctx.save();
+    const g = k.glow;
+    if (k.aura === 'pulse') {
+      const r = s * (1.15 + 0.12 * Math.sin(t * 6));
+      const gr = ctx.createRadialGradient(0, 0, s * 0.3, 0, 0, r); gr.addColorStop(0, g + '55'); gr.addColorStop(1, g + '00');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    } else if (k.aura === 'sparks' || k.aura === 'embers') {
+      for (let i = 0; i < (k.aura === 'embers' ? 8 : 5); i++) {
+        const a = t * (2 + i * 0.3) + i * 1.3, rr = s * (0.9 + 0.25 * Math.sin(t * 3 + i));
+        ctx.fillStyle = k.aura === 'embers' ? (i % 2 ? '#fb923c' : '#fde047') : g;
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 8 + i);
+        ctx.beginPath(); ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr + s * 0.2, s * 0.06, 0, 7); ctx.fill();
+      }
+    } else if (k.aura === 'spin') {
+      for (let i = 0; i < 6; i++) { const a = t * 3 + i * Math.PI / 3; ctx.fillStyle = i % 2 ? g : '#fff'; ctx.beginPath(); ctx.arc(Math.cos(a) * s * 1.15, Math.sin(a) * s * 0.55 + s * 0.15, s * 0.07, 0, 7); ctx.fill(); }
+    } else if (k.aura === 'cloak') {
+      ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.05); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 5);
+      ctx.beginPath(); ctx.ellipse(0, s * 0.1, s * 1.2, s * 0.95, 0, 0, 7); ctx.stroke();
+    } else if (k.aura === 'shine') {
+      ctx.rotate(t * 0.8); ctx.globalAlpha = 0.45;
+      for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); const gr = ctx.createLinearGradient(0, 0, 0, -s * 1.5); gr.addColorStop(0, g + 'cc'); gr.addColorStop(1, g + '00'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(-s * 0.08, 0); ctx.lineTo(0, -s * 1.5); ctx.lineTo(s * 0.08, 0); ctx.fill(); }
+    } else if (k.aura === 'prism') {
+      ctx.rotate(t * 1.5); ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.05); ctx.globalAlpha = 0.6;
+      ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * s * 1.3, Math.sin(a) * s * 1.3); } ctx.closePath(); ctx.stroke();
     }
     ctx.restore();
   }

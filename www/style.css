@@ -160,6 +160,39 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .vol b { color: var(--cyan); }
 .vol.off { opacity: .45; }
 .vol input[type=range] { width: 100%; accent-color: #a855f7; padding: 0; border: 0; background: transparent; }
+.gun { font-size: 12px; font-weight: 700; color: #fde68a; direction: ltr; }
+/* level chapters (shared by the levels screen and the room) */
+#lv-grid { display: block; }
+.chapters { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 10px; scrollbar-width: none; }
+.chap { font: inherit; font-weight: 800; font-size: 13px; color: var(--muted); background: var(--panel); border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 12px; white-space: nowrap; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; direction: ltr; }
+.chap.on { color: #fff; border-color: var(--cyan); background: linear-gradient(135deg, rgba(8,145,178,.5), rgba(124,58,237,.5)); }
+.chap.locked { opacity: .45; } .chap .ic { width: 14px; height: 14px; }
+.lv-page { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; }
+.lv-page .lv b { font-size: 22px; }
+.world { margin-top: 10px; }
+.lv.chosen { border-color: var(--gold) !important; box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(250,204,21,.45); }
+/* room lobby */
+.room-players { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 12px 0; }
+.rp { background: rgba(5,2,26,.5); border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; }
+.rp.ready { border-color: var(--green); box-shadow: 0 0 12px rgba(74,222,128,.3); }
+.rp .avatar { width: 44px; height: 44px; }
+.rp b { font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp small { color: var(--cyan); font-size: 11px; }
+.rp-tag { font-size: 11px; color: var(--gold); min-height: 14px; }
+.rp-ready { font-size: 11px; font-weight: 800; color: var(--muted); } .rp.ready .rp-ready { color: var(--green); }
+.chosen { margin-top: 10px; font-size: 15px; }
+.room-pick { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 10px; margin-bottom: 10px; max-height: 52vh; overflow-y: auto; }
+.room-pick > .btn { margin-bottom: 8px; }
+/* parties */
+.party { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.party-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.party-head b { font-size: 16px; }
+.party p { margin: 0; }
+.party-meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); gap: 8px; }
+.code-chip { font-family: ui-monospace, Menlo, monospace; font-weight: 800; color: var(--gold); background: rgba(250,204,21,.1); border-radius: 8px; padding: 3px 8px; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.party-members { display: flex; flex-wrap: wrap; gap: 6px; }
+.pm { position: relative; } .pm .avatar { width: 34px; height: 34px; padding: 3px; } .pm .dot { position: absolute; bottom: 0; inset-inline-end: 0; margin: 0; }
+textarea { font: inherit; font-size: 16px; color: var(--text); background: rgba(5, 2, 26, .7); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; width: 100%; resize: vertical; user-select: text; -webkit-user-select: text; }
 /* languages */
 .cv-note { display: flex; gap: 6px; align-items: flex-start; text-align: start; }
 html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }

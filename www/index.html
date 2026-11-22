@@ -107,19 +107,27 @@
   <!-- Friends -->
   <section id="s-friends" class="screen">
     <header class="topbar"><button class="icon-btn" data-back><span data-ic="back"></span></button><h2 data-t="friends"></h2><div></div></header>
+    <div class="tabs" id="f-tabs"><button class="tab on" data-ft="friends" data-t="friends"></button><button class="tab" data-ft="parties" data-t="parties"></button></div>
     <div class="scroll">
-      <div class="card">
-        <div class="lbl" data-t="your_friend_code"></div>
-        <div class="code-box"><b id="f-mycode" dir="ltr">------</b><button class="icon-btn" id="f-copy"><span data-ic="copy"></span></button><button class="icon-btn" id="f-share"><span data-ic="send"></span></button></div>
-        <p class="muted small" data-t="friend_code_help"></p>
+      <div id="f-pane-friends">
+        <div class="card">
+          <div class="lbl" data-t="find_friends"></div>
+          <input id="f-search" dir="auto" autocapitalize="off" autocomplete="off" spellcheck="false" data-tp="search_players_ph">
+          <div id="f-results" class="list" style="margin-top:8px"></div>
+        </div>
+        <div id="f-reqs"></div>
+        <div class="lbl pad" data-t="my_friends"></div>
+        <div id="f-list" class="list"></div>
       </div>
-      <div class="card">
-        <div class="lbl" data-t="add_friend_code"></div>
-        <div class="row"><input id="f-code" maxlength="6" dir="ltr" placeholder="ABC123" autocapitalize="characters"><button class="btn primary" id="f-add"><span data-ic="plus"></span><span data-t="add"></span></button></div>
-        <div id="f-status" class="status"></div>
+      <div id="f-pane-parties" class="hidden">
+        <button class="btn primary big" id="p-create" style="width:100%;margin-bottom:12px"><span data-ic="plus"></span><span data-t="create_party"></span></button>
+        <div class="lbl pad" data-t="my_parties"></div>
+        <div id="p-mine" class="list"></div>
+        <div class="card" style="margin-top:12px">
+          <input id="p-search" dir="auto" autocapitalize="off" autocomplete="off" spellcheck="false" data-tp="search_parties_ph">
+          <div id="p-results" class="list" style="margin-top:8px"></div>
+        </div>
       </div>
-      <div class="lbl pad" data-t="my_friends"></div>
-      <div id="f-list" class="list"></div>
     </div>
   </section>
 
@@ -149,21 +157,19 @@
           <div class="lbl" data-t="room_code"></div>
           <div class="room-code" id="c-roomcode" dir="ltr"></div>
           <button class="chip" id="c-copy"><span data-ic="copy"></span><span data-t="copy"></span></button>
-          <div class="vs">
-            <div class="slot" id="c-slot1"></div>
-            <div class="plus">+</div>
-            <div class="slot" id="c-slot2"></div>
-          </div>
-          <div id="c-hostctl">
-            <div class="lbl" data-t="choose_game"></div>
-            <div class="row center">
-              <select id="c-level"></select>
-            </div>
-            <button class="btn primary big" id="c-go" disabled data-t="start"></button>
-          </div>
+          <div class="muted small" id="c-count" style="margin-top:8px"></div>
+          <div class="room-players" id="c-players"></div>
+          <button class="btn big" id="c-ready"></button>
+          <div class="chosen" id="c-chosen"></div>
           <p id="c-wait" class="muted hidden" data-t="waiting_host"></p>
-          <button class="btn ghost" id="c-leave" data-t="leave_room"></button>
         </div>
+        <div id="c-hostctl" class="hidden">
+          <div class="lbl pad" data-t="choose_game"></div>
+          <div id="c-pick" class="room-pick"></div>
+          <p class="muted small center" id="c-need" data-t="need_ready"></p>
+          <button class="btn primary big" id="c-go" disabled data-t="start" style="width:100%"></button>
+        </div>
+        <button class="btn ghost" id="c-leave" data-t="leave_room" style="width:100%"></button>
       </div>
     </div>
   </section>

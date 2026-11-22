@@ -36,28 +36,41 @@
 
   // ---------- level design ----------
   function levelCfg(n) {
+    const d = 1 - Math.exp(-n / 70); // 0 -> 1, eases off so level 500 is hard but fair
     return {
-      n, goal: 12 + n * 4,
-      spawn: Math.max(0.3, 1.05 - n * 0.035),
-      speed: 1 + n * 0.05,
-      bigChance: Math.min(0.5, 0.12 + n * 0.02),
+      n, goal: 12 + Math.min(n * 3, 100),
+      spawn: Math.max(0.22, 1.05 - d * 0.8),
+      speed: 1 + d * 1.9,
+      bigChance: Math.min(0.55, 0.12 + d * 0.43),
       kinds: n < 3 ? ['rock'] : n < 6 ? ['rock', 'rock', 'ice'] : n < 10 ? ['rock', 'ice', 'lava'] : ['rock', 'ice', 'lava', 'lava'],
-      goldChance: 0.03 + n * 0.002,
+      goldChance: 0.03 + d * 0.05,
+      hpBonus: Math.floor(Math.min(n, 160) / 8),
       boss: n % 5 === 0,
       hue: (200 + n * 47) % 360,
     };
   }
   // ---- secret worlds: found by doing something special in normal levels; their levels give diamonds ----
-  const WORLDS = [
-    { id: 'w1', hue: 45, kinds: ['gold', 'rock', 'lava'], gems: [3, 4, 6] },
-    { id: 'w2', hue: 275, kinds: ['lava', 'rock', 'lava'], gems: [5, 6, 9] },
-    { id: 'w3', hue: 190, kinds: ['ice', 'ice', 'rock'], gems: [7, 8, 12] },  // names & hints: i18n w1_name, w1_hint, w1_how…
+  // trigger types: comet (shoot the golden comet), boss (beat the boss without losing a heart), crystals (collect n),
+  // gold (destroy n golden meteors), coins (collect n coins), nohit (finish without being hit), fast (finish within n seconds)
+  const TRIGS = [
+    ['comet', 4], ['boss', 10], ['crystals', 13, 3], ['gold', 18, 5], ['coins', 22, 40],
+    ['nohit', 27], ['fast', 31, 75], ['comet', 36], ['crystals', 42, 4], ['boss', 45],
+    ['gold', 53, 8], ['coins', 58, 60], ['nohit', 64], ['fast', 71, 90], ['comet', 80],
+    ['crystals', 88, 5], ['boss', 95], ['gold', 110, 10], ['nohit', 125], ['boss', 150],
   ];
+  const KIND_SETS = [['gold', 'rock', 'lava'], ['lava', 'rock', 'lava'], ['ice', 'ice', 'rock'], ['rock', 'gold', 'ice'], ['lava', 'lava', 'ice']];
+  // names & hints: i18n w1_name … w20_name and h_<type>
+  const WORLDS = TRIGS.map((tr, i) => ({
+    id: 'w' + (i + 1), hue: [45, 275, 190, 330, 120, 15, 220, 300, 160, 0, 250, 60, 180, 285, 95, 205, 350, 30, 140, 265][i],
+    kinds: KIND_SETS[i % KIND_SETS.length],
+    gems: [3 + Math.floor(i * 0.6), 4 + Math.floor(i * 0.7), 6 + i],
+    trig: { type: tr[0], level: tr[1], n: tr[2] || 0 },
+  }));
   function secretCfg(w, k) {
     const W_ = WORLDS[w - 1], base = levelCfg(8 + w * 4 + k * 2);
     return Object.assign(base, {
-      hue: W_.hue, kinds: W_.kinds, goal: 30 + w * 8 + k * 6, spawn: Math.max(0.22, base.spawn * 0.75),
-      speed: base.speed * 1.12, bigChance: Math.min(0.6, base.bigChance + 0.1), boss: k === 3, goldChance: w === 1 ? 0.12 : base.goldChance,
+      hue: W_.hue, kinds: W_.kinds, goal: 30 + Math.min(w, 12) * 6 + k * 6, spawn: Math.max(0.2, base.spawn * 0.75),
+      speed: base.speed * 1.12, bigChance: Math.min(0.6, base.bigChance + 0.1), boss: k === 3, goldChance: W_.kinds[0] === 'gold' ? 0.12 : base.goldChance,
     });
   }
 
@@ -71,6 +84,31 @@
   const PICK_TYPES = ['coin', 'shield', 'rapid', 'triple', 'life', 'crystal'];
 
   let nextId = 1;
+  const gunOf = skin => (Art.SHIPS.find(s => s.id === skin) || Art.SHIPS[0]).gun || { rate: 1, dmg: 1, side: 0, style: 'line' };
+
+  // how a player's shot looks, by the ship's weapon style
+  function drawShot(x, b, k, t, hd) {
+    const st = (k.gun && k.gun.style) || 'line', c = k.glow, ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+    if (hd) { x.shadowColor = c; x.shadowBlur = 12; }
+    x.save(); x.translate(b.x, b.y); x.rotate(ang);
+    switch (st) {
+      case 'needle': x.strokeStyle = c; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 24); x.stroke(); x.fillStyle = '#fff'; x.fillRect(-1, -2, 2, 6); break;
+      case 'flame': { const gr = x.createRadialGradient(0, 4, 1, 0, 4, 9); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, '#fb923c'); gr.addColorStop(1, 'rgba(239,68,68,0)'); x.fillStyle = gr; x.beginPath(); x.ellipse(0, 6, 5, 11, 0, 0, 7); x.fill(); break; }
+      case 'ring': x.strokeStyle = c; x.lineWidth = 2.5; x.beginPath(); x.arc(0, 0, 5 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 1.6, 0, 7); x.fill(); break;
+      case 'twin': x.strokeStyle = c; x.lineWidth = 2.5; for (const dx of [-3, 3]) { x.beginPath(); x.moveTo(dx, 0); x.lineTo(dx, 16); x.stroke(); } break;
+      case 'laser': { x.strokeStyle = c; x.lineWidth = 6; x.globalAlpha = 0.45; x.beginPath(); x.moveTo(0, -4); x.lineTo(0, 34); x.stroke(); x.globalAlpha = 1; x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke(); break; }
+      case 'fireball': { const gr = x.createRadialGradient(0, 0, 1, 0, 0, 9); gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, '#fde047'); gr.addColorStop(0.7, '#f97316'); gr.addColorStop(1, 'rgba(220,38,38,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, 9, 0, 7); x.fill();
+        x.fillStyle = 'rgba(251,146,60,.5)'; x.beginPath(); x.ellipse(0, 12, 3.5, 9, 0, 0, 7); x.fill(); break; }
+      case 'star': { x.rotate(t * 10); x.fillStyle = '#fde047'; x.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 3 : 8, a = i * Math.PI / 5; x[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); } x.closePath(); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'wisp': { x.globalAlpha = 0.75; const gr = x.createRadialGradient(0, 0, 1, 0, 0, 8); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(165,180,252,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, 8, 0, 7); x.fill();
+        x.strokeStyle = c; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 4); x.quadraticCurveTo(Math.sin(t * 25) * 6, 12, 0, 22); x.stroke(); break; }
+      case 'shard': x.fillStyle = '#a5f3fc'; x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(0, -8); x.lineTo(4, 2); x.lineTo(0, 12); x.lineTo(-4, 2); x.closePath(); x.fill(); x.stroke(); break;
+      case 'rainbow': { const h = (t * 400 + b.x) % 360; x.strokeStyle = `hsl(${h},95%,65%)`; x.lineWidth = 6; x.globalAlpha = 0.55; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 22); x.stroke();
+        x.globalAlpha = 1; x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 3, 0, 7); x.fill(); break; }
+      default: x.strokeStyle = c; x.lineWidth = 5; x.globalAlpha = 0.5; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 18); x.stroke(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.globalAlpha = 1; x.stroke();
+    }
+    x.restore(); x.globalAlpha = 1;
+  }
 
   class Game {
     constructor(canvas, opts) {
@@ -85,10 +123,15 @@
       this.secret = opts.secret || null; // {w, k}
       this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level);
       if (this.secret) { this.level = 8 + this.secret.w * 4 + this.secret.k * 2; this.cfg = secretCfg(this.secret.w, this.secret.k); }
-      this.found = []; this.crystals = 0; this.comet = null;
-      const normal = this.mode === 'level' && !this.secret;
-      this.cometAt = normal && this.level === 4 ? rnd(7, 14) : 0;
-      this.crystalAt = normal && this.level === 13 ? [8, 17, 26] : [];
+      this.found = []; this.crystals = 0; this.comet = null; this.goldKills = 0; this.hits = 0;
+      const normal = this.mode === 'level' && !this.secret && !opts.mini;
+      // the secret worlds that can be found in this level
+      this.trigs = normal ? WORLDS.filter(w => w.trig.level === this.level) : [];
+      const trig = type => this.trigs.find(w => w.trig.type === type);
+      this.cometWorld = trig('comet'); this.crystalWorld = trig('crystals');
+      this.cometAt = this.cometWorld ? rnd(7, 14) : 0;
+      this.crystalAt = this.crystalWorld ? Array.from({ length: this.crystalWorld.trig.n }, (_, i) => 8 + i * 9) : [];
+      if (trig('gold')) this.cfg.goldChance = Math.max(this.cfg.goldChance, 0.14);
       this.t = 0; this.spawnT = 1; this.kills = 0; this.score = 0; this.coins = 0;
       this.meteors = []; this.bullets = []; this.pickups = []; this.parts = []; this.floats = [];
       this.boss = null; this.bossSpawned = false;
@@ -98,10 +141,11 @@
       this.resize();
       this.H = opts.H || this.autoH;
       this.resize();
-      if (this.isGuest) { this.players = [this.makePlayer(opts.peer, false), this.makePlayer(opts.me, true)]; this.me = this.players[1]; }
-      else {
+      if (this.coop) { // everybody in the room, host first; the host runs the game for all
+        this.players = opts.roster.map(p => this.makePlayer(p, p.id === opts.me.id));
+        this.me = this.players.find(p => p.local) || this.players[0];
+      } else {
         this.players = [this.makePlayer(opts.me, true)];
-        if (this.coop) this.players.push(this.makePlayer(opts.peer, false));
         if (this.local2) this.players.push(this.makePlayer(opts.p2, true));
         this.me = this.players[0];
       }
@@ -123,7 +167,8 @@
       };
     }
     spreadPlayers() {
-      this.players.forEach((p, i) => { p.x = p.tx = this.players.length > 1 ? (i === 0 ? W * 0.35 : W * 0.65) : W / 2; p.y = p.ty = this.H - 90; });
+      const n = this.players.length;
+      this.players.forEach((p, i) => { p.x = p.tx = W * (i + 1) / (n + 1); p.y = p.ty = this.H - 90 - (n > 4 ? (i % 2) * 40 : 0); });
     }
 
     // ----- layout / input -----
@@ -267,7 +312,7 @@
         if (!p.alive) continue;
         p.inv = Math.max(0, p.inv - dt); p.rapid = Math.max(0, p.rapid - dt); p.triple = Math.max(0, p.triple - dt);
         p.fireCd -= dt;
-        if (p.fireCd <= 0 && !this.over) { this.fire(p); p.fireCd = (p.rapid > 0 ? 0.085 : 0.17) - p.weapon * 0.006; }
+        if (p.fireCd <= 0 && !this.over) { this.fire(p); p.fireCd = ((p.rapid > 0 ? 0.085 : 0.17) - p.weapon * 0.006) / gunOf(p.skin).rate; }
       }
 
       // bullets
@@ -299,7 +344,7 @@
         const C = this.comet;
         if (!b.dead && C && Math.hypot(C.x - b.x, C.y - b.y) < 20) {
           b.dead = true; C.hp -= 1; this.spark(b.x, b.y, 6, 0);
-          if (C.hp <= 0) { this.comet = null; this.explode(C.x, C.y, 50, 0); this.discover('w1', C.x, C.y); for (let i = 0; i < 8; i++) this.drop(C.x, C.y, 'coin'); }
+          if (C.hp <= 0) { this.comet = null; this.explode(C.x, C.y, 50, 0); this.discover(this.cometWorld ? this.cometWorld.id : 'w1', C.x, C.y); for (let i = 0; i < 8; i++) this.drop(C.x, C.y, 'coin'); }
         }
         const B = this.boss;
         if (!b.dead && B && B.hp > 0 && Math.abs(b.x - B.x) < 95 && Math.abs(b.y - B.y) < 45) {
@@ -354,12 +399,16 @@
         x: opt.x != null ? opt.x : rnd(r, W - r), y: opt.y != null ? opt.y : -r - 10,
         vx: opt.vx != null ? opt.vx : rnd(-40, 40), vy: opt.vy != null ? opt.vy : sp,
         rot: Math.random() * 7, vr: rnd(-2, 2), flash: 0,
-        hp: Math.ceil([1, 3, 6][tier] * K.hp + Math.floor(cfg.n / 6) * (tier + 1) * 0.5),
+        hp: Math.ceil([1, 3, 6][tier] * K.hp + (cfg.hpBonus != null ? cfg.hpBonus : Math.floor(cfg.n / 6)) * (tier + 1) * 0.5),
       };
       this.meteors.push(m); return m;
     }
     killMeteor(m, owner) {
       if (m.dead) return; m.dead = true;
+      if (m.kind === 'gold' && owner >= 0) {
+        this.goldKills++;
+        for (const w of this.trigs) if (w.trig.type === 'gold' && this.goldKills >= w.trig.n) this.discover(w.id, m.x, m.y);
+      }
       this.kills++; this.score += [10, 25, 50][m.tier] * (m.kind === 'gold' ? 3 : 1);
       this.explode(m.x, m.y, m.r, m.kind === 'ice' ? 1 : m.kind === 'lava' ? 2 : m.kind === 'gold' ? 0 : 5);
       if (m.tier > 0) for (const s of [-1, 1]) this.spawnMeteor({ tier: m.tier - 1, kind: m.kind === 'gold' ? 'rock' : m.kind, x: m.x + s * m.r * 0.4, y: m.y, vx: s * rnd(50, 110) + m.vx * 0.3, vy: m.vy * rnd(0.7, 1) });
@@ -374,10 +423,16 @@
     drop(x, y, type) { this.pickups.push({ x, y, vx: rnd(-80, 80), vy: rnd(70, 110), type, t: Math.random() * 3 }); }
     collect(p, k) {
       k.dead = true;
-      if (k.type === 'coin') { this.coins++; Sfx.coin(); this.float(k.x, k.y, '+1', '#facc15'); return; }
+      if (k.type === 'coin') {
+        this.coins++; Sfx.coin(); this.float(k.x, k.y, '+1', '#facc15');
+        for (const w of this.trigs) if (w.trig.type === 'coins' && this.coins >= w.trig.n) this.discover(w.id, k.x, k.y);
+        return;
+      }
       if (k.type === 'crystal') {
         this.crystals++; Sfx.power(); this.spark(k.x, k.y, 16, 1);
-        if (this.crystals >= 3) this.discover('w3', k.x, k.y); else this.float(k.x, k.y, t('f_crystal', { n: this.crystals }), '#67e8f9', 1.2);
+        const need = this.crystalWorld ? this.crystalWorld.trig.n : 3;
+        if (this.crystals >= need) this.discover(this.crystalWorld ? this.crystalWorld.id : 'w3', k.x, k.y);
+        else this.float(k.x, k.y, t('f_crystal', { n: this.crystals }).replace('/3', '/' + need), '#67e8f9', 1.2);
         return;
       }
       Sfx.power(); this.fxQueue.push([k.x, k.y, -1, 0]);
@@ -392,7 +447,10 @@
     }
     fire(p) {
       const lvl = Math.min(6, p.weapon + (p.triple > 0 ? 2 : 0)), owner = this.players.indexOf(p);
-      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg, owner, pierce: p.plasma, hits: p.plasma ? new Set() : null });
+      const g = gunOf(p.skin), pierce = p.plasma || !!g.pierce;
+      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg: dmg * g.dmg, owner, pierce, hits: pierce ? new Set() : null });
+      // side shots of better ships: pairs fanning out from the wings
+      for (let i = 0; i < g.side; i++) { const ang = 0.32 + i * 0.16; add(-16 - i * 3, -ang, 0.8); add(16 + i * 3, ang, 0.8); }
       if (lvl === 1) add(0, 0);
       else if (lvl === 2) { add(-8, 0); add(8, 0); }
       else if (lvl === 3) { add(0, 0); add(-8, -0.12); add(8, 0.12); }
@@ -403,7 +461,7 @@
     }
     hurt(p) {
       if (p.inv > 0 || !p.alive || this.over && this.result && this.result.win) return;
-      this.shake = 8; Sfx.hit();
+      this.shake = 8; Sfx.hit(); this.hits++;
       if (p.shield > 0) { p.shield--; p.inv = 1.2; this.fxQueue.push([p.x, p.y, -2, 1]); this.spark(p.x, p.y, 12, 1); return; }
       p.lives--; this.livesLost++; p.inv = 2;
       this.explode(p.x, p.y, 30, 2);
@@ -411,7 +469,7 @@
     }
     spawnBoss() {
       this.bossSpawned = true;
-      const max = 60 + this.level * 22;
+      const max = 60 + Math.min(this.level, 160) * 22;
       this.boss = { x: W / 2, y: -80, hp: max, max, t: 0, flash: 0, shotT: 2 };
       this.float(W / 2, this.H * 0.4, '!!! ' + t('mothership') + ' !!!', '#f43f5e', 2.5);
     }
@@ -447,12 +505,18 @@
       if (this.over) return;
       this.over = true; this.endT = win ? 1.6 : 1.8;
       const stars = win ? (this.livesLost === 0 ? 3 : this.livesLost === 1 ? 2 : 1) : 0;
-      if (win && this.mode === 'level' && !this.secret && this.level === 10 && this.livesLost === 0) this.discover('w2', W / 2, this.H * 0.35);
-      const bonus = win && this.mode === 'level' ? 20 + this.level * 10 : Math.floor(this.score / 200);
+      if (win) for (const w of this.trigs) {
+        const tt = w.trig.type;
+        if ((tt === 'boss' && this.livesLost === 0) || (tt === 'nohit' && this.hits === 0) || (tt === 'fast' && this.t <= w.trig.n)) this.discover(w.id, W / 2, this.H * 0.35);
+      }
+      const bonus = win && this.mode === 'level' ? 20 + Math.min(this.level, 150) * 10 : Math.floor(this.score / 200);
       this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, mode: this.mode, secret: this.secret, found: this.found.slice() };
       if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, t('f_level_done'), '#4ade80', 2); }
       if (this.coop) { this.sendState(); this.coop.room.send('end', this.result); }
     }
+
+    // a player left the room in the middle of a game
+    dropPlayer(id) { const p = this.players.find(q => q.id === id && !q.local); if (p) { p.alive = false; p.lives = 0; p.gone = true; } }
 
     discover(id, x, y) {
       if (this.found.includes(id)) return;
@@ -496,7 +560,7 @@
       this.coop.room.send('st', st);
     }
     onNet(ev, p) {
-      if (ev === 'in' && !this.isGuest) { const g = this.players[1]; g.tx = g.x = clamp(p.x, 0, W); g.ty = g.y = clamp(p.y, 0, this.H); }
+      if (ev === 'in' && !this.isGuest) { const g = this.players.find(q => q.id === p.id && !q.local); if (g) { g.tx = g.x = clamp(p.x, 0, W); g.ty = g.y = clamp(p.y, 0, this.H); } }
       else if (ev === 'st' && this.isGuest) this.applyState(p);
     }
     applyState(st) {
@@ -529,7 +593,7 @@
       for (const b of this.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; }
       for (const p of this.players) if (p.alive && !this.over) { p.fireCd -= dt; if (p.local && p.fireCd <= 0) { Sfx.shoot(); p.fireCd = 0.17; } }
       this.netT -= dt;
-      if (this.netT <= 0) { this.netT = 1 / 15; this.coop.room.send('in', { x: Math.round(this.me.x), y: Math.round(this.me.y) }); }
+      if (this.netT <= 0) { this.netT = 1 / 15; this.coop.room.send('in', { id: this.me.id, x: Math.round(this.me.x), y: Math.round(this.me.y) }); }
     }
 
     // ----- drawing -----
@@ -587,11 +651,7 @@
       for (const b of this.bullets) {
         if (b.enemy) { x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(b.x, b.y, 6, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(b.x, b.y, 2.5, 0, 7); x.fill(); continue; }
         const p = this.players[b.owner] || this.players[0];
-        const k = Art.SHIPS.find(s => s.id === p.skin) || Art.SHIPS[0];
-        if (this.hd) { x.shadowColor = k.glow; x.shadowBlur = 12; }
-        x.strokeStyle = k.glow; x.lineWidth = 5; x.globalAlpha = 0.5;
-        x.beginPath(); x.moveTo(b.x, b.y); x.lineTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022); x.stroke();
-        x.strokeStyle = '#fff'; x.lineWidth = 2; x.globalAlpha = 1; x.stroke();
+        drawShot(x, b, Art.SHIPS.find(s => s.id === p.skin) || Art.SHIPS[0], this.t, this.hd);
       }
       // particles
       for (const p of this.parts) {
@@ -717,10 +777,12 @@
       if (this.boss) { pg.addColorStop(0, '#be123c'); pg.addColorStop(1, '#f43f5e'); } else { pg.addColorStop(0, '#22d3ee'); pg.addColorStop(1, '#a855f7'); }
       x.fillStyle = pg; roundRect(x, bx, by, Math.max(4, bw * frac), 9, 5); x.fill();
       // partner status
-      if (this.players.length > 1) {
-        const other = this.players.find(p => p !== me);
-        x.textAlign = 'center'; x.font = '600 12px system-ui'; x.fillStyle = other.alive ? '#fde68a' : '#94a3b8';
-        x.direction = 'ltr'; x.fillText('@' + other.handle + '  ' + (other.alive ? '♥' + other.lives + (other.shield ? ' ◈' + other.shield : '') : t('down')), cw / 2, by + 44);
+      if (this.players.length > 1) { // the other players: up to 4 shown, then "+n"
+        const others = this.players.filter(p => p !== me && !p.gone);
+        const parts = others.slice(0, 4).map(o => '@' + o.handle + ' ' + (o.alive ? '♥' + o.lives : '✖'));
+        if (others.length > 4) parts.push('+' + (others.length - 4));
+        x.textAlign = 'center'; x.font = '600 12px system-ui'; x.fillStyle = '#fde68a';
+        x.direction = 'ltr'; x.fillText(parts.join('  ·  '), cw / 2, by + 44);
       }
     }
   }

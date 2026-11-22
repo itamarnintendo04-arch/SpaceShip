@@ -35,6 +35,7 @@
     return new Error(m || 'offline');
   };
 
+  let lobbyMeta = { room: null }, lobbySubscribed = false;
   let lobby = null, inbox = null, online = new Set();
 
   const Net = {
@@ -46,6 +47,19 @@
     addFriend: (u, code) => rpc('add_friend', { p_id: u.id, p_secret: u.secret, p_code: code }),
     removeFriend: (u, fid) => rpc('remove_friend', { p_id: u.id, p_secret: u.secret, p_friend: fid }),
     friends: u => rpc('list_friends', { p_id: u.id, p_secret: u.secret }),
+    // friends: search + requests (the other player has to accept)
+    searchPlayers: (u, q) => rpc('search_players', { p_id: u.id, p_secret: u.secret, p_q: q }),
+    sendFriendRequest: (u, to) => rpc('send_friend_request', { p_id: u.id, p_secret: u.secret, p_to: to }),
+    friendRequests: u => rpc('list_friend_requests', { p_id: u.id, p_secret: u.secret }),
+    respondFriendRequest: (u, from, accept) => rpc('respond_friend_request', { p_id: u.id, p_secret: u.secret, p_from: from, p_accept: accept }),
+    cancelFriendRequest: (u, to) => rpc('cancel_friend_request', { p_id: u.id, p_secret: u.secret, p_to: to }),
+    // parties (up to 10 players)
+    myParties: u => rpc('my_parties', { p_id: u.id, p_secret: u.secret }),
+    createParty: (u, name, desc, pub) => rpc('create_party', { p_id: u.id, p_secret: u.secret, p_name: name, p_desc: desc, p_public: pub }),
+    updateParty: (u, id, name, desc, pub) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: pub }),
+    searchParties: (u, q) => rpc('search_parties', { p_id: u.id, p_secret: u.secret, p_q: q || '' }),
+    joinParty: (u, id, code) => rpc('join_party', { p_id: u.id, p_secret: u.secret, p_party: id || null, p_code: code || null }),
+    leaveParty: (u, id) => rpc('leave_party', { p_id: u.id, p_secret: u.secret, p_party: id }),
     // ---- sign in on another device ----
     loginToken: (handle, token) => rpc('login_token', { p_handle: handle, p_token: token }),
     regenToken: u => rpc('regen_token', { p_id: u.id, p_secret: u.secret }),
@@ -58,6 +72,9 @@
     emailLoginConfirm: (handle, code) => rpc('email_login_confirm', { p_handle: handle, p_code: code }),
     leaderboard: () => rpc('leaderboard'),
     isOnline: id => online.has(id),
+    // what a player shares in the lobby (e.g. the room they are in), and setting my own
+    presenceOf: id => { if (!lobby) return null; const v = lobby.presenceState()[id]; return v ? v[v.length - 1] : null; },
+    setLobbyMeta(m) { Object.assign(lobbyMeta, m); if (lobby && lobbySubscribed) lobby.track(lobbyMeta); },
 
     // ---- email = CutVid account ----
     // existing CutVid account: a one-time code is emailed by CutVid (throws cv_no_account for new emails)
@@ -108,7 +125,7 @@
     cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
-    startPresence(user, { onInvite, onOnline, onFriendAdded, onJoin, onNews }) {
+    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply }) {
       if (!sb || lobby) return;
       lobby = sb.channel('ss-lobby', { config: { presence: { key: user.id } } });
       lobby.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== user.id && onJoin) onJoin(key, newPresences && newPresences[0]); });
@@ -117,13 +134,18 @@
         online = new Set(Object.keys(lobby.presenceState()));
         onOnline && onOnline(online);
       });
-      lobby.subscribe(st => { if (st === 'SUBSCRIBED') lobby.track({ h: user.handle }); });
+      lobbyMeta.h = user.handle;
+      lobby.subscribe(st => { if (st === 'SUBSCRIBED') { lobbySubscribed = true; lobby.track(lobbyMeta); } });
       inbox = sb.channel('ss-user-' + user.id, { config: { broadcast: { self: false } } });
       inbox.on('broadcast', { event: 'invite' }, ({ payload }) => onInvite && onInvite(payload));
       inbox.on('broadcast', { event: 'friend_added' }, ({ payload }) => onFriendAdded && onFriendAdded(payload));
+      inbox.on('broadcast', { event: 'friend_request' }, ({ payload }) => onFriendRequest && onFriendRequest(payload));
+      inbox.on('broadcast', { event: 'friend_accepted' }, ({ payload }) => onFriendAccepted && onFriendAccepted(payload));
+      inbox.on('broadcast', { event: 'join_request' }, ({ payload }) => onJoinRequest && onJoinRequest(payload));
+      inbox.on('broadcast', { event: 'join_reply' }, ({ payload }) => onJoinReply && onJoinReply(payload));
       inbox.subscribe();
     },
-    stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; },
+    stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; lobbySubscribed = false; },
 
     sendInvite(friendId, payload) { return Net.sendTo(friendId, 'invite', payload); },
     sendTo(friendId, event, payload) {
@@ -139,26 +161,32 @@
       });
     },
 
-    // Co-op room. role: 'host' | 'guest'
+    // Co-op room for up to 10 players. role: 'host' | 'guest'. Every member shares its info (name, ship,
+    // ready, the host's chosen level) through presence; game messages go over broadcast.
     room(code, role, me, handlers) {
       if (!sb) throw new Error('offline');
       const ch = sb.channel('ss-room-' + code, { config: { broadcast: { self: false }, presence: { key: me.id } } });
+      const meta = Object.assign({ role }, me);
+      let subscribed = false;
       const room = {
-        code, role, peer: null, closed: false,
+        code, role, members: [], closed: false,
         send(event, payload) { if (!room.closed) ch.send({ type: 'broadcast', event, payload }); },
+        setMeta(m) { Object.assign(meta, m); if (subscribed) ch.track(meta); },
         leave() { if (room.closed) return; room.closed = true; try { ch.untrack(); } catch (e) {} sb.removeChannel(ch); },
       };
-      for (const ev of ['hello', 'start', 'in', 'st', 'fx', 'end', 'bye']) ch.on('broadcast', { event: ev }, ({ payload }) => handlers.onMessage && handlers.onMessage(ev, payload));
+      for (const ev of ['start', 'in', 'st', 'fx', 'end', 'bye']) ch.on('broadcast', { event: ev }, ({ payload }) => handlers.onMessage && handlers.onMessage(ev, payload));
       ch.on('presence', { event: 'sync' }, () => {
-        const state = ch.presenceState();
-        const others = Object.entries(state).filter(([k]) => k !== me.id).map(([, v]) => v[0]);
-        const peer = others[0] || null;
-        if (peer && !room.peer) { room.peer = peer; handlers.onPeer && handlers.onPeer(peer, others.length); }
-        else if (!peer && room.peer) { room.peer = null; handlers.onPeerLeft && handlers.onPeerLeft(); }
-        handlers.onSync && handlers.onSync(others);
+        room.members = Object.values(ch.presenceState()).map(v => v[v.length - 1]);
+        handlers.onSync && handlers.onSync(room.members);
+      });
+      ch.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== me.id && handlers.onJoin) handlers.onJoin((newPresences && newPresences[0]) || { id: key }); });
+      ch.on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === me.id) return;
+        // presence keeps the list in step, so read it after the leave has been applied
+        setTimeout(() => { room.members = Object.values(ch.presenceState()).map(v => v[v.length - 1]); handlers.onLeave && handlers.onLeave(key); }, 0);
       });
       ch.subscribe(st => {
-        if (st === 'SUBSCRIBED') { ch.track({ role, id: me.id, handle: me.handle, name: me.name, avatar: me.avatar }); handlers.onReady && handlers.onReady(); }
+        if (st === 'SUBSCRIBED') { subscribed = true; ch.track(meta); handlers.onReady && handlers.onReady(); }
         else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') handlers.onError && handlers.onError(st);
       });
       return room;

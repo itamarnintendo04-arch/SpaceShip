@@ -29,7 +29,7 @@
   let user = store.get('ss_user', null);
   let settings = store.get('ss_settings', { orientation: DESKTOP ? 'landscape' : 'portrait', sound: true });
   let loadingGame = null;
-  let friends = [], game = null, room = null, roomPeer = null, peerStats = null, current = null, history = [];
+  let friends = [], game = null, room = null, current = null, history = [];
   if (user) user.data = Object.assign(defData(), user.data || {});
 
   const save = () => {
@@ -78,6 +78,8 @@
   function toast(msg, ms = 2200) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms); }
   function modal(html, onBind) { $('#modal-card').innerHTML = html; icons($('#modal-card')); $('#modal').classList.remove('hidden'); onBind && onBind($('#modal-card')); }
   function closeModal() { $('#modal').classList.add('hidden'); }
+  // weapon line for the shop: fire rate, damage, side shots
+  const gunHtml = s => { const g = s.gun || {}; return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${g.side ? ' · ↔+' + g.side * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
   const coinHtml = n => `${Art.icon('coin')}<span>${Number(n).toLocaleString()}</span>`;
   const gemHtml = n => `${Art.icon('gem')}<span>${Number(n).toLocaleString()}</span>`;
   const walletHtml = D => `<span class="wal">${coinHtml(D.coins)}</span><span class="wal gemc">${gemHtml(D.gems || 0)}</span>`;
@@ -86,6 +88,9 @@
     if (m.includes('handle_taken')) return t('e_handle_taken');
     if (m.includes('bad_handle')) return t('e_bad_handle');
     if (m.includes('code_not_found')) return t('e_code_not_found');
+    if (m.includes('party_full')) return t('e_party_full');
+    if (m.includes('party_not_found')) return t('e_party_not_found');
+    if (m.includes('too_many_parties')) return t('e_too_many_parties');
     if (m.includes('self')) return t('e_self');
     if (m.includes('bad_login')) return t('e_bad_login');
     if (m.includes('bad_code') || m.includes('code_expired')) return t('e_bad_code');
@@ -530,7 +535,7 @@
         : `<div class="small muted">${t('ask_email_body')}</div>
            <button class="btn small primary" id="p-em-add">✉️ ${t('add_email')}</button>`}</div>`}
       ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} ${t('linked_cutvid')} <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}${t('link_cutvid')}</button>`}
-      <button class="btn primary" id="p-save">${t('save')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
+      <button class="btn primary" id="p-save">${t('save')}</button><button class="btn" id="p-accs">👥 ${t('accounts')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#p-em-add', () => emailFlow('add'));
       on('#p-em-rm', async () => {
@@ -542,44 +547,66 @@
         try { const t = await Net.regenToken(user); user.has_token = true; store.set('ss_user', user); showToken(t, false); } catch (e) { toast(errText(e)); }
       });
       on('#p-out', signOut);
+      on('#p-accs', openSettings);
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
       const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => cutvidModal('link');
     });
   }
 
-  // ---------- levels ----------
-  function renderLevels() {
-    $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(user.data));
-    const L = user.data.levels; let html = '';
-    for (let n = 1; n <= LEVELS; n++) {
-      const stars = L[n] || 0, unlocked = n === 1 || L[n - 1] > 0, next = unlocked && !stars;
-      html += `<button data-bl="${t('hud_boss').replace(/[!！]/g, '')}" class="lv ${levelCfg(n).boss ? 'boss' : ''} ${unlocked ? '' : 'locked'} ${next ? 'next' : ''}" data-lv="${n}" ${unlocked ? '' : 'disabled'}>
-        ${unlocked ? `<b>${n}</b><div class="stars">${[1, 2, 3].map(i => Art.icon(i <= stars ? 'star' : 'starOff')).join('')}</div>` : Art.icon('lock')}</button>`;
+  // ---------- levels: 500 levels in chapters of 50, then the 20 secret worlds ----------
+  const CHAPTER = 50;
+  const bossLabel = () => t('hud_boss').replace(/[!！]/g, '');
+  const unlockedLevel = (D, n) => n === 1 || (D.levels[n - 1] || 0) > 0;
+  const topLevel = D => { let n = 1; while (n < LEVELS && unlockedLevel(D, n + 1)) n++; return n; };
+  // Shared picker: the levels screen and the room lobby both use it. sel = what is chosen in a room.
+  function levelPicker(D, chapter, sel) {
+    const chapters = Math.ceil(LEVELS / CHAPTER), top = topLevel(D);
+    let html = `<div class="chapters">${Array.from({ length: chapters }, (_, c) => {
+      const a = c * CHAPTER + 1, b = Math.min(LEVELS, (c + 1) * CHAPTER), open = a <= top;
+      return `<button class="chap ${c === chapter ? 'on' : ''} ${open ? '' : 'locked'}" data-chap="${c}" ${open ? '' : 'disabled'}>${open ? '' : Art.icon('lock')}${a}–${b}</button>`;
+    }).join('')}</div><div class="lv-page">`;
+    for (let n = chapter * CHAPTER + 1; n <= Math.min(LEVELS, (chapter + 1) * CHAPTER); n++) {
+      const stars = D.levels[n] || 0, open = unlockedLevel(D, n), next = open && !stars;
+      const chosen = sel && !sel.secret && sel.mode === 'level' && sel.level === n;
+      html += `<button data-bl="${bossLabel()}" class="lv ${levelCfg(n).boss ? 'boss' : ''} ${open ? '' : 'locked'} ${next ? 'next' : ''} ${chosen ? 'chosen' : ''}" data-lv="${n}" ${open ? '' : 'disabled'}>
+        ${open ? `<b>${n}</b><div class="stars">${[1, 2, 3].map(i => Art.icon(i <= stars ? 'star' : 'starOff')).join('')}</div>` : Art.icon('lock')}</button>`;
     }
-    // secret worlds
-    const D = user.data;
-    html += `<div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
+    html += `</div><div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
     WORLDS.forEach((w, i) => {
-      const wn = i + 1;
+      const wn = i + 1, hint = t('h_' + w.trig.type, { l: w.trig.level, n: w.trig.n });
       if (!D.worlds.includes(w.id)) {
-        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} ${t('secret_world_q')}</div><div class="w-hint">${t('hint')} ${t(w.id + '_hint')}</div></div>`;
+        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} ${t('secret_world_q')} <small class="muted">#${wn}</small></div><div class="w-hint">${t('hint')} ${hint}</div></div>`;
         return;
       }
       html += `<div class="world" style="--h:${w.hue}"><div class="w-title">${Art.icon('secret')} ${t(w.id + '_name')}</div><div class="w-levels">` +
         [1, 2, 3].map(k => {
           const key = wn + '-' + k, st = D.slevels[key] || 0, open = k === 1 || D.slevels[wn + '-' + (k - 1)] > 0;
-          return `<button data-bl="${t('hud_boss').replace(/[!！]/g, '')}" class="lv sl ${open ? '' : 'locked'} ${k === 3 ? 'boss' : ''}" data-sw="${wn}" data-sk="${k}" ${open ? '' : 'disabled'}>
+          const chosen = sel && sel.secret && sel.secret.w === wn && sel.secret.k === k;
+          return `<button data-bl="${bossLabel()}" class="lv sl ${open ? '' : 'locked'} ${k === 3 ? 'boss' : ''} ${chosen ? 'chosen' : ''}" data-sw="${wn}" data-sk="${k}" ${open ? '' : 'disabled'}>
             ${open ? `<b>${wn}-${k}</b><div class="stars">${[1, 2, 3].map(j => Art.icon(j <= st ? 'star' : 'starOff')).join('')}</div>
             <span class="gem-r">${st ? '✓' : gemHtml(w.gems[k - 1])}</span>` : Art.icon('lock')}</button>`;
         }).join('') + `</div></div>`;
     });
-    $('#lv-grid').innerHTML = html;
+    return html;
+  }
+  // what a click in the picker means: {chap} to change page, or a game choice
+  function pickerClick(e) {
+    const c = e.target.closest('[data-chap]'); if (c && !c.disabled) return { chap: +c.dataset.chap };
+    const s = e.target.closest('[data-sw]'); if (s && !s.disabled) return { pick: { mode: 'level', level: 1, secret: { w: +s.dataset.sw, k: +s.dataset.sk } } };
+    const b = e.target.closest('[data-lv]'); if (b && !b.disabled) return { pick: { mode: 'level', level: +b.dataset.lv } };
+    return null;
+  }
+  let lvChapter = null;
+  function renderLevels() {
+    $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(user.data));
+    if (lvChapter === null) lvChapter = Math.floor((topLevel(user.data) - 1) / CHAPTER);
+    $('#lv-grid').innerHTML = levelPicker(user.data, lvChapter, null);
   }
   $('#lv-grid').addEventListener('click', e => {
-    const s = e.target.closest('[data-sw]');
-    if (s && !s.disabled) return startGame({ mode: 'level', level: 1, secret: { w: +s.dataset.sw, k: +s.dataset.sk } });
-    const b = e.target.closest('[data-lv]'); if (b && !b.disabled) startGame({ mode: 'level', level: +b.dataset.lv });
+    const r = pickerClick(e); if (!r) return;
+    if (r.chap != null) { lvChapter = r.chap; renderLevels(); $('#lv-grid').scrollTop = 0; return; }
+    startGame(r.pick);
   });
 
   // ---------- shop ----------
@@ -601,7 +628,7 @@
         <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>${t('convert')}</button></div>`;
       html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems).map(s => {
         const own = D.ships.includes(s.id), eq = D.skin === s.id;
-        return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>
+        return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
       }).join('');
       html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_powers')}</div>` + GEM_ITEMS.map(it => {
@@ -617,7 +644,7 @@
     }
     else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
-      return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>
+      return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
     }).join('');
     else if (shopTab === 'up') html = UPGRADES.map(u => {
@@ -661,42 +688,159 @@
     save(); renderShop();
   });
 
-  // ---------- friends ----------
+  // ---------- friends: search by @ or name, requests that need the other player's OK ----------
+  let friendTab = 'friends', requests = { incoming: [], outgoing: [] }, parties = [], searchT = null;
   async function loadFriends() {
     if (!user || user.offline) return;
     try { friends = await Net.friends(user) || []; } catch (e) { console.warn(e); }
+    try { requests = await Net.friendRequests(user) || { incoming: [], outgoing: [] }; } catch (e) { console.warn(e); }
     if (current === 'friends') renderFriendsList();
     if (current === 'coop') renderCoopFriends();
     updateOnlineBadge();
   }
-  function updateOnlineBadge() { const n = friends.filter(f => Net.isOnline(f.id)).length; const b = $('#m-online'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n); }
-  function renderFriends() {
-    if (user.offline) { $('#f-mycode').textContent = '------'; $('#f-list').innerHTML = `<div class="empty">${t('need_server_friends')}</div>`; return; }
-    $('#f-mycode').textContent = user.friend_code; renderFriendsList(); loadFriends();
+  function updateOnlineBadge() {
+    const n = friends.filter(f => Net.isOnline(f.id)).length + (requests.incoming || []).length;
+    const b = $('#m-online'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n);
   }
+  function renderFriends() {
+    $$('#f-tabs .tab').forEach(x => x.classList.toggle('on', x.dataset.ft === friendTab));
+    $('#f-pane-friends').classList.toggle('hidden', friendTab !== 'friends'); $('#f-pane-parties').classList.toggle('hidden', friendTab !== 'parties');
+    if (user.offline) { $('#f-list').innerHTML = `<div class="empty">${t('need_server_friends')}</div>`; $('#p-mine').innerHTML = ''; return; }
+    renderFriendsList(); loadFriends();
+    if (friendTab === 'parties') { renderParties(); loadParties(); searchParties(); }
+  }
+  $('#f-tabs').addEventListener('click', e => { const b = e.target.closest('[data-ft]'); if (!b) return; friendTab = b.dataset.ft; renderFriends(); });
   function personRow(f, actions) {
     const on = Net.isOnline(f.id);
     return `<div class="person"><div class="avatar">${Art.avatar(f.avatar)}</div><div class="info"><b>${esc(f.name)}<span class="dot ${on ? 'on' : ''}"></span></b><small>@${esc(f.handle)}</small></div>${actions(f, on)}</div>`;
   }
   function renderFriendsList() {
-    $('#f-list').innerHTML = friends.length ? friends.map(f => personRow(f, (f, on) =>
-      `<button class="btn small ${on ? 'primary' : ''}" data-invite="${f.id}" ${on ? '' : 'disabled'}>${t('invite')}</button><button class="icon-btn" data-rm="${f.id}">${Art.icon('x')}</button>`)).join('')
-      : `<div class="empty">${t('no_friends')}</div>`;
+    const inc = requests.incoming || [], out = requests.outgoing || [];
+    $('#f-reqs').innerHTML = (inc.length ? `<div class="lbl pad">${t('friend_requests')} (${inc.length})</div><div class="list">${inc.map(f => personRow(f, () =>
+        `<button class="btn small primary" data-acc="${f.id}">${t('accept')}</button><button class="btn small" data-dec="${f.id}">${t('decline')}</button>`)).join('')}</div>` : '')
+      + (out.length ? `<div class="lbl pad">${t('sent_requests')}</div><div class="list">${out.map(f => personRow(f, () =>
+        `<button class="btn small" data-cancel="${f.id}">${t('cancel')}</button>`)).join('')}</div>` : '');
+    $('#f-list').innerHTML = friends.length ? friends.map(f => personRow(f, (f, on) => {
+      const r = roomOf(f.id);
+      return (r ? `<button class="btn small gold" data-askjoin="${f.id}">${t('ask_join')}</button>` : `<button class="btn small ${on ? 'primary' : ''}" data-invite="${f.id}" ${on ? '' : 'disabled'}>${t('invite')}</button>`)
+        + `<button class="icon-btn" data-rm="${f.id}">${Art.icon('x')}</button>`;
+    })).join('') : `<div class="empty">${t('no_friends')}</div>`;
   }
-  $('#f-list').addEventListener('click', async e => {
-    const inv = e.target.closest('[data-invite]'), rm = e.target.closest('[data-rm]');
-    if (inv) inviteFriend(inv.dataset.invite);
-    if (rm) { const f = friends.find(x => x.id === rm.dataset.rm); if (!confirm(t('confirm_rm_friend', { h: at(f.handle) }))) return; try { await Net.removeFriend(user, f.id); friends = friends.filter(x => x !== f); renderFriendsList(); } catch (er) { toast(errText(er)); } }
+  function relButton(p) {
+    if (p.rel === 'friend') return `<span class="chip">${t('friends_already')}</span>`;
+    if (p.rel === 'sent') return `<button class="btn small" data-cancel="${p.id}">${t('requested')}</button>`;
+    if (p.rel === 'incoming') return `<button class="btn small primary" data-acc="${p.id}">${t('accept')}</button>`;
+    return `<button class="btn small primary" data-req="${p.id}">${Art.icon('plus')}${t('add')}</button>`;
+  }
+  async function runSearch() {
+    const q = $('#f-search').value.trim(), box = $('#f-results');
+    if (q.replace('@', '').length < 2) { box.innerHTML = ''; return; }
+    try {
+      const rows = await Net.searchPlayers(user, q);
+      if ($('#f-search').value.trim() !== q) return;
+      box.innerHTML = rows.length ? rows.map(p => personRow(p, () => relButton(p))).join('') : `<div class="empty small">${t('no_results')}</div>`;
+    } catch (e) { box.innerHTML = `<div class="empty small">${esc(errText(e))}</div>`; }
+  }
+  $('#f-search').addEventListener('input', () => { clearTimeout(searchT); searchT = setTimeout(runSearch, 300); });
+  // one click handler for the whole friends pane (search results, requests, friends)
+  $('#f-pane-friends').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b || b.disabled || user.offline) return;
+    const id = b.dataset.req || b.dataset.acc || b.dataset.dec || b.dataset.cancel || b.dataset.invite || b.dataset.rm || b.dataset.askjoin;
+    if (!id) return;
+    const who = [...friends, ...(requests.incoming || []), ...(requests.outgoing || [])].find(x => x.id === id) || { id, handle: (b.closest('.person') || {}).querySelector?.('small')?.textContent?.slice(1) || '' };
+    try {
+      if (b.dataset.req) {
+        const r = await Net.sendFriendRequest(user, id);
+        if (r === 'friend') { toast(t('friend_added', { h: at(who.handle) })); Net.sendTo(id, 'friend_accepted', { handle: user.handle }).catch(() => {}); }
+        else { toast(t('request_sent', { h: at(who.handle) })); Net.sendTo(id, 'friend_request', { handle: user.handle, name: user.name }).catch(() => {}); }
+      } else if (b.dataset.acc || b.dataset.dec) {
+        const ok = !!b.dataset.acc;
+        await Net.respondFriendRequest(user, id, ok);
+        if (ok) { toast(t('friend_added', { h: at(who.handle) })); Net.sendTo(id, 'friend_accepted', { handle: user.handle }).catch(() => {}); }
+      } else if (b.dataset.cancel) await Net.cancelFriendRequest(user, id);
+      else if (b.dataset.invite) return inviteFriend(id);
+      else if (b.dataset.askjoin) return askToJoin(id);
+      else if (b.dataset.rm) {
+        if (!confirm(t('confirm_rm_friend', { h: at(who.handle) }))) return;
+        await Net.removeFriend(user, id);
+      }
+      await loadFriends(); runSearch();
+    } catch (er) { toast(errText(er)); }
   });
-  $('#f-copy').addEventListener('click', () => copy(user.friend_code));
-  $('#f-share').addEventListener('click', () => share(t('share_friend', { code: user.friend_code, h: '@' + user.handle })));
-  $('#f-add').addEventListener('click', async () => {
-    const code = $('#f-code').value.trim().toUpperCase(), st = $('#f-status');
-    if (user.offline) return toast(t('need_server'));
-    if (code.length < 6) { st.className = 'status err'; st.textContent = t('code6'); return; }
-    try { const f = await Net.addFriend(user, code); st.className = 'status ok'; st.textContent = '✓ ' + t('friend_added', { h: at(f.handle) }); $('#f-code').value = ''; loadFriends();
-      Net.sendTo(f.id, 'friend_added', { handle: user.handle, name: user.name }).catch(() => {}); }
-    catch (e) { st.className = 'status err'; st.textContent = errText(e); }
+
+  // ---------- parties: groups of up to 10 players ----------
+  async function loadParties() {
+    if (!user || user.offline) return;
+    try { parties = await Net.myParties(user) || []; } catch (e) { console.warn(e); }
+    if (current === 'friends' && friendTab === 'parties') renderParties();
+  }
+  function renderParties() {
+    $('#p-mine').innerHTML = parties.length ? parties.map(p => {
+      const on = (p.members || []).filter(m => m.id !== user.id && Net.isOnline(m.id)).length;
+      return `<div class="party">
+        <div class="party-head"><b>${esc(p.name)}</b><span class="chip">${p.is_public ? '🌐 ' + t('public_tag') : '🔒 ' + t('private_tag')}</span></div>
+        ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
+        <div class="party-meta"><span>${t('members_n', { n: p.count })} · ${t('online_n', { n: on })}</span>
+          <span class="code-chip" dir="ltr" data-pcopy="${esc(p.code)}">${esc(p.code)} ${Art.icon('copy')}</span></div>
+        <div class="party-members">${(p.members || []).map(m => `<div class="pm" title="@${esc(m.handle)}"><div class="avatar">${Art.avatar(m.avatar)}</div><span class="dot ${m.id !== user.id && Net.isOnline(m.id) ? 'on' : ''}"></span></div>`).join('')}</div>
+        <div class="row"><button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
+          ${p.mine ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
+          <button class="btn small ghost" data-pleave="${p.id}">${t('leave_party')}</button></div></div>`;
+    }).join('') : '';
+  }
+  let partyT = null;
+  async function searchParties() {
+    const q = $('#p-search').value.trim(), box = $('#p-results');
+    try {
+      const rows = (await Net.searchParties(user, q)).filter(p => !p.member);
+      box.innerHTML = rows.length ? rows.map(p => `<div class="party small">
+          <div class="party-head"><b>${esc(p.name)}</b><span class="chip">${p.is_public ? '🌐' : '🔒'} ${t('members_n', { n: p.count })}</span></div>
+          ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
+          <button class="btn small primary" data-pjoin="${p.id}" data-pcode="${esc(p.code || q)}" ${p.count >= 10 ? 'disabled' : ''}>${t('join')}</button></div>`).join('')
+        : (q ? `<div class="empty small">${t('no_results')}</div>` : '');
+    } catch (e) { box.innerHTML = `<div class="empty small">${esc(errText(e))}</div>`; }
+  }
+  $('#p-search').addEventListener('input', () => { clearTimeout(partyT); partyT = setTimeout(searchParties, 300); });
+  function partyForm(p) {
+    modal(`<h2>${p ? t('edit') : t('create_party')}</h2>
+      <label>${t('party_name')}<input id="pf-name" maxlength="30" value="${esc(p ? p.name : '')}"></label>
+      <label>${t('party_desc')}<textarea id="pf-desc" maxlength="200" rows="3">${esc(p ? p.description : '')}</textarea></label>
+      <div class="seg" id="pf-vis"><button data-v="1" class="${!p || p.is_public ? 'on' : ''}">🌐 ${t('public_tag')}</button><button data-v="0" class="${p && !p.is_public ? 'on' : ''}">🔒 ${t('private_tag')}</button></div>
+      <p class="muted small" id="pf-hint">${!p || p.is_public ? t('public_party') : t('private_party')}</p>
+      <div class="status" id="pf-st"></div>
+      <button class="btn primary" id="pf-go">${p ? t('save') : t('create_party')}</button><button class="btn ghost" id="pf-x">${t('cancel')}</button>`, m => {
+      let pub = !p || p.is_public;
+      m.querySelector('#pf-x').onclick = closeModal;
+      m.querySelector('#pf-vis').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pub = b.dataset.v === '1';
+        m.querySelectorAll('#pf-vis button').forEach(x => x.classList.toggle('on', x === b)); m.querySelector('#pf-hint').textContent = pub ? t('public_party') : t('private_party'); };
+      m.querySelector('#pf-go').onclick = async () => {
+        const name = m.querySelector('#pf-name').value.trim(), desc = m.querySelector('#pf-desc').value.trim();
+        if (!name) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = t('write_name'); return; }
+        try {
+          if (p) await Net.updateParty(user, p.id, name, desc, pub); else { await Net.createParty(user, name, desc, pub); toast(t('party_created')); }
+          closeModal(); loadParties();
+        } catch (e) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = errText(e); }
+      };
+    });
+  }
+  $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
+  $('#f-pane-parties').addEventListener('click', async e => {
+    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy]'); if (!b || b.disabled) return;
+    try {
+      if (b.dataset.pcopy) return copy(b.dataset.pcopy);
+      if (b.dataset.pjoin) { const p = await Net.joinParty(user, b.dataset.pjoin, b.dataset.pcode); toast(t('joined_party', { x: p.name })); $('#p-search').value = ''; $('#p-results').innerHTML = ''; }
+      if (b.dataset.pedit) return partyForm(parties.find(x => x.id === b.dataset.pedit));
+      if (b.dataset.pleave) { const p = parties.find(x => x.id === b.dataset.pleave); if (!confirm(t('confirm_leave_party', { x: p.name }))) return; await Net.leaveParty(user, p.id); }
+      if (b.dataset.pplay) { // a room for the party: invite every member who is online
+        const p = parties.find(x => x.id === b.dataset.pplay);
+        if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
+        for (const m of p.members || []) if (m.id !== user.id && Net.isOnline(m.id))
+          Net.sendInvite(m.id, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar }, party: p.name }).catch(() => {});
+        toast(t('invite_sent', { h: p.name }));
+        return;
+      }
+      loadParties();
+    } catch (er) { toast(errText(er)); }
   });
 
   // ---------- leaderboard ----------
@@ -708,7 +852,7 @@
     } catch (e) { $('#b-list').innerHTML = `<div class="empty">${t('e_offline')}<br>${t('your_best', { n: user.data.best.toLocaleString() })}</div>`; }
   }
 
-  // ---------- co-op ----------
+  // ---------- rooms: up to 10 players, everyone presses Ready, the host picks the level inside the game ----------
   const myStats = () => {
     const D = user.data, has = id => (D.items || []).includes(id);
     return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
@@ -716,88 +860,153 @@
   };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
+  const ROOM_MAX = 10;
+  let roomChapter = null;
+  const roomMembers = () => room ? [...room.members].sort((a, b) => (b.role === 'host') - (a.role === 'host') || String(a.joined).localeCompare(String(b.joined))) : [];
+  const roomHost = () => roomMembers().find(m => m.role === 'host');
+  const pickLabel = p => !p ? '' : p.mode === 'endless' ? t('endless') : p.secret ? '✦ ' + t(WORLDS[p.secret.w - 1].id + '_name') + ' ' + p.secret.k + '/3' : t('level_n', { n: p.level });
+  // which room a friend is in (from the lobby presence), so they can be asked to let us in
+  const roomOf = id => { const m = Net.presenceOf(id); return m && m.room ? m.room : null; };
+
   function renderCoop() {
     $('#c-start').classList.toggle('hidden', !!room); $('#c-lobby').classList.toggle('hidden', !room);
     if (room) renderLobby(); else { renderCoopFriends(); loadFriends(); }
   }
   function renderCoopFriends() {
     const on = friends.filter(f => Net.isOnline(f.id));
-    $('#c-friends').innerHTML = user.offline ? `<div class="empty">${t('need_server')}</div>` : on.length ? on.map(f => personRow(f, () => `<button class="btn small primary" data-invite="${f.id}">${t('invite')}</button>`)).join('') : `<div class="empty small">${t('no_online_friends')}</div>`;
+    $('#c-friends').innerHTML = user.offline ? `<div class="empty">${t('need_server')}</div>` : on.length ? on.map(f => personRow(f, () =>
+      roomOf(f.id) ? `<button class="btn small gold" data-askjoin="${f.id}">${t('ask_join')}</button>` : `<button class="btn small primary" data-invite="${f.id}">${t('invite')}</button>`)).join('')
+      : `<div class="empty small">${t('no_online_friends')}</div>`;
   }
-  $('#c-friends').addEventListener('click', e => { const b = e.target.closest('[data-invite]'); if (b) inviteFriend(b.dataset.invite); });
-  function slot(p) { return p ? `<div class="avatar">${Art.avatar(p.avatar)}</div><b>${esc(p.name)}</b><small>@${esc(p.handle)}</small>` : `<div class="avatar"></div><b class="muted">${t('waiting')}</b>`; }
+  $('#c-friends').addEventListener('click', e => {
+    const b = e.target.closest('[data-invite]'); if (b) inviteFriend(b.dataset.invite);
+    const a = e.target.closest('[data-askjoin]'); if (a) askToJoin(a.dataset.askjoin);
+  });
   function renderLobby() {
     $('#c-roomcode').textContent = room.code;
-    const host = room.role === 'host' ? user : roomPeer, guest = room.role === 'host' ? roomPeer : user;
-    $('#c-slot1').innerHTML = slot(host); $('#c-slot2').innerHTML = slot(guest);
-    $('#c-slot2').classList.toggle('empty-slot', !guest);
-    $('#c-hostctl').classList.toggle('hidden', room.role !== 'host');
-    $('#c-wait').classList.toggle('hidden', room.role === 'host' || !roomPeer);
-    if (room.role === 'host') {
-      const sel = $('#c-level'), prev = sel.value;
-      const L = user.data.levels; let o = `<option value="endless">${t('endless')}</option>`;
-      for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">${t('level_n', { n })}${levelCfg(n).boss ? ' ' + t('boss_tag') : ''}</option>`;
-      sel.innerHTML = o; sel.value = prev || (room.nextLevel ? String(room.nextLevel) : '1'); if (!sel.value) sel.value = '1';
-      $('#c-go').disabled = !(roomPeer && peerStats);
+    const ms = roomMembers(), me = ms.find(m => m.id === user.id) || {}, isHost = room.role === 'host';
+    $('#c-count').textContent = t('room_players', { n: ms.length });
+    $('#c-players').innerHTML = ms.map(m => `<div class="rp ${m.ready ? 'ready' : ''}">
+        <div class="avatar">${Art.avatar(m.avatar)}</div><b>${esc(m.name)}</b><small dir="ltr">@${esc(m.handle)}</small>
+        <span class="rp-tag">${m.role === 'host' ? '👑 ' + t('host_tag') : ''}</span>
+        <span class="rp-ready">${m.ready ? '✓ ' + t('ready') : t('not_ready')}</span></div>`).join('');
+    $('#c-ready').textContent = me.ready ? '✓ ' + t('ready') : t('im_ready');
+    $('#c-ready').classList.toggle('primary', !me.ready);
+    const host = roomHost(), pick = isHost ? room.pick : host && host.pick;
+    $('#c-chosen').innerHTML = `<span class="muted">${t('chosen_level')}:</span> <b>${esc(pickLabel(pick) || '—')}</b>`;
+    $('#c-hostctl').classList.toggle('hidden', !isHost);
+    $('#c-wait').classList.toggle('hidden', isHost);
+    if (isHost) {
+      if (roomChapter === null) roomChapter = Math.floor(((room.pick && !room.pick.secret && room.pick.level) || topLevel(user.data)) - 1) / CHAPTER | 0;
+      $('#c-pick').innerHTML = `<button class="btn small ${room.pick && room.pick.mode === 'endless' ? 'primary' : ''}" data-endless>${Art.icon('infinity')}${t('endless')}</button>` + levelPicker(user.data, roomChapter, room.pick);
+      const allReady = ms.length >= 2 && ms.every(m => m.ready);
+      $('#c-go').disabled = !allReady || !room.pick;
+      $('#c-need').classList.toggle('hidden', allReady);
     }
     icons($('#c-lobby'));
   }
+  $('#c-ready').addEventListener('click', () => { if (!room) return; const me = room.members.find(m => m.id === user.id); room.setMeta({ ready: !(me && me.ready) }); Sfx.init(); });
+  $('#c-pick').addEventListener('click', e => {
+    if (!room || room.role !== 'host') return;
+    if (e.target.closest('[data-endless]')) { setPick({ mode: 'endless', level: 1 }); return; }
+    const r = pickerClick(e); if (!r) return;
+    if (r.chap != null) { roomChapter = r.chap; renderLobby(); return; }
+    setPick(r.pick);
+  });
+  function setPick(p) { room.pick = p; room.setMeta({ pick: p }); renderLobby(); }
+  function nextPick(p) { // the level after the one just played, in order
+    if (!p || p.mode === 'endless') return p;
+    if (p.secret) return p.secret.k < 3 ? { mode: 'level', level: 1, secret: { w: p.secret.w, k: p.secret.k + 1 } } : p;
+    return { mode: 'level', level: Math.min(LEVELS, p.level + 1) };
+  }
+
   function openRoom(code, role) {
     if (user.offline) return toast(t('need_server'));
-    if (room) room.leave();
-    roomPeer = null; peerStats = null;
-    let found = false;
-    room = Net.room(code, role, user, {
-      onPeer: p => {
-        if (role === 'guest' && p.role !== 'host') return;
-        found = true; roomPeer = p; Sfx.init(); Sfx.power();
-        if (role === 'guest') room.send('hello', meInfo());
-        toast(t('in_room', { h: at(p.handle) }));
+    if (room) leaveRoom(true);
+    let foundHost = false, joinedAt = Date.now();
+    room = Net.room(code, role, Object.assign(meInfo(), { ready: false, joined: joinedAt }), {
+      onSync: members => {
+        const others = members.filter(m => m.id !== user.id), host = members.find(m => m.role === 'host');
+        if (role === 'guest') {
+          if (host) foundHost = true;
+          if (others.length >= ROOM_MAX && !members.some(m => m.id === user.id && m.joined === joinedAt)) { toast(t('room_full')); leaveRoom(); return; }
+          if (foundHost && !host && !game) { toast(t('host_left')); leaveRoom(); return; }
+        }
         if (current === 'coop') renderLobby();
       },
-      onPeerLeft: () => {
-        roomPeer = null; peerStats = null;
-        if (game) { endGameAbrupt(t('friend_left_game')); }
+      onJoin: m => { if (m.id !== user.id) { Sfx.init(); Sfx.power(); toast(t('in_room', { h: at(m.handle) })); } },
+      onLeave: id => {
+        if (!room) return;
+        const wasHost = role === 'guest' && !room.members.some(m => m.role === 'host');
+        if (game) { if (wasHost) endGameAbrupt(t('host_left')); else game.dropPlayer(id); }
+        else if (wasHost) { toast(t('host_left')); leaveRoom(); return; }
         else toast(t('friend_left_room'));
-        if (role === 'guest') { leaveRoom(); return; }
         if (current === 'coop') renderLobby();
       },
-      onSync: others => { if (others.length > 1 && role === 'guest' && !found) { toast(t('room_full')); leaveRoom(); } },
       onMessage: (ev, p) => {
-        if (ev === 'hello' && role === 'host') { peerStats = p; roomPeer = Object.assign(roomPeer || {}, p); room.send('hello', meInfo()); if (current === 'coop') renderLobby(); }
-        else if (ev === 'hello' && role === 'guest') { peerStats = p; }
-        else if (ev === 'start' && role === 'guest') startGame({ mode: p.mode, level: p.level, H: p.H, coop: { room, role: 'guest' }, peer: p.host });
+        if (ev === 'start' && role === 'guest') startGame({ mode: p.mode, level: p.level, secret: p.secret, H: p.H, coop: { room, role: 'guest' }, roster: p.roster });
         else if (ev === 'end' && role === 'guest' && game) { const r = p; setTimeout(() => game && onGameEnd(r), 200); }
         else if (game) game.onNet(ev, p);
       },
       onError: () => toast(t('room_conn')),
     });
-    room.nextLevel = 1;
-    if (role === 'guest') setTimeout(() => { if (room && room.code === code && !found) { toast(t('room_not_found')); leaveRoom(); } }, 7000);
+    if (role === 'host') { room.pick = { mode: 'level', level: topLevel(user.data) }; room.setMeta({ pick: room.pick }); }
+    roomChapter = null;
+    Net.setLobbyMeta({ room: code });
+    if (role === 'guest') setTimeout(() => { if (room && room.code === code && !foundHost) { toast(t('room_not_found')); leaveRoom(); } }, 8000);
     if (current !== 'coop') show('coop'); else renderCoop();
   }
-  function leaveRoom() { if (room) { room.send('bye', {}); room.leave(); } room = null; roomPeer = null; peerStats = null; if (current === 'coop') renderCoop(); }
+  function leaveRoom(quiet) {
+    if (room) { room.send('bye', {}); room.leave(); }
+    room = null; Net.setLobbyMeta({ room: null });
+    if (!quiet && current === 'coop') renderCoop();
+  }
+  // the host starts the chosen level for everybody in the room
+  function startRoomGame(pick) {
+    if (!room || room.role !== 'host') return;
+    const p = pick || room.pick; if (!p) return;
+    room.pick = p; room.setMeta({ pick: p });
+    const roster = roomMembers().map(m => ({ id: m.id, handle: m.handle, name: m.name, avatar: m.avatar, skin: m.skin, stats: m.stats }));
+    startGame({ mode: p.mode, level: p.level, secret: p.secret, coop: { room, role: 'host' }, roster });
+  }
   $('#c-create').addEventListener('click', () => openRoom(roomCode(), 'host'));
   $('#c-join').addEventListener('click', () => { const c = $('#c-code').value.trim().toUpperCase(); if (c.length !== 5) { $('#c-status').className = 'status err'; $('#c-status').textContent = t('room5'); return; } openRoom(c, 'guest'); });
   $('#c-copy').addEventListener('click', () => share(t('share_room', { code: room.code })));
-  $('#c-leave').addEventListener('click', leaveRoom);
-  $('#c-go').addEventListener('click', () => {
-    if (!roomPeer || !peerStats) return;
-    const v = $('#c-level').value, mode = v === 'endless' ? 'endless' : 'level', level = mode === 'level' ? +v : 1;
-    startGame({ mode, level, coop: { room, role: 'host' }, peer: peerStats });
-  });
+  $('#c-leave').addEventListener('click', () => leaveRoom());
+  $('#c-go').addEventListener('click', () => startRoomGame());
   async function inviteFriend(fid) {
     const f = friends.find(x => x.id === fid); if (!f) return;
     if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
     try { await Net.sendInvite(fid, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('invite_sent', { h: at(f.handle) })); }
     catch (e) { toast(t('invite_fail')); }
   }
+  // ask a friend who is in a room to let us in
+  async function askToJoin(fid) {
+    const f = friends.find(x => x.id === fid);
+    try { await Net.sendTo(fid, 'join_request', { from: { id: user.id, handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('join_req_sent', { h: at(f ? f.handle : '') })); }
+    catch (e) { toast(t('invite_fail')); }
+  }
+  function onJoinRequest(p) {
+    if (!p || !p.from) return;
+    if (!room) { Net.sendTo(p.from.id, 'join_reply', { ok: false }).catch(() => {}); return; }
+    notify('SpaceShip', t('join_req_title', { h: '@' + p.from.handle }));
+    if (game) return; // answered after the game; the request is shown again by the friend if needed
+    modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>${t('join_req_title', { h: at(p.from.handle) })}</h2>
+      <button class="btn primary big" id="jr-yes">${t('accept')}</button><button class="btn ghost" id="jr-no">${t('decline')}</button>`, m => {
+      m.querySelector('#jr-yes').onclick = () => { closeModal(); Net.sendTo(p.from.id, 'join_reply', { ok: true, code: room ? room.code : null }).catch(() => {}); };
+      m.querySelector('#jr-no').onclick = () => { closeModal(); Net.sendTo(p.from.id, 'join_reply', { ok: false }).catch(() => {}); };
+    });
+  }
+  function onJoinReply(p) {
+    if (p && p.ok && p.code) openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest');
+    else toast(t('join_declined'));
+  }
   function onInvite(p) {
     if (game || !p || !p.code) return;
     notify(t('game_invite'), t('n_invite', { h: '@' + p.from.handle }));
     Sfx.init(); Sfx.power();
     modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>${t('game_invite')}</h2>
-      <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> ${t('invites_you')}</p>
+      <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> ${t('invites_you')}${p.party ? ` · <b>${esc(p.party)}</b>` : ''}</p>
       <button class="btn primary big" id="i-yes">${t('join')}</button><button class="btn ghost" id="i-no">${t('not_now')}</button>`, m => {
       m.querySelector('#i-yes').onclick = () => { closeModal(); openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest'); };
       m.querySelector('#i-no').onclick = closeModal;
@@ -821,11 +1030,11 @@
     const start = () => {
       game = new Game($('#game'), {
         mode: o.mode, level: o.level, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
-        me: meInfo(), peer: o.peer, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
+        me: meInfo(), roster: o.roster, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
         p2: o.local2 ? { id: 'p2', handle: 'player2', name: t('player2'), skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
         onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
       });
-      if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, H: game.H, host: meInfo() }); }
+      if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, secret: o.secret || null, H: game.H, roster: o.roster }); }
       $('#g-pause').innerHTML = Art.icon(o.coop ? 'x' : 'pause');
     };
     setTimeout(start, Cap.ScreenOrientation ? 350 : 50);
@@ -878,13 +1087,16 @@
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
     D.worlds.push(...newWorlds);
     save();
-    if (coop && room) room.nextLevel = r.mode === 'level' && r.win ? Math.min(LEVELS, r.level + 1) : r.level;
+    // in a room the next level is chosen for the host right away (levels are played in order)
+    const roomNext = coop && room && room.role === 'host' && r.win && r.mode === 'level' ? nextPick(room.pick) : null;
+    if (roomNext && (roomNext.secret || unlockedLevel(D, roomNext.level))) { room.pick = roomNext; room.setMeta({ pick: roomNext }); }
     const title = r.mode === 'endless' ? (newBest ? t('new_best') : t('game_over')) : r.win ? t('victory') : t('ship_hit');
     const stars = r.mode === 'level' && r.win ? `<div class="big-stars">${[1, 2, 3].map(i => Art.icon(i <= r.stars ? 'star' : 'starOff')).join('')}</div>` : '';
     const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && r.level < LEVELS;
-    const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} ${t('found_world')} <b>${t(w.id + '_name')}</b><br><small>${t(w.id + '_how')} · ${t('waits_levels')}</small></div>`; }).join('');
+    const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} ${t('found_world')} <b>${t(w.id + '_name')}</b><br><small>${t('waits_levels')}</small></div>`; }).join('');
     let buttons;
-    if (coop) buttons = `<button class="btn primary big" id="e-lobby">${t('back_room')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
+    if (coop) buttons = (room && room.role === 'host' && roomNext ? `<button class="btn primary big" id="e-rnext">${t('next_level')}: ${esc(pickLabel(room.pick))}</button>` : '')
+      + `<button class="btn ${room && room.role === 'host' && roomNext ? '' : 'primary big'}" id="e-lobby">${t('back_room')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
     else buttons = `${hasNext ? `<button class="btn primary big" id="e-next">${t('next_level')}</button>` : ''}
       <button class="btn ${hasNext ? '' : 'primary big'}" id="e-retry">${r.win && r.mode === 'level' ? t('play_again') : t('try_again')}</button>
       <button class="btn" id="e-shop">${Art.icon('shop')}${t('shop')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
@@ -899,6 +1111,7 @@
       on('#e-retry', () => startGame({ mode: r.mode, level: r.level, local2, secret: sec }));
       on('#e-shop', () => { closeModal(); history = ['menu']; show('shop', false); });
       on('#e-menu', () => { closeModal(); if (coop) leaveRoom(); history = []; show('menu', false); });
+      on('#e-rnext', () => { closeModal(); startRoomGame(room.pick); });
       on('#e-lobby', () => { closeModal(); if (!room) { show('menu', false); return; } history = ['menu']; show('coop', false); });
     });
   }
@@ -943,6 +1156,8 @@
   }
   const realtime = {
     onFriendAdded: p => { if (!p) return; notify('SpaceShip', t('n_friend_added', { h: '@' + p.handle })); loadFriends(); },
+    onFriendRequest: p => { if (!p) return; notify('SpaceShip', t('n_friend_request', { h: '@' + p.handle })); loadFriends(); },
+    onFriendAccepted: p => { if (!p) return; notify('SpaceShip', t('n_friend_accepted', { h: '@' + p.handle })); loadFriends(); },
     onJoin: (id, pres) => {
       // ignore the burst of "joins" right after connecting; at most one per friend every 10 minutes
       if (Date.now() - presenceSince < 6000 || !friends.some(f => f.id === id)) return;
@@ -959,7 +1174,7 @@
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
-    Net.startPresence(user, { onInvite, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') renderFriendsList(); if (current === 'coop' && !room) renderCoopFriends(); } });
+    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') renderFriendsList(); if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
