@@ -1508,6 +1508,9 @@
       newGal = !D.levels[k] && r.level === LEVELS && wld < GALS ? wld + 1 : 0; // finished a world: the next one opens
       D.levels[k] = Math.max(D.levels[k] || 0, r.stars);
     }
+    // finishing any world (winning its level 500) also gives the secret ship
+    let gotSecret = false;
+    if (r.mode === 'level' && r.win && !sec && r.level === LEVELS && !D.ships.includes(SECRET_SHIP)) { D.ships.push(SECRET_SHIP); D.skin = SECRET_SHIP; gotSecret = true; }
     D.gems += gemsWon;
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
     D.worlds.push(...newWorlds);
@@ -1528,6 +1531,7 @@
     modal(`<h2>${title}</h2>${stars}
       ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${wld > 1 ? galIcons[wld - 1] + ' ' + t('gal_' + wld) + ' · ' : ''}${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
       ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}</div>` : ''}
+      ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(SECRET_SHIP, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { x: `<b>${t('ship_' + SECRET_SHIP)}</b>` })}</div></div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>

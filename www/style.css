@@ -369,3 +369,5 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .sec-n { font-weight: 800; color: #f0abfc; }
 .secret-reveal { display: grid; place-items: center; margin: 0 auto 6px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(240,171,252,.45), rgba(76,29,149,0) 70%); animation: pulse 1.4s ease-in-out infinite alternate; }
 .secret-reveal img { width: 170px; height: 170px; }
+.secret-found { display: flex; align-items: center; gap: 10px; text-align: start; border-color: #f0abfc; background: linear-gradient(135deg, rgba(240,171,252,.2), rgba(76,29,149,.35)); }
+.secret-found img { width: 64px; height: 64px; flex: none; }
