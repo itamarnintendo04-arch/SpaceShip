@@ -1,7 +1,7 @@
 -- Asking players to update the app, only for big events. Run from the server.
 -- Supabase → Table Editor:
 --   game_events.min_version
---     a big event that needs new app content (e.g. 1.1.26). Players on an older app get a pop-up asking them to
+--     a big event that needs new app content: a version (e.g. 1.1.26), or latest = the newest build on GitHub. Players on an older app get a pop-up asking them to
 --     update (once per event) and an "Update to join" button on the event banner. They get no bonus from that
 --     event until they update. Events without min_version never ask anyone to update.
 --   app_config (one row)
@@ -21,8 +21,11 @@ alter table public.app_config enable row level security;
 insert into public.app_config (id) values (1) on conflict (id) do nothing;
 alter table public.app_config drop column if exists min_version, drop column if exists latest_version;
 
-alter table public.game_events add column if not exists min_version text
-  check (min_version is null or min_version ~ '^\d+(\.\d+){0,3}$');
+alter table public.game_events add column if not exists min_version text;
+-- a version like 1.1.27, or 'latest' = the newest build on GitHub
+alter table public.game_events drop constraint if exists game_events_min_version_check;
+alter table public.game_events add constraint game_events_min_version_check
+  check (min_version is null or min_version = 'latest' or min_version ~ '^\d+(\.\d+){0,3}$');
 
 -- everything the game needs at start: the update settings + running/upcoming events
 create or replace function public.app_info() returns jsonb

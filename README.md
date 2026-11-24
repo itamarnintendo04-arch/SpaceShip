@@ -70,7 +70,7 @@ When several events run at once, the highest multiplier applies and the diamonds
 
 ### App updates for big events
 The app asks players to update **only when a big event needs a newer version**. Nothing else ever asks them to update.
-- Set **`game_events.min_version`** on the event (e.g. `1.1.26`). Players on an older app see a pop-up once, *"<event> is here! Update the app to join the event"*, and an **Update to join** button on the event banner. They don't get that event's bonus until they update. Events without `min_version` never ask anyone to update.
+- Set **`game_events.min_version`** on the event: a version (e.g. `1.1.26`), or **`latest`** for the newest build on GitHub. Players on an older app see a pop-up once, *"<event> is here! Update the app to join the event"*, and an **Update to join** button on the event banner. The banner and the pop-up both show the version they have and the version they need. They don't get that event's bonus until they update. Events without `min_version` never ask anyone to update.
 - **`app_config`** (one row):
   - `site_url`: your download website. **Update now** picks the right file for the device from the site's `/api/config`. On iPhone that is the signed link from `IOS_DOWNLOAD_URL`. If it's empty, the latest GitHub release is used.
   - `update_message`: optional extra text in the update window.

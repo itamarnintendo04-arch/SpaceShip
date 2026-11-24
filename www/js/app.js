@@ -1473,6 +1473,10 @@
   async function loadEvents(force) {
     if (!force && Date.now() - eventsAt < 120000) { renderEvents(); return checkUpdate(); }
     try { const info = await Net.appInfo() || {}; appCfg = info; events = info.events || []; eventsAt = Date.now(); } catch (e) { console.warn('app info', e); }
+    if (events.some(e => e.min_version === 'latest')) {
+      const v = await latestVersion();
+      events.forEach(e => { if (e.min_version === 'latest') e.min_version = v; });   // unknown (offline): nobody is asked
+    }
     renderEvents(); checkUpdate();
   }
   function renderEvents() {
@@ -1485,11 +1489,19 @@
       return `<div class="ev-card" style="--ev:${c}"><div class="ev-top"><span class="ev-tag">${live ? t('ev_live') : t('ev_soon')}</span>
         <small>${live ? t('ev_ends', { t: timeLeft(Date.parse(e.ends_at) - now) }) : t('ev_starts', { t: timeLeft(Date.parse(e.starts_at) - now) })}</small></div>
         <b>${esc(e.title)}</b>${e.body ? `<p>${esc(e.body)}</p>` : ''}${perks ? `<div class="ev-perks">${perks}</div>` : ''}
-        ${canJoin(e) ? '' : `<button class="btn small primary ev-upd" data-upd="${e.id}">${Art.icon('download')} ${t('upd_join')}</button>`}</div>`;
+        ${canJoin(e) ? '' : `<div class="ev-need">${t('upd_ver', { a: esc(APP_VERSION), b: esc(e.min_version) })}</div>
+        <button class="btn small primary ev-upd" data-upd="${e.id}">${Art.icon('download')} ${t('upd_join')}</button>`}</div>`;
     }).join('');
   }
   $('#m-events').addEventListener('click', e => { const b = e.target.closest('[data-upd]'); if (b) updateBox(events.find(x => String(x.id) === b.dataset.upd)); });
 
+  let latestV = null;
+  async function latestVersion() {
+    if (latestV) return latestV;
+    try { const d = await (await fetch('https://api.github.com/repos/itamarnintendo04-arch/SpaceShip/releases/latest')).json();
+      const n = /(\d+)$/.exec(d.tag_name || ''); if (n) latestV = '1.1.' + n[1]; } catch (e) { console.warn('latest version', e); }
+    return latestV;
+  }
   // the app asks for an update only for a big event that needs a newer version (game_events.min_version), once per event
   function checkUpdate() {
     if (!IS_APP || current === 'game' || current === 'loading' || !$('#modal').classList.contains('hidden')) return;

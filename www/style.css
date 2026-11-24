@@ -353,3 +353,4 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .upd-art .ic { width: 34px; height: 34px; color: #fff; }
 .ev-upd { margin-top: 8px; }
 .ev-upd .ic { width: 16px; height: 16px; }
+.ev-need { margin-top: 6px; font-size: 12px; font-weight: 700; color: #fde047; }
