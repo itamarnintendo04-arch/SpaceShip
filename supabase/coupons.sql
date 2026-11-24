@@ -76,3 +76,33 @@ grant execute on function public.redeem_coupon(uuid, text, text), public.free_gi
 -- a welcome gift to start with (edit or delete it in the Table Editor)
 insert into public.coupons (code, coins, gems, is_gift, note) values ('WELCOME', 500, 10, true, 'Welcome to SpaceShip!')
 on conflict (code) do nothing;
+
+-- bigger limits: up to 1,000,000,000 coins and diamonds per code; balances are added as bigint so they never overflow
+alter table public.coupons drop constraint if exists coupons_coins_check, drop constraint if exists coupons_gems_check;
+alter table public.coupons alter column coins type bigint, alter column gems type bigint;
+alter table public.coupons add constraint coupons_coins_check check (coins between 0 and 1000000000),
+  add constraint coupons_gems_check check (gems between 0 and 1000000000);
+alter table public.coupon_redemptions alter column coins type bigint, alter column gems type bigint;
+
+create or replace function public.redeem_coupon(p_id uuid, p_secret text, p_code text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare v public.coupons;
+begin
+  perform public.ss_auth(p_id, p_secret);
+  select * into v from public.coupons where upper(code) = upper(trim(coalesce(p_code, ''))) for update;
+  if v.code is null or not v.active then raise exception 'coupon_not_found'; end if;
+  if v.starts_at is not null and now() < v.starts_at then raise exception 'coupon_not_found'; end if;
+  if v.expires_at is not null and now() > v.expires_at then raise exception 'coupon_expired'; end if;
+  if exists (select 1 from public.coupon_redemptions where code = v.code and profile_id = p_id) then raise exception 'coupon_used'; end if;
+  if v.max_uses is not null and v.uses >= v.max_uses then raise exception 'coupon_used_up'; end if;
+  insert into public.coupon_redemptions(code, profile_id, coins, gems) values (v.code, p_id, v.coins, v.gems);
+  update public.coupons set uses = uses + 1 where code = v.code;
+  update public.profiles set
+    data = jsonb_set(jsonb_set(coalesce(data, '{}'::jsonb), '{coins}', to_jsonb(coalesce((data->>'coins')::numeric, 0)::bigint + v.coins)),
+                     '{gems}', to_jsonb(coalesce((data->>'gems')::numeric, 0)::bigint + v.gems)),
+    updated_at = now()
+  where id = p_id;
+  return jsonb_build_object('code', v.code, 'coins', v.coins, 'gems', v.gems);
+end $$;
+revoke all on function public.redeem_coupon(uuid, text, text) from public;
+grant execute on function public.redeem_coupon(uuid, text, text) to anon, authenticated;

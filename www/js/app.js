@@ -85,8 +85,11 @@
   function closeModal() { $('#modal').classList.add('hidden'); }
   // weapon line for the shop: fire rate, damage, side shots
   const gunHtml = s => { const g = s.gun || {}; return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${g.side ? ' · ↔+' + g.side * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
-  const coinHtml = n => `${Art.icon('coin')}<span>${Number(n).toLocaleString()}</span>`;
-  const gemHtml = n => `${Art.icon('gem')}<span>${Number(n).toLocaleString()}</span>`;
+  // big amounts in short form (1.2M, 1B, in the player's language) so the wallet always fits; the full number shows on hover
+  const fmtN = n => { n = Number(n) || 0; if (Math.abs(n) < 1e6) return n.toLocaleString();
+    try { return new Intl.NumberFormat(I18N.lang, { notation: 'compact', maximumFractionDigits: 1 }).format(n); } catch (e) { return (n / 1e6).toFixed(1) + 'M'; } };
+  const coinHtml = n => `${Art.icon('coin')}<span title="${Number(n).toLocaleString()}">${fmtN(n)}</span>`;
+  const gemHtml = n => `${Art.icon('gem')}<span title="${Number(n).toLocaleString()}">${fmtN(n)}</span>`;
   const walletHtml = D => `<span class="wal">${coinHtml(D.coins)}</span><span class="wal gemc">${gemHtml(D.gems || 0)}</span>`;
   const errText = e => {
     const m = (e && e.message) || '';

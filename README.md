@@ -45,7 +45,7 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase â
 | Column | Meaning |
 |---|---|
 | `code` | the code players type (3â€“32 letters, digits, `-` or `_`; not case sensitive) |
-| `coins` / `gems` | coins and diamonds the code gives |
+| `coins` / `gems` | coins and diamonds the code gives (up to 1,000,000,000 each) |
 | `max_uses` | total number of players who can use it (empty = unlimited) |
 | `starts_at` / `expires_at` | optional time window |
 | `active` | untick to turn the code off |

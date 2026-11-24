@@ -55,7 +55,7 @@
     const hue = g === 2 ? 190 + (n * 13) % 40 : g === 3 ? 4 + (n * 11) % 30 : g === 4 ? 262 + (n * 7) % 40 : (200 + n * 47) % 360;
     return {
       gal: g, enemy: g === 1 ? (n < 6 ? 0 : Math.min(0.16, 0.03 + d * 0.13)) : Math.min(0.3, 0.08 + d * 0.22), enemyD: d,
-      n, goal: 12 + Math.min(n * 3, 100),
+      n, goal: 12 + Math.min(n * 4, 160),   // original length: 4 more meteors per level (level 40+ needs 172)
       spawn: Math.max(0.22, 1.05 - d * 0.8),
       speed: 1 + d * 1.9,
       bigChance: Math.min(0.55, 0.12 + d * 0.43),
@@ -86,7 +86,7 @@
   function secretCfg(w, k) {
     const W_ = WORLDS[w - 1], base = levelCfg(8 + w * 4 + k * 2);
     return Object.assign(base, {
-      hue: W_.hue, kinds: W_.kinds, goal: 30 + Math.min(w, 12) * 6 + k * 6, spawn: Math.max(0.2, base.spawn * 0.75),
+      hue: W_.hue, kinds: W_.kinds, goal: 30 + Math.min(w, 12) * 8 + k * 6, spawn: Math.max(0.2, base.spawn * 0.75),
       speed: base.speed * 1.12, bigChance: Math.min(0.6, base.bigChance + 0.1), boss: k === 3, goldChance: W_.kinds[0] === 'gold' ? 0.12 : base.goldChance,
     });
   }
