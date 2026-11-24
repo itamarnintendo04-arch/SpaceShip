@@ -332,8 +332,10 @@
         email: `<label>${t('email_label')}<input id="ef-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com" value="${esc(email)}"></label>
           <button class="btn primary" id="ef-go">${t('next')}</button>`,
         code: `<p class="small">${t('email_6_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
+          <p class="muted small spam-hint">📬 ${t('check_spam')}</p>
           <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
         cvcode: `<p class="small">${Art.icon('cutvid')} ${t('cv_code_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
+          <p class="muted small spam-hint">📬 ${t('check_spam')}</p>
           <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
         later: `<div style="font-size:40px">⏳</div><p>${/smtp_not_configured/.test(failReason) ? t('e_smtp') : t('cv_try_later')}</p>
           <button class="btn primary" id="ef-go">${t('try_again')}</button>
