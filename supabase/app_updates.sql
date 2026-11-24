@@ -34,7 +34,7 @@ language sql stable security definer set search_path = '' as $$
     'site_url', c.site_url, 'update_message', c.update_message,
     'events', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'title', e.title, 'body', e.body, 'coins_mult', e.coins_mult,
         'gems_per_win', e.gems_per_win, 'starts_at', e.starts_at, 'ends_at', e.ends_at, 'color', e.color, 'min_version', e.min_version) order by e.starts_at)
-      from public.game_events e where e.active and e.ends_at > now() and e.starts_at < now() + interval '1 day'), '[]'::jsonb))
+      from public.game_events e where e.active and e.ends_at > now() and e.starts_at < now() + interval '7 days'), '[]'::jsonb))
   from public.app_config c where c.id = 1;
 $$;
 

@@ -55,7 +55,7 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase â
 Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is there to start with. SQL: `supabase/coupons.sql`.
 
 ### Live events
-Events run from the server. Add a row to the Supabase table **`game_events`** and every player sees it within a few minutes, with no new build. Events show as a banner in the main menu with a countdown ("Live event Â· ends in 2d 5h", or "Coming soon" up to a day before they start).
+Events run from the server. Add a row to the Supabase table **`game_events`** and every player sees it within a few minutes, with no new build. Every event is **scheduled**: `starts_at` and `ends_at` are both required. Up to 7 days before it starts, players see it as **Coming soon** with a countdown. At `starts_at` it goes live by itself and players get a notification. At `ends_at` it ends. The countdown is shown in the player's language.
 
 | Column | Meaning |
 |---|---|

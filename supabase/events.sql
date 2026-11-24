@@ -4,7 +4,9 @@
 --   title, body     text shown on the event banner in the main menu (write it in English, or any language)
 --   coins_mult      coin multiplier while the event runs, e.g. 2 = double coins (1 = no change, max 10)
 --   gems_per_win    extra diamonds for every level won while the event runs (0 = none)
---   starts_at       when it starts (default: now)        ends_at   when it ends (required)
+--   starts_at       when it starts (required)            ends_at   when it ends (required)
+--                   Every event is scheduled: players see it as "Coming soon" with a countdown up to 7 days
+--                   before it starts, it goes live by itself at starts_at (with a notification), and ends at ends_at.
 --   color           banner color, e.g. #f59e0b
 --   active          untick to stop it early
 -- Several events can run at once: the highest multiplier wins and diamonds add up.
@@ -15,7 +17,7 @@ create table if not exists public.game_events (
   body text check (char_length(body) <= 200),
   coins_mult numeric(4,2) not null default 1 check (coins_mult between 1 and 10),
   gems_per_win integer not null default 0 check (gems_per_win between 0 and 100),
-  starts_at timestamptz not null default now(),
+  starts_at timestamptz not null,
   ends_at timestamptz not null,
   color text not null default '#8b5cf6' check (color ~ '^#[0-9A-Fa-f]{6}$'),
   active boolean not null default true,
@@ -24,14 +26,17 @@ create table if not exists public.game_events (
 );
 alter table public.game_events enable row level security;
 
--- events running now and the next ones starting within a day (so the game can count down to them)
+-- events running now and the ones starting within 7 days (so the game can count down to them)
 create or replace function public.active_events() returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'title', e.title, 'body', e.body, 'coins_mult', e.coins_mult,
     'gems_per_win', e.gems_per_win, 'starts_at', e.starts_at, 'ends_at', e.ends_at, 'color', e.color) order by e.starts_at), '[]'::jsonb)
   from public.game_events e
-  where e.active and e.ends_at > now() and e.starts_at < now() + interval '1 day';
+  where e.active and e.ends_at > now() and e.starts_at < now() + interval '7 days';
 $$;
 
 revoke all on function public.active_events() from public;
 grant execute on function public.active_events() to anon, authenticated;
+
+-- every event is scheduled: the start time has to be filled in
+alter table public.game_events alter column starts_at drop default;

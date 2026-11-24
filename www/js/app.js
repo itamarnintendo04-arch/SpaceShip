@@ -1469,7 +1469,7 @@
   const runningEvents = () => { const now = Date.now(); return events.filter(e => Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now && canJoin(e)); };
   const eventBoost = () => { const ev = runningEvents(); return { mult: ev.reduce((m, e) => Math.max(m, +e.coins_mult || 1), 1), gems: ev.reduce((s, e) => s + (e.gems_per_win | 0), 0) }; };
   const timeLeft = ms => { const m = Math.max(1, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
-    return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
+    return d ? t('tl_dh', { d, h }) : h ? t('tl_hm', { h, m: m % 60 }) : t('tl_m', { m }); };
   async function loadEvents(force) {
     if (!force && Date.now() - eventsAt < 120000) { renderEvents(); return checkUpdate(); }
     try { const info = await Net.appInfo() || {}; appCfg = info; events = info.events || []; eventsAt = Date.now(); } catch (e) { console.warn('app info', e); }
@@ -1479,8 +1479,16 @@
     }
     renderEvents(); checkUpdate();
   }
+  let liveSeen = null;   // events already live, to announce the ones that start while the game is open
+  function announceStarts() {
+    const live = runningEvents().map(e => e.id);
+    if (liveSeen) live.filter(id => !liveSeen.includes(id)).forEach(id => { const e = events.find(x => x.id === id); notify(t('ev_started', { x: e.title }), e.body || ''); });
+    liveSeen = live;
+  }
+  setInterval(() => { if (events.length) { announceStarts(); if (current === 'menu') renderEvents(); } }, 30000);
   function renderEvents() {
     const box = $('#m-events'); if (!box) return;
+    announceStarts();
     const now = Date.now();
     box.innerHTML = events.filter(e => Date.parse(e.ends_at) > now).map(e => {
       const live = Date.parse(e.starts_at) <= now, c = /^#[0-9a-f]{6}$/i.test(e.color) ? e.color : '#8b5cf6';
