@@ -93,7 +93,7 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
 
 ### Accounts on many devices
 - Every player has a name and a unique `@handle`.
-- Add an email to sign in on other devices: a **6-digit code** arrives by email. The email is a designed HTML message, in Hebrew for Hebrew players and English for everyone else.
+- Add an email to sign in on other devices: a **6-digit code** arrives by email. The email is a designed HTML message in the language the game is set to (all 14 languages; Hebrew and Arabic right-to-left).
 - Sign in on another device: "I have an account" → **email** → 6-digit code.
 - Sign in with **CutVid** (OAuth, or CutVid email + password inside the game).
 - Several accounts on one device, each with its own progress.

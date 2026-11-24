@@ -16,22 +16,85 @@ const cors = {
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const esc = (s: string) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
-// Email texts: Hebrew for Hebrew players, English for everyone else.
-const TXT = {
-  en: { dir: 'ltr', align: 'left', valid: 'The code is valid for 10 minutes.', ignore: 'If you did not ask for this code, you can safely ignore this email.',
-    never: 'Never share this code with anyone — SpaceShip will never ask you for it.', yourCode: 'Your code', tag: 'Fly. Shoot. Win.',
+// Email texts in the game's 14 languages (the game sends its language as `lang`; anything else gets English).
+type Txt = { dir: string; align: string; valid: string; ignore: string; never: string; yourCode: string; tag: string; footer: string;
+  setSub: string; setHead: string; setIntro: string; loginSub: string; loginHead: string; loginIntro: (n: string) => string };
+const ltr = { dir: 'ltr', align: 'left' }, rtl = { dir: 'rtl', align: 'right' };
+const TXT: Record<string, Txt> = {
+  en: { ...ltr, valid: 'The code is valid for 10 minutes.', ignore: 'If you did not ask for this code, you can safely ignore this email.',
+    never: 'Never share this code with anyone. SpaceShip will never ask you for it.', yourCode: 'Your code', tag: 'Fly. Shoot. Win.',
     footer: 'You got this email because someone entered this address in SpaceShip.',
-    setSub: 'SpaceShip — verify your email', setHead: 'Verify your email', setIntro: 'Enter this code in SpaceShip to add this email to your account:',
-    loginSub: 'SpaceShip — sign-in code', loginHead: 'Sign in to SpaceShip', loginIntro: (n: string) => `Hi ${n}! Enter this code in SpaceShip to sign in:` },
-  he: { dir: 'rtl', align: 'right', valid: 'הקוד תקף ל-10 דקות.', ignore: 'אם לא ביקשת את הקוד — אפשר פשוט להתעלם מהמייל.',
-    never: 'לעולם אל תשתפו את הקוד עם אף אחד — SpaceShip אף פעם לא תבקש אותו.', yourCode: 'הקוד שלך', tag: 'טסים. יורים. מנצחים.',
+    setSub: 'SpaceShip: verify your email', setHead: 'Verify your email', setIntro: 'Enter this code in SpaceShip to add this email to your account:',
+    loginSub: 'SpaceShip: sign-in code', loginHead: 'Sign in to SpaceShip', loginIntro: (n) => `Hi ${n}! Enter this code in SpaceShip to sign in:` },
+  he: { ...rtl, valid: 'הקוד תקף ל-10 דקות.', ignore: 'אם לא ביקשת את הקוד, אפשר פשוט להתעלם מהמייל.',
+    never: 'לעולם אל תשתפו את הקוד עם אף אחד. SpaceShip אף פעם לא תבקש אותו.', yourCode: 'הקוד שלך', tag: 'טסים. יורים. מנצחים.',
     footer: 'קיבלת את המייל כי מישהו הזין את הכתובת הזו ב-SpaceShip.',
-    setSub: 'SpaceShip — אימות אימייל', setHead: 'אימות האימייל', setIntro: 'הזינו את הקוד הזה ב-SpaceShip כדי להוסיף את האימייל לחשבון:',
-    loginSub: 'SpaceShip — קוד כניסה', loginHead: 'כניסה ל-SpaceShip', loginIntro: (n: string) => `שלום ${n}! הזינו את הקוד הזה ב-SpaceShip כדי להיכנס:` },
+    setSub: 'SpaceShip: אימות אימייל', setHead: 'אימות האימייל', setIntro: 'הזינו את הקוד הזה ב-SpaceShip כדי להוסיף את האימייל לחשבון:',
+    loginSub: 'SpaceShip: קוד כניסה', loginHead: 'כניסה ל-SpaceShip', loginIntro: (n) => `שלום ${n}! הזינו את הקוד הזה ב-SpaceShip כדי להיכנס:` },
+  ar: { ...rtl, valid: 'الرمز صالح لمدة 10 دقائق.', ignore: 'إذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.',
+    never: 'لا تشارك هذا الرمز مع أي أحد. لن تطلبه SpaceShip منك أبدًا.', yourCode: 'رمزك', tag: 'طِر. أطلق. انتصر.',
+    footer: 'وصلتك هذه الرسالة لأن أحدهم أدخل هذا العنوان في SpaceShip.',
+    setSub: 'SpaceShip: تأكيد بريدك', setHead: 'تأكيد بريدك الإلكتروني', setIntro: 'أدخل هذا الرمز في SpaceShip لإضافة هذا البريد إلى حسابك:',
+    loginSub: 'SpaceShip: رمز الدخول', loginHead: 'تسجيل الدخول إلى SpaceShip', loginIntro: (n) => `مرحبًا ${n}! أدخل هذا الرمز في SpaceShip لتسجيل الدخول:` },
+  es: { ...ltr, valid: 'El código es válido durante 10 minutos.', ignore: 'Si no pediste este código, puedes ignorar este correo.',
+    never: 'No compartas este código con nadie. SpaceShip nunca te lo pedirá.', yourCode: 'Tu código', tag: 'Vuela. Dispara. Gana.',
+    footer: 'Recibiste este correo porque alguien escribió esta dirección en SpaceShip.',
+    setSub: 'SpaceShip: verifica tu correo', setHead: 'Verifica tu correo', setIntro: 'Introduce este código en SpaceShip para añadir este correo a tu cuenta:',
+    loginSub: 'SpaceShip: código de acceso', loginHead: 'Entrar en SpaceShip', loginIntro: (n) => `¡Hola, ${n}! Introduce este código en SpaceShip para entrar:` },
+  fr: { ...ltr, valid: 'Le code est valable 10 minutes.', ignore: "Si tu n'as pas demandé ce code, tu peux ignorer cet e-mail.",
+    never: 'Ne partage jamais ce code. SpaceShip ne te le demandera jamais.', yourCode: 'Ton code', tag: 'Vole. Tire. Gagne.',
+    footer: "Tu reçois cet e-mail car quelqu'un a saisi cette adresse dans SpaceShip.",
+    setSub: 'SpaceShip : confirme ton e-mail', setHead: 'Confirme ton e-mail', setIntro: 'Saisis ce code dans SpaceShip pour ajouter cet e-mail à ton compte :',
+    loginSub: 'SpaceShip : code de connexion', loginHead: 'Connexion à SpaceShip', loginIntro: (n) => `Salut ${n} ! Saisis ce code dans SpaceShip pour te connecter :` },
+  de: { ...ltr, valid: 'Der Code ist 10 Minuten gültig.', ignore: 'Wenn du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren.',
+    never: 'Teile diesen Code mit niemandem. SpaceShip wird nie danach fragen.', yourCode: 'Dein Code', tag: 'Fliegen. Schießen. Gewinnen.',
+    footer: 'Du bekommst diese E-Mail, weil jemand diese Adresse in SpaceShip eingegeben hat.',
+    setSub: 'SpaceShip: E-Mail bestätigen', setHead: 'E-Mail bestätigen', setIntro: 'Gib diesen Code in SpaceShip ein, um diese E-Mail zu deinem Konto hinzuzufügen:',
+    loginSub: 'SpaceShip: Anmeldecode', loginHead: 'Bei SpaceShip anmelden', loginIntro: (n) => `Hallo ${n}! Gib diesen Code in SpaceShip ein, um dich anzumelden:` },
+  ru: { ...ltr, valid: 'Код действует 10 минут.', ignore: 'Если ты не запрашивал этот код, просто проигнорируй письмо.',
+    never: 'Никому не сообщай этот код. SpaceShip никогда его не попросит.', yourCode: 'Твой код', tag: 'Летай. Стреляй. Побеждай.',
+    footer: 'Ты получил это письмо, потому что кто-то ввёл этот адрес в SpaceShip.',
+    setSub: 'SpaceShip: подтверждение почты', setHead: 'Подтверди почту', setIntro: 'Введи этот код в SpaceShip, чтобы добавить почту к аккаунту:',
+    loginSub: 'SpaceShip: код входа', loginHead: 'Вход в SpaceShip', loginIntro: (n) => `Привет, ${n}! Введи этот код в SpaceShip, чтобы войти:` },
+  pt: { ...ltr, valid: 'O código vale por 10 minutos.', ignore: 'Se você não pediu este código, pode ignorar este e-mail.',
+    never: 'Nunca compartilhe este código. O SpaceShip nunca vai pedi-lo.', yourCode: 'Seu código', tag: 'Voe. Atire. Vença.',
+    footer: 'Você recebeu este e-mail porque alguém digitou este endereço no SpaceShip.',
+    setSub: 'SpaceShip: confirme seu e-mail', setHead: 'Confirme seu e-mail', setIntro: 'Digite este código no SpaceShip para adicionar este e-mail à sua conta:',
+    loginSub: 'SpaceShip: código de acesso', loginHead: 'Entrar no SpaceShip', loginIntro: (n) => `Oi, ${n}! Digite este código no SpaceShip para entrar:` },
+  it: { ...ltr, valid: 'Il codice è valido per 10 minuti.', ignore: 'Se non hai chiesto questo codice, puoi ignorare questa email.',
+    never: 'Non condividere mai questo codice. SpaceShip non te lo chiederà mai.', yourCode: 'Il tuo codice', tag: 'Vola. Spara. Vinci.',
+    footer: 'Hai ricevuto questa email perché qualcuno ha inserito questo indirizzo in SpaceShip.',
+    setSub: 'SpaceShip: conferma la tua email', setHead: 'Conferma la tua email', setIntro: 'Inserisci questo codice in SpaceShip per aggiungere questa email al tuo account:',
+    loginSub: 'SpaceShip: codice di accesso', loginHead: 'Accedi a SpaceShip', loginIntro: (n) => `Ciao ${n}! Inserisci questo codice in SpaceShip per accedere:` },
+  tr: { ...ltr, valid: 'Kod 10 dakika geçerlidir.', ignore: 'Bu kodu sen istemediysen bu e-postayı görmezden gelebilirsin.',
+    never: 'Bu kodu kimseyle paylaşma. SpaceShip bunu asla senden istemez.', yourCode: 'Kodun', tag: 'Uç. Ateş et. Kazan.',
+    footer: 'Bu e-postayı, biri bu adresi SpaceShip’e girdiği için aldın.',
+    setSub: 'SpaceShip: e-postanı doğrula', setHead: 'E-postanı doğrula', setIntro: 'Bu e-postayı hesabına eklemek için kodu SpaceShip’e gir:',
+    loginSub: 'SpaceShip: giriş kodu', loginHead: 'SpaceShip’e giriş', loginIntro: (n) => `Merhaba ${n}! Giriş yapmak için bu kodu SpaceShip’e gir:` },
+  zh: { ...ltr, valid: '验证码 10 分钟内有效。', ignore: '如果不是你申请的验证码，请忽略这封邮件。',
+    never: '不要把验证码告诉任何人。SpaceShip 永远不会向你索要它。', yourCode: '你的验证码', tag: '飞行。射击。获胜。',
+    footer: '你收到这封邮件，是因为有人在 SpaceShip 中输入了这个地址。',
+    setSub: 'SpaceShip：验证你的邮箱', setHead: '验证你的邮箱', setIntro: '在 SpaceShip 中输入此验证码，把这个邮箱添加到你的账号：',
+    loginSub: 'SpaceShip：登录验证码', loginHead: '登录 SpaceShip', loginIntro: (n) => `${n}，你好！在 SpaceShip 中输入此验证码即可登录：` },
+  ja: { ...ltr, valid: 'コードの有効期限は 10 分です。', ignore: 'このコードに心当たりがない場合は、このメールを無視してください。',
+    never: 'このコードは誰にも教えないでください。SpaceShip から尋ねることはありません。', yourCode: 'あなたのコード', tag: '飛べ。撃て。勝て。',
+    footer: 'SpaceShip でこのアドレスが入力されたため、このメールをお送りしています。',
+    setSub: 'SpaceShip：メールアドレスの確認', setHead: 'メールアドレスの確認', setIntro: 'このメールをアカウントに追加するには、SpaceShip にこのコードを入力してください：',
+    loginSub: 'SpaceShip：ログインコード', loginHead: 'SpaceShip にログイン', loginIntro: (n) => `${n} さん、こんにちは！ログインするには SpaceShip にこのコードを入力してください：` },
+  ko: { ...ltr, valid: '코드는 10분 동안 유효해요.', ignore: '이 코드를 요청하지 않았다면 이 메일을 무시하세요.',
+    never: '이 코드를 누구와도 공유하지 마세요. SpaceShip은 절대 코드를 묻지 않아요.', yourCode: '내 코드', tag: '날고. 쏘고. 이겨라.',
+    footer: '누군가 SpaceShip에 이 주소를 입력해서 이 메일을 받으셨어요.',
+    setSub: 'SpaceShip: 이메일 인증', setHead: '이메일 인증', setIntro: '이 이메일을 계정에 추가하려면 SpaceShip에 이 코드를 입력하세요:',
+    loginSub: 'SpaceShip: 로그인 코드', loginHead: 'SpaceShip 로그인', loginIntro: (n) => `${n}님, 안녕하세요! 로그인하려면 SpaceShip에 이 코드를 입력하세요:` },
+  hi: { ...ltr, valid: 'कोड 10 मिनट तक मान्य है।', ignore: 'अगर आपने यह कोड नहीं माँगा, तो इस ईमेल को अनदेखा करें।',
+    never: 'यह कोड किसी के साथ साझा न करें। SpaceShip इसे कभी नहीं माँगेगा।', yourCode: 'आपका कोड', tag: 'उड़ो। गोली चलाओ। जीतो।',
+    footer: 'आपको यह ईमेल इसलिए मिला क्योंकि किसी ने SpaceShip में यह पता डाला।',
+    setSub: 'SpaceShip: अपना ईमेल पुष्टि करें', setHead: 'अपना ईमेल पुष्टि करें', setIntro: 'इस ईमेल को अपने खाते में जोड़ने के लिए SpaceShip में यह कोड डालें:',
+    loginSub: 'SpaceShip: लॉग इन कोड', loginHead: 'SpaceShip में लॉग इन', loginIntro: (n) => `नमस्ते ${n}! लॉग इन करने के लिए SpaceShip में यह कोड डालें:` },
 };
 
 // A designed email that works in Gmail, Outlook and phone mail apps: tables, inline styles, no images or scripts.
-function template(L: typeof TXT.en, head: string, intro: string, code: string) {
+function template(L: Txt, head: string, intro: string, code: string) {
   const digits = String(code).split('').map((d) =>
     `<td style="padding:0 4px"><div style="width:44px;height:58px;line-height:58px;border-radius:12px;background:#0f0b2e;border:2px solid #3b2f8f;font-family:'Courier New',monospace;font-size:32px;font-weight:bold;color:#67e8f9;text-align:center;text-shadow:0 0 12px rgba(34,211,238,.6)">${esc(d)}</div></td>`).join('');
   return `<!doctype html><html dir="${L.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${esc(head)}</title></head>
@@ -83,7 +146,7 @@ function reason(e: unknown) {
   return 'send_failed';
 }
 
-function mail(to: string, L: typeof TXT.en, title: string, head: string, intro: string, code: string) {
+function mail(to: string, L: Txt, title: string, head: string, intro: string, code: string) {
   const { user, t } = transport();
   return t.sendMail({ from: `SpaceShip <${user}>`, to, subject: `${title}: ${code}`, html: template(L, head, intro, code),
     text: `${head}\n\n${intro}\n\n${code}\n\n${L.valid}\n${L.never}\n\n${L.ignore}` });
@@ -102,7 +165,7 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: reason(e), detail: String((e as Error).message || e).slice(0, 200), secret_names: names });
       }
     }
-    const L = b.lang === 'he' ? TXT.he : TXT.en;
+    const L = TXT[String(b.lang || '').slice(0, 2).toLowerCase()] || TXT.en;
     const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     if (b.action === 'set_start') {
       const { data, error } = await db.rpc('email_set_start', { p_id: b.id, p_secret: b.secret, p_email: b.email });
