@@ -21,6 +21,11 @@
     { id: 'void',    gems: 80, shape: 'titan', fx: 'ghost', body: '#1e1b4b', accent: '#7c3aed', glow: '#a78bfa', gun: { rate: 1.85, dmg: 3.8, side: 4, style: 'void', pierce: true }, aura: 'storm' },
     { id: 'aurora',  gems: 100, shape: 'phoenix', fx: 'aurora', body: '#a7f3d0', accent: '#0e7490', glow: '#5eead4', gun: { rate: 1.95, dmg: 4, side: 5, style: 'aurora', pierce: true }, aura: 'orbit' },
     { id: 'supernova', gems: 150, shape: 'nova', fx: 'rainbow', body: '#fff7ed', accent: '#ea580c', glow: '#fde047', gun: { rate: 2.1, dmg: 4.5, side: 5, style: 'supernova', pierce: true }, aura: 'shine' },
+    // world ships - not for sale: finishing a world (its level 500) gives that world's ship
+    { id: 'asteroid', secret: true, world: 1, shape: 'dragon', body: '#d6d3d1', accent: '#57534e', glow: '#fb923c', gun: { rate: 2,    dmg: 4.2, side: 5, style: 'rock', pierce: true }, aura: 'sparks' },
+    { id: 'glacier',  secret: true, world: 2, shape: 'crystal', body: '#e0f2fe', accent: '#0369a1', glow: '#7dd3fc', gun: { rate: 2.05, dmg: 4.4, side: 5, style: 'snow', pierce: true }, aura: 'prism' },
+    { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
+    { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
     // secret ship - not for sale: it is given to whoever owns the whole shop
     { id: 'cosmos', secret: true, shape: 'cosmos', fx: 'cosmic', body: '#fef3c7', accent: '#4c1d95', glow: '#f0abfc', gun: { rate: 2.35, dmg: 5.2, side: 6, style: 'cosmic', pierce: true }, aura: 'galaxy' },
   ];

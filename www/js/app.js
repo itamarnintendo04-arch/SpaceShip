@@ -447,6 +447,7 @@
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
     $('#m-coins').innerHTML = walletHtml(user.data);
     loadGifts(); loadEvents();
+    checkWorldShips();
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
     $('#t-lang').innerHTML = langLabel();
     $('#t-notif').innerHTML = (settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off'));
@@ -762,6 +763,24 @@
       <button class="btn primary big" id="ss-ok">${t('use')}</button>`, m => { m.querySelector('#ss-ok').onclick = () => { closeModal(); if (current === 'shop') renderShop(); }; });
     return true;
   }
+  // players who finished a world before world ships existed get them too
+  function checkWorldShips() {
+    const D = user && user.data; if (!D) return;
+    const got = Art.SHIPS.filter(s => s.world && !D.ships.includes(s.id) && D.levels && D.levels[lvKey(s.world, LEVELS)]);
+    if (!got.length) return;
+    got.forEach(s => D.ships.push(s.id)); save();
+    toast(got.map(s => t('secret_world_done', { w: t('gal_' + s.world), x: t('ship_' + s.id) })).join(' · '), 5000);
+    if (current === 'shop') renderShop();
+  }
+  function worldCard(D, s) {
+    const own = D.ships.includes(s.id), eq = D.skin === s.id;
+    if (own) return `<div class="item special secret ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>✦ ${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
+      ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : `<button class="btn small" data-equip="${s.id}">${t('use')}</button>`}</div>`;
+    const done = Object.keys(D.levels || {}).filter(k => s.world === 1 ? /^\d+$/.test(k) : k.startsWith(s.world + ':')).length;
+    return `<div class="item special secret locked"><div class="pic mystery">${galIcons[s.world - 1]}</div><b>${t('secret_ship_title')}</b><small>${t('secret_world_hint', { w: t('gal_' + s.world) })}</small>
+      <div class="sec-bar"><i style="width:${Math.min(100, Math.round(done / LEVELS * 100))}%"></i></div><small class="sec-n" dir="ltr">${Math.min(done, LEVELS)} / ${LEVELS}</small>
+      <button class="btn small" disabled>🔒</button></div>`;
+  }
   function secretCard(D) {
     const s = Art.SHIPS.find(x => x.id === SECRET_SHIP), own = D.ships.includes(s.id), eq = D.skin === s.id;
     if (own) return `<div class="item special secret ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>✦ ${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
@@ -772,7 +791,8 @@
       <button class="btn small" disabled>🔒</button></div>`;
   }
   function renderShop() {
-    const D = user.data; if (!D.ships.includes(SECRET_SHIP)) setTimeout(checkSecretShip, 300); $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(D));
+    const D = user.data; if (!D.ships.includes(SECRET_SHIP)) setTimeout(checkSecretShip, 300);
+    if (Art.SHIPS.some(x => x.world && !D.ships.includes(x.id))) setTimeout(checkWorldShips, 200); $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(D));
     let html = '';
     if (shopTab === 'gems') {
       const g = D.gems || 0;
@@ -801,7 +821,8 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
-    else if (shopTab === 'ships') html = secretCard(D) + Art.SHIPS.filter(s => !s.gems && !s.secret).map(s => {
+    else if (shopTab === 'ships') html = `<div class="sh-sec">✦ ${t('secret_ships')}</div>` + secretCard(D) + Art.SHIPS.filter(s => s.world).map(s => worldCard(D, s)).join('')
+      + `<div class="sh-sec">${Art.icon('coin')} ${t('ships')}</div>` + Art.SHIPS.filter(s => !s.gems && !s.secret).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
@@ -1508,9 +1529,10 @@
       newGal = !D.levels[k] && r.level === LEVELS && wld < GALS ? wld + 1 : 0; // finished a world: the next one opens
       D.levels[k] = Math.max(D.levels[k] || 0, r.stars);
     }
-    // finishing any world (winning its level 500) also gives the secret ship
-    let gotSecret = false;
-    if (r.mode === 'level' && r.win && !sec && r.level === LEVELS && !D.ships.includes(SECRET_SHIP)) { D.ships.push(SECRET_SHIP); D.skin = SECRET_SHIP; gotSecret = true; }
+    // finishing a world (winning its level 500) gives that world's own secret ship
+    let gotSecret = null;
+    const wShip = r.mode === 'level' && r.win && !sec && r.level === LEVELS ? Art.SHIPS.find(s => s.world === wld) : null;
+    if (wShip && !D.ships.includes(wShip.id)) { D.ships.push(wShip.id); D.skin = wShip.id; gotSecret = wShip.id; }
     D.gems += gemsWon;
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
     D.worlds.push(...newWorlds);
@@ -1531,7 +1553,7 @@
     modal(`<h2>${title}</h2>${stars}
       ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${wld > 1 ? galIcons[wld - 1] + ' ' + t('gal_' + wld) + ' · ' : ''}${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
       ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}</div>` : ''}
-      ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(SECRET_SHIP, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { x: `<b>${t('ship_' + SECRET_SHIP)}</b>` })}</div></div>` : ''}
+      ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(gotSecret, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { w: t('gal_' + wld), x: `<b>${t('ship_' + gotSecret)}</b>` })}</div></div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
@@ -1700,6 +1722,7 @@
     try { gifts = await Net.freeGifts(user) || []; giftsAt = Date.now(); } catch (e) { console.warn('gifts', e); }
     $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
     const g = $('#cp-gifts'); if (g) g.innerHTML = giftList();
+    welcomeGift();
   }
   const rewardHtml = r => (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
   const giftList = () => gifts.length ? gifts.map(g => `<div class="gift-row"><div class="gift-ic">${Art.icon('gift')}</div><div class="gift-txt"><div>${rewardHtml(g)}</div>${g.note ? `<small>${esc(g.note)}</small>` : ''}</div>
@@ -1710,6 +1733,25 @@
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
     if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
     if (current === 'shop') renderShop();
+  }
+  // the first time a player plays: a gift window with the WELCOME reward (it also stays in Codes & gifts)
+  function welcomeGift() {
+    const w = gifts.find(g => g.code.toUpperCase() === 'WELCOME'), flag = 'ss_welcome_' + (user && user.id);
+    if (!w || store.get(flag, false) || current !== 'menu' || !$('#modal').classList.contains('hidden')) return;
+    store.set(flag, true);
+    Sfx.init(); Sfx.power();
+    modal(`<div class="welcome-gift">${Art.icon('gift')}</div><h2>${t('welcome_gift_title')}</h2><p>${t('welcome_gift_body')}</p>
+      <div class="welcome-rw">${rewardHtml(w)}</div>${w.note ? `<p class="muted small">${esc(w.note)}</p>` : ''}
+      <div class="status" id="wg-st"></div>
+      <button class="btn primary big" id="wg-go">${t('claim')}</button><button class="btn ghost" id="wg-x">${t('upd_later')}</button>`, m => {
+      m.querySelector('#wg-x').onclick = closeModal;
+      const go = m.querySelector('#wg-go'), st = m.querySelector('#wg-st');
+      go.onclick = async () => {
+        go.disabled = true;
+        try { const r = await Net.redeemCoupon(user, w.code); gifts = gifts.filter(g => g !== w); grant(r); closeModal(); toast(`${t('coupon_got')} +${(r.coins | 0).toLocaleString()} 🪙 +${r.gems | 0} 💎`, 3500); $('#m-gift-dot').classList.toggle('hidden', !gifts.length); }
+        catch (e) { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); }
+      };
+    });
   }
   function couponBox() {
     if (!user || user.offline) return toast(t('coupon_offline'));

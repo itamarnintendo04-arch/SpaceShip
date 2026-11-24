@@ -36,7 +36,8 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
 - **Auras** (trail, orbit, storm) and many avatars.
 - **Convert diamonds**: 1 diamond = 10 coins.
-- **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop (every coin and diamond ship, every upgrade at max level, every icon and every diamond power), **or** finishes any world (wins its level 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
+- **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
+- **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). The shop's *Secret ships* row shows each one locked, with progress (levels finished / 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
 
 ### Coupon codes and free gifts
 Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.
@@ -53,7 +54,7 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase â
 | `is_gift` | tick to show it as a **free gift** with a *Claim* button, so nobody needs to type the code |
 | `note` | text shown with a free gift |
 
-Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is there to start with. SQL: `supabase/coupons.sql`.
+Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is always visible to everyone. The first time a player reaches the main menu, a **welcome gift window** offers it with one tap. It also stays under Codes & gifts until it's claimed. SQL: `supabase/coupons.sql`.
 
 ### Live events
 Events run from the server. Add a row to the Supabase table **`game_events`** and every player sees it within a few minutes, with no new build. Every event is **scheduled**: `starts_at` and `ends_at` are both required. Up to 7 days before it starts, players see it as **Coming soon** with a countdown. At `starts_at` it goes live by itself and players get a notification. At `ends_at` it ends. The countdown is shown in the player's language.

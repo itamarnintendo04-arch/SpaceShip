@@ -129,6 +129,17 @@
       case 'vortex': { x.rotate(t * 16); x.strokeStyle = '#34d399'; x.lineWidth = 2.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 6, i * 2.1, i * 2.1 + 1.4); x.stroke(); } x.fillStyle = '#ecfdf5'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break; }
       case 'void': { x.fillStyle = '#000'; x.strokeStyle = '#a78bfa'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 6.5, 0, 7); x.fill(); x.stroke(); x.globalAlpha = 0.5; x.beginPath(); x.arc(0, 0, 9 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); break; }
       case 'aurora': { const h = 150 + 40 * Math.sin(t * 8 + b.x * 0.05); x.strokeStyle = `hsl(${h},90%,65%)`; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 6; i++) x[i ? 'lineTo' : 'moveTo'](Math.sin(t * 30 + i) * 3, i * 4); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'rock': { x.rotate(t * 9); x.fillStyle = '#a8a29e'; x.strokeStyle = '#fb923c'; x.lineWidth = 1.5; x.beginPath();
+        for (let i = 0; i < 7; i++) { const r = 6 + (i % 3), a = i * Math.PI * 2 / 7; x[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+        x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fdba74'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'snow': { x.rotate(t * 4); x.strokeStyle = '#e0f2fe'; x.lineWidth = 2;
+        for (let i = 0; i < 6; i++) { x.rotate(Math.PI / 3); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, -8); x.moveTo(0, -5); x.lineTo(2.5, -7); x.moveTo(0, -5); x.lineTo(-2.5, -7); x.stroke(); }
+        x.fillStyle = '#7dd3fc'; x.beginPath(); x.arc(0, 0, 2.5, 0, 7); x.fill(); break; }
+      case 'magma': { const r = 7 + Math.sin(t * 30 + b.x) * 1.2, gr = x.createRadialGradient(0, -1, 1, 0, 0, r); gr.addColorStop(0, '#fef08a'); gr.addColorStop(0.5, '#f97316'); gr.addColorStop(1, '#7f1d1d');
+        x.fillStyle = gr; x.beginPath(); x.ellipse(0, 0, r * 0.8, r, 0, 0, 7); x.fill(); x.globalAlpha = 0.5; x.fillStyle = '#f97316'; x.beginPath(); x.arc(0, r + 3, 2.5, 0, 7); x.fill(); break; }
+      case 'eclipse': { x.fillStyle = '#000'; x.beginPath(); x.arc(0, 0, 7, 0, 7); x.fill();
+        x.strokeStyle = '#e9d5ff'; x.lineWidth = 2.5; x.globalAlpha = 0.9; x.beginPath(); x.arc(0, 0, 7.5, t * 8, t * 8 + 4.5); x.stroke();
+        x.globalAlpha = 0.4; x.strokeStyle = '#c084fc'; x.lineWidth = 4; x.beginPath(); x.arc(0, 0, 11, 0, 7); x.stroke(); break; }
       case 'cosmic': { // a turning star with a rainbow tail
         const h = (t * 240 + b.x) % 360;
         x.globalAlpha = 0.55; for (let i = 1; i <= 4; i++) { x.fillStyle = `hsl(${(h + i * 40) % 360},95%,65%)`; x.beginPath(); x.arc(0, i * 5, 5 - i, 0, 7); x.fill(); }
