@@ -25,7 +25,7 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .lang { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .5px; }
 .lang svg { width: 18px; height: 18px; color: var(--cyan); }
 .lang-wrap { position: relative; }
-.lang-menu { position: absolute; top: calc(100% + 8px); inset-inline-end: 0; margin: 0; padding: 6px; list-style: none; min-width: 150px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--line2); box-shadow: 0 16px 40px rgba(0, 0, 0, .5); z-index: 20; }
+.lang-menu { max-height: min(70vh, 520px); overflow-y: auto; position: absolute; top: calc(100% + 8px); inset-inline-end: 0; margin: 0; padding: 6px; list-style: none; min-width: 150px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--line2); box-shadow: 0 16px 40px rgba(0, 0, 0, .5); z-index: 20; }
 .lang-menu[hidden] { display: none; }
 .lang-menu button { width: 100%; text-align: start; padding: 9px 12px; border: 0; border-radius: 10px; background: none; color: var(--text); font: inherit; font-size: 15px; cursor: pointer; }
 .lang-menu button:hover, .lang-menu button[aria-selected="true"] { background: #1f1a4d; }

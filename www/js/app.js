@@ -1292,6 +1292,7 @@
   }
   function unlockOrientation() { try { if (Cap.ScreenOrientation) Cap.ScreenOrientation.unlock(); else if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
   function startGame(o) {
+    if (outdated(appCfg.min_version)) return updateBox(true);
     Sfx.init(); closeModal();
     if (game) game.destroy();
     gameTrack = o.secret ? 'game' : GALAXIES[(o.world || 1) - 1].music; // every world has its own music
@@ -1333,6 +1334,7 @@
   $('#g-pause').addEventListener('click', pause);
   document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.coop && !game.paused && !game.over) pause(); });
   if (Cap.App) Cap.App.addListener('backButton', () => {
+    if (forcedUpdate && !$('#modal').classList.contains('hidden')) return Cap.App.exitApp();
     if (!$('#modal').classList.contains('hidden')) { if (game && game.paused) { closeModal(); game.paused = false; game.last = performance.now(); } else closeModal(); return; }
     if (current === 'game') return pause();
     if (current === 'menu' || current === 'register') return Cap.App.exitApp();
@@ -1458,16 +1460,22 @@
     onNews: p => { if (p && (p.title || p.body)) notify(p.title || 'SpaceShip', p.body || ''); },
   };
 
-  // ---------- live events from the server (rows in the Supabase "game_events" table) ----------
-  let events = [], eventsAt = 0;
-  const runningEvents = () => { const now = Date.now(); return events.filter(e => Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now); };
+  // ---------- live events and app updates, both run from the server (Supabase: game_events, app_config) ----------
+  const APP_VERSION = window.SS_VERSION || 'dev';
+  const IS_APP = NATIVE || PLATFORM === 'desktop';   // the web copy is always the newest, so it is never asked to update
+  const verCmp = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d < 0 ? -1 : 1; } return 0; };
+  const outdated = v => !!v && IS_APP && /^\d/.test(APP_VERSION) && verCmp(APP_VERSION, v) < 0;
+  let events = [], eventsAt = 0, appCfg = {}, forcedUpdate = false;
+  const canJoin = e => !outdated(e.min_version);
+  const runningEvents = () => { const now = Date.now(); return events.filter(e => Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now && canJoin(e)); };
   const eventBoost = () => { const ev = runningEvents(); return { mult: ev.reduce((m, e) => Math.max(m, +e.coins_mult || 1), 1), gems: ev.reduce((s, e) => s + (e.gems_per_win | 0), 0) }; };
   const timeLeft = ms => { const m = Math.max(1, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
     return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
   async function loadEvents(force) {
-    if (!force && Date.now() - eventsAt < 120000) return renderEvents();
-    try { events = await Net.activeEvents() || []; eventsAt = Date.now(); } catch (e) { console.warn('events', e); }
-    renderEvents();
+    if (!force && Date.now() - eventsAt < 120000) { renderEvents(); return checkUpdate(); }
+    try { const info = await Net.appInfo() || {}; appCfg = info; events = info.events || []; eventsAt = Date.now(); } catch (e) { console.warn('app info', e); }
+    renderEvents(); checkUpdate();
   }
   function renderEvents() {
     const box = $('#m-events'); if (!box) return;
@@ -1478,9 +1486,54 @@
         e.gems_per_win > 0 ? `<span class="ev-perk">${Art.icon('gem')} ${t('ev_gems', { n: e.gems_per_win })}</span>` : ''].join('');
       return `<div class="ev-card" style="--ev:${c}"><div class="ev-top"><span class="ev-tag">${live ? t('ev_live') : t('ev_soon')}</span>
         <small>${live ? t('ev_ends', { t: timeLeft(Date.parse(e.ends_at) - now) }) : t('ev_starts', { t: timeLeft(Date.parse(e.starts_at) - now) })}</small></div>
-        <b>${esc(e.title)}</b>${e.body ? `<p>${esc(e.body)}</p>` : ''}${perks ? `<div class="ev-perks">${perks}</div>` : ''}</div>`;
+        <b>${esc(e.title)}</b>${e.body ? `<p>${esc(e.body)}</p>` : ''}${perks ? `<div class="ev-perks">${perks}</div>` : ''}
+        ${canJoin(e) ? '' : `<button class="btn small primary ev-upd" data-upd="${e.id}">${Art.icon('download')} ${t('upd_join')}</button>`}</div>`;
     }).join('');
   }
+  $('#m-events').addEventListener('click', e => { const b = e.target.closest('[data-upd]'); if (b) updateBox(false, events.find(x => String(x.id) === b.dataset.upd)); });
+
+  // asks to update: required (below min_version), for a big event that needs a newer app, or when a newer version is out
+  function checkUpdate() {
+    if (!IS_APP || current === 'game' || current === 'loading') return;
+    if (outdated(appCfg.min_version)) return updateBox(true);
+    if (!$('#modal').classList.contains('hidden')) return;
+    const big = events.find(e => !canJoin(e) && Date.parse(e.ends_at) > Date.now());
+    if (big && !store.get('ss_upd_ev_' + big.id, false)) { store.set('ss_upd_ev_' + big.id, true); return updateBox(false, big); }
+    if (outdated(appCfg.latest_version) && store.get('ss_upd_seen', '') !== appCfg.latest_version) { store.set('ss_upd_seen', appCfg.latest_version); updateBox(false); }
+  }
+  function updateBox(force, ev) {
+    forcedUpdate = !!force;
+    const target = force ? appCfg.min_version : ev ? ev.min_version : appCfg.latest_version;
+    modal(`<div class="upd-art">${Art.icon('download')}</div>
+      <h3>${t(force ? 'upd_title_req' : ev ? 'upd_title_ev' : 'upd_title')}</h3>
+      <p>${ev ? t('upd_event', { x: esc(ev.title) }) : force ? t('upd_required') : t('upd_available')}</p>
+      ${appCfg.update_message ? `<p class="muted">${esc(appCfg.update_message)}</p>` : ''}
+      ${target ? `<p class="muted small">${t('upd_ver', { a: esc(APP_VERSION), b: esc(target) })}</p>` : ''}
+      <button class="btn primary big" id="up-go">${Art.icon('download')} ${t('upd_btn')}</button>
+      ${force ? '' : `<button class="btn ghost" id="up-x">${t('upd_later')}</button>`}`, m => {
+      m.querySelector('#up-go').onclick = async () => { const b = m.querySelector('#up-go'); b.disabled = true; openUrl(await updateUrl()); b.disabled = false; };
+      const x = m.querySelector('#up-x'); if (x) x.onclick = closeModal;
+    });
+  }
+  // the right download for this device: from the website (signed iPhone link included), else the latest GitHub release
+  const deviceKind = () => NATIVE ? (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'android'
+    : /Win/i.test(navigator.userAgent) ? 'windows' : /Mac/i.test(navigator.userAgent) ? 'mac' : 'linux';
+  async function updateUrl() {
+    const kind = deviceKind(), site = String(appCfg.site_url || '').replace(/\/+$/, '');
+    const pick = c => { const f = (c && c.files) || {}; return kind === 'ios' ? c.ios || (f.ios && f.ios.url) : f[kind] && f[kind].url; };
+    if (site) {
+      try { const u = pick(await (await fetch(site + '/api/config')).json()); if (u) return u; } catch (e) { console.warn('update link', e); }
+      return site + '/#download';
+    }
+    const GH = 'https://github.com/itamarnintendo04-arch/SpaceShip/releases/latest';
+    try {
+      const d = await (await fetch('https://api.github.com/repos/itamarnintendo04-arch/SpaceShip/releases/latest')).json();
+      const re = { android: /\.apk$/i, ios: /\.ipa$/i, windows: /setup.*\.exe$/i, mac: /\.dmg$/i, linux: /\.appimage$/i }[kind];
+      const a = (d.assets || []).find(x => re && re.test(x.name)); if (a) return a.browser_download_url;
+    } catch (e) { console.warn('update link', e); }
+    return GH;
+  }
+  function openUrl(u) { if (NATIVE && Cap.Browser) Cap.Browser.open({ url: u }); else window.open(u, '_blank'); }
   setInterval(() => { if (current === 'menu') loadEvents(); }, 60000);
 
   // ---------- coupon codes and free gifts (rows in the Supabase "coupons" table) ----------
@@ -1542,6 +1595,7 @@
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();
+  setTimeout(() => loadEvents(true), 1200);
   // web: returning from CutVid's sign-in page (?code=…&state=…)
   if (!NATIVE && !window.SSDesktop && /[?&]code=/.test(location.search) && /[?&]state=/.test(location.search)) {
     const back = location.href; window.history.replaceState(null, '', location.pathname);

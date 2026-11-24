@@ -68,6 +68,17 @@ Events run from the server. Add a row to the Supabase table **`game_events`** an
 
 When several events run at once, the highest multiplier applies and the diamonds add up. SQL: `supabase/events.sql`.
 
+### App updates (from the server)
+The game asks players to update the app, controlled from Supabase. No new build is needed to turn it on:
+- **`app_config`** (one row):
+  - `min_version`: players below it must update before they can play. The update window has no "Later" button.
+  - `latest_version`: players below it see "Update available" once, and can skip it.
+  - `site_url`: your download website. The **Update now** button picks the right file for the device from the site's `/api/config`. On iPhone that is the signed link from `IOS_DOWNLOAD_URL`. If `site_url` is empty, it uses the latest GitHub release.
+  - `update_message`: optional extra text in the update window.
+- **Big events**: set `game_events.min_version`. Players on an older app see "Update to join" on the event banner and get a pop-up asking them to update. They don't get that event's bonus until they update.
+
+Every build writes its version (`1.1.<build number>`, the same number as the GitHub release, e.g. `release-25` = `1.1.25`) into `www/js/version.js`. The web copy of the game is always the newest, so it is never asked to update. SQL: `supabase/app_updates.sql`.
+
 ### Friends, clubs and chat
 - **Friends**: search by `@handle` or name and send a request. The other player has to accept it.
 - **Clubs** (parties) of up to 10 players, with a name, description, logo (16 to choose from) and a code. Public clubs show up in search. Private clubs are joined with the code only.
@@ -107,7 +118,7 @@ The iOS build is **unsigned**. For a signed iPhone download, sign it yourself an
 
 ## Website
 
-`site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device, in Hebrew and English. It also detects the visitor's device and highlights that download.
+`site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device. It is in English by default, and a globe button switches between the same 14 languages as the game. It also detects the visitor's device and highlights that download.
 
 - Android / Windows / macOS / Linux links, the version and file sizes come from the latest GitHub release automatically (`site/api/config.js`).
 - **iPhone**: set the Vercel environment variable **`IOS_DOWNLOAD_URL`**. It can be a direct signed `.ipa`, an `itms-services://` link, TestFlight or the App Store. Optional: `IOS_NOTE`, a short line shown under the iPhone button. Redeploy after changing it. While it is empty, the button shows "Coming soon".
@@ -121,6 +132,7 @@ Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables 
 - `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
 - `supabase/coupons.sql`: coupon codes and free gifts
 - `supabase/events.sql`: live events
+- `supabase/app_updates.sql`: update prompts (`app_config`) and the `app_info()` call the game makes at start
 - `supabase/functions/ss-email`: sends email codes over Gmail SMTP (secrets `GMAIL_USER`, `GMAIL_APP_PASSWORD`)
 - Realtime (presence and broadcast): who is online, invites, rooms and chat
 - Connection settings: `www/js/config.js`

@@ -24,6 +24,8 @@ module.exports = async (req, res) => {
       }
     }
   } catch (e) { out.error = 'github_unreachable'; }
+  // the game asks this too (Update button), so allow any origin
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
   res.status(200).send(JSON.stringify(out));

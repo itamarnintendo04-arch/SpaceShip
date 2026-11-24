@@ -51,6 +51,7 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - run: npm ci
       - run: npm run vendor
+      - run: echo "window.SS_VERSION = '${{ env.VERSION }}';" > www/js/version.js
       - run: npx cap add android && node scripts/patch-native.mjs
       - run: npx capacitor-assets generate --android --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
       - name: Set version
@@ -81,6 +82,7 @@ jobs:
         run: |
           npm ci
           npm run vendor
+          echo "window.SS_VERSION = '${{ env.VERSION }}';" > www/js/version.js
           npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version
           npx electron-builder --publish never
         env:
@@ -102,6 +104,7 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npm run vendor
+      - run: echo "window.SS_VERSION = '${{ env.VERSION }}';" > www/js/version.js
       - run: npx cap add ios && node scripts/patch-native.mjs
       - run: npx capacitor-assets generate --ios --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
       - run: npx cap sync ios
