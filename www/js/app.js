@@ -1292,7 +1292,6 @@
   }
   function unlockOrientation() { try { if (Cap.ScreenOrientation) Cap.ScreenOrientation.unlock(); else if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
   function startGame(o) {
-    if (outdated(appCfg.min_version)) return updateBox(true);
     Sfx.init(); closeModal();
     if (game) game.destroy();
     gameTrack = o.secret ? 'game' : GALAXIES[(o.world || 1) - 1].music; // every world has its own music
@@ -1334,7 +1333,6 @@
   $('#g-pause').addEventListener('click', pause);
   document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.coop && !game.paused && !game.over) pause(); });
   if (Cap.App) Cap.App.addListener('backButton', () => {
-    if (forcedUpdate && !$('#modal').classList.contains('hidden')) return Cap.App.exitApp();
     if (!$('#modal').classList.contains('hidden')) { if (game && game.paused) { closeModal(); game.paused = false; game.last = performance.now(); } else closeModal(); return; }
     if (current === 'game') return pause();
     if (current === 'menu' || current === 'register') return Cap.App.exitApp();
@@ -1466,7 +1464,7 @@
   const verCmp = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d < 0 ? -1 : 1; } return 0; };
   const outdated = v => !!v && IS_APP && /^\d/.test(APP_VERSION) && verCmp(APP_VERSION, v) < 0;
-  let events = [], eventsAt = 0, appCfg = {}, forcedUpdate = false;
+  let events = [], eventsAt = 0, appCfg = {};
   const canJoin = e => !outdated(e.min_version);
   const runningEvents = () => { const now = Date.now(); return events.filter(e => Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now && canJoin(e)); };
   const eventBoost = () => { const ev = runningEvents(); return { mult: ev.reduce((m, e) => Math.max(m, +e.coins_mult || 1), 1), gems: ev.reduce((s, e) => s + (e.gems_per_win | 0), 0) }; };
@@ -1490,27 +1488,23 @@
         ${canJoin(e) ? '' : `<button class="btn small primary ev-upd" data-upd="${e.id}">${Art.icon('download')} ${t('upd_join')}</button>`}</div>`;
     }).join('');
   }
-  $('#m-events').addEventListener('click', e => { const b = e.target.closest('[data-upd]'); if (b) updateBox(false, events.find(x => String(x.id) === b.dataset.upd)); });
+  $('#m-events').addEventListener('click', e => { const b = e.target.closest('[data-upd]'); if (b) updateBox(events.find(x => String(x.id) === b.dataset.upd)); });
 
-  // asks to update: required (below min_version), for a big event that needs a newer app, or when a newer version is out
+  // the app asks for an update only for a big event that needs a newer version (game_events.min_version), once per event
   function checkUpdate() {
-    if (!IS_APP || current === 'game' || current === 'loading') return;
-    if (outdated(appCfg.min_version)) return updateBox(true);
-    if (!$('#modal').classList.contains('hidden')) return;
+    if (!IS_APP || current === 'game' || current === 'loading' || !$('#modal').classList.contains('hidden')) return;
     const big = events.find(e => !canJoin(e) && Date.parse(e.ends_at) > Date.now());
-    if (big && !store.get('ss_upd_ev_' + big.id, false)) { store.set('ss_upd_ev_' + big.id, true); return updateBox(false, big); }
-    if (outdated(appCfg.latest_version) && store.get('ss_upd_seen', '') !== appCfg.latest_version) { store.set('ss_upd_seen', appCfg.latest_version); updateBox(false); }
+    if (big && !store.get('ss_upd_ev_' + big.id, false)) { store.set('ss_upd_ev_' + big.id, true); updateBox(big); }
   }
-  function updateBox(force, ev) {
-    forcedUpdate = !!force;
-    const target = force ? appCfg.min_version : ev ? ev.min_version : appCfg.latest_version;
+  function updateBox(ev) {
+    if (!ev) return;
     modal(`<div class="upd-art">${Art.icon('download')}</div>
-      <h3>${t(force ? 'upd_title_req' : ev ? 'upd_title_ev' : 'upd_title')}</h3>
-      <p>${ev ? t('upd_event', { x: esc(ev.title) }) : force ? t('upd_required') : t('upd_available')}</p>
+      <h3>${t('upd_title_ev')}</h3>
+      <p>${t('upd_event', { x: esc(ev.title) })}</p>
       ${appCfg.update_message ? `<p class="muted">${esc(appCfg.update_message)}</p>` : ''}
-      ${target ? `<p class="muted small">${t('upd_ver', { a: esc(APP_VERSION), b: esc(target) })}</p>` : ''}
+      <p class="muted small">${t('upd_ver', { a: esc(APP_VERSION), b: esc(ev.min_version) })}</p>
       <button class="btn primary big" id="up-go">${Art.icon('download')} ${t('upd_btn')}</button>
-      ${force ? '' : `<button class="btn ghost" id="up-x">${t('upd_later')}</button>`}`, m => {
+      <button class="btn ghost" id="up-x">${t('upd_later')}</button>`, m => {
       m.querySelector('#up-go').onclick = async () => { const b = m.querySelector('#up-go'); b.disabled = true; openUrl(await updateUrl()); b.disabled = false; };
       const x = m.querySelector('#up-x'); if (x) x.onclick = closeModal;
     });

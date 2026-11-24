@@ -68,14 +68,12 @@ Events run from the server. Add a row to the Supabase table **`game_events`** an
 
 When several events run at once, the highest multiplier applies and the diamonds add up. SQL: `supabase/events.sql`.
 
-### App updates (from the server)
-The game asks players to update the app, controlled from Supabase. No new build is needed to turn it on:
+### App updates for big events
+The app asks players to update **only when a big event needs a newer version**. Nothing else ever asks them to update.
+- Set **`game_events.min_version`** on the event (e.g. `1.1.26`). Players on an older app see a pop-up once, *"<event> is here! Update the app to join the event"*, and an **Update to join** button on the event banner. They don't get that event's bonus until they update. Events without `min_version` never ask anyone to update.
 - **`app_config`** (one row):
-  - `min_version`: players below it must update before they can play. The update window has no "Later" button.
-  - `latest_version`: players below it see "Update available" once, and can skip it.
-  - `site_url`: your download website. The **Update now** button picks the right file for the device from the site's `/api/config`. On iPhone that is the signed link from `IOS_DOWNLOAD_URL`. If `site_url` is empty, it uses the latest GitHub release.
+  - `site_url`: your download website. **Update now** picks the right file for the device from the site's `/api/config`. On iPhone that is the signed link from `IOS_DOWNLOAD_URL`. If it's empty, the latest GitHub release is used.
   - `update_message`: optional extra text in the update window.
-- **Big events**: set `game_events.min_version`. Players on an older app see "Update to join" on the event banner and get a pop-up asking them to update. They don't get that event's bonus until they update.
 
 Every build writes its version (`1.1.<build number>`, the same number as the GitHub release, e.g. `release-25` = `1.1.25`) into `www/js/version.js`. The web copy of the game is always the newest, so it is never asked to update. SQL: `supabase/app_updates.sql`.
 
@@ -132,7 +130,7 @@ Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables 
 - `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
 - `supabase/coupons.sql`: coupon codes and free gifts
 - `supabase/events.sql`: live events
-- `supabase/app_updates.sql`: update prompts (`app_config`) and the `app_info()` call the game makes at start
+- `supabase/app_updates.sql`: update prompts for big events (`app_config`, `game_events.min_version`) and the `app_info()` call the game makes at start
 - `supabase/functions/ss-email`: sends email codes over Gmail SMTP (secrets `GMAIL_USER`, `GMAIL_APP_PASSWORD`)
 - Realtime (presence and broadcast): who is online, invites, rooms and chat
 - Connection settings: `www/js/config.js`
