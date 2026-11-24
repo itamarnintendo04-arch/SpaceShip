@@ -111,7 +111,8 @@
     document.documentElement.lang = lang; document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
     document.querySelectorAll('[data-k]').forEach((el) => { el.textContent = T(el.dataset.k); });
     document.title = T('title');
-    $('lang').textContent = lang === 'he' ? 'English' : 'עברית';
+    $('lang-code').textContent = lang.toUpperCase();
+    document.querySelectorAll('[data-lang]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.lang === lang)));
     document.querySelectorAll('.dl').forEach((c) => c.setAttribute('data-mine', T('mine')));
     if (device) { $('hero-dl-t').textContent = lang === 'he' ? T('dl_for') + NAMES[device] : T('dl_for') + ' ' + NAMES[device]; }
     links();
@@ -142,7 +143,13 @@
   }
 
   if (device) { const c = document.querySelector('.dl[data-plat="' + device + '"]'); if (c) { c.classList.add('mine'); c.parentNode.prepend(c); } }
-  $('lang').addEventListener('click', () => { lang = lang === 'he' ? 'en' : 'he'; try { localStorage.setItem('ss_site_lang', lang); } catch (e) {} apply(); });
+  const menu = $('lang-menu'), langBtn = $('lang');
+  const openMenu = (on) => { menu.hidden = !on; langBtn.setAttribute('aria-expanded', String(on)); };
+  langBtn.addEventListener('click', (e) => { e.stopPropagation(); openMenu(menu.hidden); });
+  menu.addEventListener('click', (e) => { const b = e.target.closest('[data-lang]'); if (!b) return;
+    lang = b.dataset.lang; try { localStorage.setItem('ss_site_lang', lang); } catch (err) {} openMenu(false); apply(); });
+  document.addEventListener('click', () => openMenu(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openMenu(false); });
   $('yr').textContent = new Date().getFullYear();
   apply();
   fetch('/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { cfg = d || { files: {} }; links(); }).catch(() => { cfg = { files: {} }; links(); });

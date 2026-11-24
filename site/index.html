@@ -28,7 +28,15 @@
     <a href="#download" data-k="nav_download">Download</a>
     <a href="#faq" data-k="nav_faq">FAQ</a>
   </nav>
-  <button class="lang" id="lang" type="button">עברית</button>
+  <div class="lang-wrap">
+    <button class="lang" id="lang" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18"/></svg><span id="lang-code">EN</span>
+    </button>
+    <ul class="lang-menu" id="lang-menu" role="listbox" hidden>
+      <li><button type="button" data-lang="en">English</button></li>
+      <li><button type="button" data-lang="he">עברית</button></li>
+    </ul>
+  </div>
 </header>
 
 <main id="top">
