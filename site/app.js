@@ -71,6 +71,12 @@
     $('ios-note').textContent = (cfg && cfg.iosNote) || '';
     if (cfg && cfg.version) $('ver-line').textContent = T('version') + ' ' + cfg.version + (cfg.published ? ' · ' + new Date(cfg.published).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US') : '');
     if (cfg && cfg.page) $('all-rel').href = cfg.page;
+    // quick download buttons under the hero, one per device
+    for (const k of ['ios', 'android', 'windows', 'mac', 'linux']) {
+      const q = $('q-' + k), url = k === 'ios' ? cfg && cfg.ios : files[k] && files[k].url;
+      q.href = url || '#download'; q.classList.toggle('soon', !!cfg && !url);
+      q.title = url ? T('dl_for') + (lang === 'he' ? '' : ' ') + NAMES[k] : (k === 'ios' ? T('ios_soon') : '');
+    }
     // hero button: straight to this device's file when there is one
     const hero = $('hero-dl'), mine = device && (device === 'ios' ? cfg && cfg.ios : files[device] && files[device].url);
     hero.href = mine || '#download';

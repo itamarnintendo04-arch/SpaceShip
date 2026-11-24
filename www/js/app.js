@@ -95,6 +95,10 @@
     if (m.includes('code_not_found')) return t('e_code_not_found');
     if (m.includes('party_full')) return t('e_party_full');
     if (m.includes('party_not_found')) return t('e_party_not_found');
+    if (m.includes('coupon_not_found')) return t('e_coupon_not_found');
+    if (m.includes('coupon_used_up')) return t('e_coupon_used_up');
+    if (m.includes('coupon_used')) return t('e_coupon_used');
+    if (m.includes('coupon_expired')) return t('e_coupon_expired');
     if (m.includes('not_allowed')) return t('e_not_allowed');
     if (m.includes('too_many_parties')) return t('e_too_many_parties');
     if (m.includes('self')) return t('e_self');
@@ -431,6 +435,7 @@
   function renderMenu() {
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
     $('#m-coins').innerHTML = walletHtml(user.data);
+    loadGifts();
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
     $('#t-lang').innerHTML = langLabel();
     $('#t-notif').innerHTML = (settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off'));
@@ -1449,13 +1454,62 @@
     onNews: p => { if (p && (p.title || p.body)) notify(p.title || 'SpaceShip', p.body || ''); },
   };
 
+  // ---------- coupon codes and free gifts (rows in the Supabase "coupons" table) ----------
+  let gifts = [], giftsAt = 0;
+  async function loadGifts(force) {
+    if (!user || user.offline || (!force && Date.now() - giftsAt < 60000)) return;
+    try { gifts = await Net.freeGifts(user) || []; giftsAt = Date.now(); } catch (e) { console.warn('gifts', e); }
+    $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
+    const g = $('#cp-gifts'); if (g) g.innerHTML = giftList();
+  }
+  const rewardHtml = r => (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
+  const giftList = () => gifts.length ? gifts.map(g => `<div class="gift-row"><div class="gift-ic">${Art.icon('gift')}</div><div class="gift-txt"><div>${rewardHtml(g)}</div>${g.note ? `<small>${esc(g.note)}</small>` : ''}</div>
+      <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
+  function grant(r) {
+    const D = user.data; D.coins += r.coins | 0; D.gems = (D.gems || 0) + (r.gems | 0);
+    Sfx.init(); Sfx.coin(); save();
+    document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
+    if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
+    if (current === 'shop') renderShop();
+  }
+  function couponBox() {
+    if (!user || user.offline) return toast(t('coupon_offline'));
+    modal(`<h3 class="row center gap">${Art.icon('gift')} ${t('coupons')}</h3>
+      <p class="muted">${t('coupon_sub')}</p>
+      <div class="row coupon-in"><input id="cp-in" maxlength="32" dir="ltr" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="SPACE100"><button class="btn primary" id="cp-go">${t('redeem')}</button></div>
+      <div id="cp-st" class="status"></div>
+      <div class="sh-sec">${Art.icon('gift')} ${t('free_gifts')}</div>
+      <div id="cp-gifts" class="gift-list">${giftList()}</div>
+      <button class="btn ghost" id="cp-x">${t('close')}</button>`, m => {
+      const inp = m.querySelector('#cp-in'), st = m.querySelector('#cp-st'), go = m.querySelector('#cp-go');
+      m.querySelector('#cp-x').onclick = closeModal;
+      const redeem = async (code, btn) => {
+        if (!code) return;
+        btn.disabled = true; st.className = 'status'; st.textContent = '';
+        try {
+          const r = await Net.redeemCoupon(user, code);
+          gifts = gifts.filter(g => g.code.toUpperCase() !== String(r.code).toUpperCase());
+          grant(r); inp.value = '';
+          st.className = 'status ok'; st.innerHTML = `${t('coupon_got')} ${rewardHtml(r)}`;
+        } catch (e) { st.className = 'status err'; st.textContent = errText(e); }
+        btn.disabled = false;
+        m.querySelector('#cp-gifts').innerHTML = giftList(); $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
+      };
+      go.onclick = () => redeem(inp.value.trim(), go);
+      inp.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+      m.querySelector('#cp-gifts').onclick = e => { const b = e.target.closest('[data-claim]'); if (b) redeem(b.dataset.claim, b); };
+    });
+    loadGifts(true);
+  }
+  $('#m-gift').addEventListener('click', () => { Sfx.init(); couponBox(); });
+
   // ---------- boot ----------
   async function afterLogin() {
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
-    loadFriends(); loadParties();
+    loadFriends(); loadParties(); loadGifts(true);
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();

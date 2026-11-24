@@ -60,6 +60,8 @@
     setPartyLogo: (u, party, logo) => rpc('set_party_logo', { p_id: u.id, p_secret: u.secret, p_party: party, p_logo: logo }),
     setPartyBannedWords: (u, party, words) => rpc('set_party_banned_words', { p_id: u.id, p_secret: u.secret, p_party: party, p_words: words }),
     partyMessages: (u, party, after) => rpc('party_messages', { p_id: u.id, p_secret: u.secret, p_party: party, p_after: after || 0 }),
+    redeemCoupon: (u, code) => rpc('redeem_coupon', { p_id: u.id, p_secret: u.secret, p_code: code }),
+    freeGifts: (u) => rpc('free_gifts', { p_id: u.id, p_secret: u.secret }),
     sendPartyMessage: (u, party, body) => rpc('send_party_message', { p_id: u.id, p_secret: u.secret, p_party: party, p_body: body }),
     searchParties: (u, q) => rpc('search_parties', { p_id: u.id, p_secret: u.secret, p_q: q || '' }),
     joinParty: (u, id, code) => rpc('join_party', { p_id: u.id, p_secret: u.secret, p_party: id || null, p_code: code || null }),

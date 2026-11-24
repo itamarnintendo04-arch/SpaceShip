@@ -319,3 +319,16 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .lv.g3:not(.locked) { border-color: rgba(239,68,68,.5); }
 .lv.g4:not(.locked) { border-color: rgba(168,85,247,.55); }
 .found.gal-open { border-color: #fde047; color: #fde68a; }
+
+/* coupons and free gifts */
+.gift-btn { position: relative; }
+.coupon-in { gap: 8px; }
+.coupon-in input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; text-align: center; }
+.gift-list { display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; margin-bottom: 10px; }
+.gift-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(244, 63, 94, .08); border: 1px solid rgba(244, 63, 94, .35); }
+.gift-ic .ic { width: 32px; height: 32px; }
+.gift-txt { flex: 1; min-width: 0; }
+.gift-txt small { display: block; color: var(--muted, #a5b4fc); font-size: 13px; }
+.rw { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; margin-inline-end: 10px; }
+.rw .ic { width: 18px; height: 18px; }
+.status.ok .rw { margin-inline: 4px; }

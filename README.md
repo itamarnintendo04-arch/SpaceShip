@@ -1,128 +1,120 @@
 # 🚀 SpaceShip
 
-משחק יריות בחלל: טסים עם חללית, יורים במטאורים, אוספים מטבעות, קונים חלליות ושדרוגים — ומשחקים ביחד עם חברים.
+A space shooter: fly your ship, blast meteors and enemy ships, collect coins and diamonds, buy new ships and upgrades, and play together with friends in real time.
 
-## מה יש במשחק
-- **20 שלבים** עם כוכבים (1–3), כל שלב חמישי הוא **בוס — ספינת אם**.
-- **מצב אינסופי** עם טבלת שיאים עולמית.
-- **שני מצבי מסך**: לרוחב (החללית טסה ימינה) ולאורך (החללית טסה למעלה). מחליפים בכפתור בתפריט.
-- **משתמשים**: לכל שחקן שם + שם משתמש ייחודי `@handle` (כמו ביוטיוב) — אי אפשר ששני שחקנים יקבלו אותו `@`.
-- **משחק עם חבר (co-op)**:
-  - צור חדר → קבל קוד בן 5 תווים → החבר מכניס את הקוד ומצטרף.
-  - **קוד חבר**: לכל שחקן קוד חבר בן 6 תווים. מי שמכניס אותו הופך לחבר שלך, ומאז אפשר להזמין אותו ישר מרשימת החברים — בלי קוד.
-- **מגנים, מטבעות וחנות**: מטאורים מפילים מטבעות ובונוסים (מגן, ירי מהיר, ירי משולש, חיים). בחנות: 8 חלליות, שדרוגים (תותח, מגנים, מגנט, חיים) ו-11 אייקונים לפרופיל.
+Website and downloads: the `site/` folder (see [Website](#website)). All builds: [Releases](https://github.com/itamarnintendo04-arch/SpaceShip/releases/latest).
 
-## שפות
-14 שפות: English (ברירת מחדל), עברית, العربية, Español, Français, Deutsch, Русский, Português, Italiano, Türkçe, 中文, 日本語, 한국어, हिन्दी.
-מחליפים בכפתור 🌐 בתפריט או במסך הפתיחה. כל הטקסטים נמצאים ב-`www/js/i18n.js`; עברית וערבית מוצגות מימין לשמאל.
+## Download
 
-## יהלומים ועולמות סודיים
-- **3 עולמות סודיים** נפתחים כשעושים משהו מיוחד בשלבים (במסך השלבים מופיע רמז):
-  - ערפילית הזהב — להפיל את שביט הזהב שחולף בשלב 4
-  - החור השחור — לנצח את ספינת האם של שלב 10 בלי לאבד לב
-  - ממלכת הקרח — לאסוף את 3 הגבישים בשלב 13
-- בכל עולם 3 שלבים סודיים מאתגרים (לב אחד בלבד, הרבה מטאורים, בוס בשלב השלישי). סיום ראשון של כל שלב סודי נותן **יהלומים** (3–12).
-- **חנות → מיוחדים**: חלליות מיוחדות (פניקס, רוח רפאים, קריסטל, כוכב-על), כוחות מיוחדים (תותח פלזמה, מגן כפול, מגנט-על, לב זהב) ואייקונים מיוחדים — ביהלומים.
-- **המרת יהלומים**: 1 יהלום = 10 מטבעות. רואים כמה יהלומים יש, מה המקסימום להמרה וכמה מטבעות יתקבלו.
-
-## להוריד ולהתקין
-כל push בונה את האפליקציות ב-GitHub Actions (`.github/workflows/build.yml`) ומפרסם אותן ב-**Releases**:
-
-| מכשיר | קובץ | איך מתקינים |
+| Device | File | How to install |
 |---|---|---|
-| Android | `SpaceShip.apk` | פותחים בטלפון ומאשרים "התקנה ממקורות לא ידועים" |
-| Windows | `SpaceShip-Setup-….exe` / `SpaceShip-Portable-….exe` | התקנה רגילה, או הפעלה בלי התקנה |
-| Linux | `SpaceShip-….AppImage` | `chmod +x` ולהפעיל |
-| macOS | `SpaceShip-…-mac.dmg` | בפעם הראשונה: קליק ימני → Open |
-| iPhone / iPad | `SpaceShip-iOS-unsigned.ipa` | דרך Sideloadly או AltStore (בלי חשבון Apple Developer אי אפשר להתקין ישירות) |
+| iPhone / iPad | signed link on the website, or `SpaceShip-iOS-unsigned.ipa` | website button, or sideload the unsigned `.ipa` with Sideloadly / AltStore |
+| Android | `SpaceShip.apk` | open it on the phone and allow "install unknown apps" |
+| Windows | `SpaceShip-Setup-….exe` / `SpaceShip-Portable-….exe` | installer, or run without installing |
+| macOS | `SpaceShip-…-mac.dmg` | first launch: right-click the app → Open |
+| Linux | `SpaceShip-….AppImage` | `chmod +x` and run |
 
-גרסאות macOS ו-iOS נבנות ידנית (Actions → Build SpaceShip apps → Run workflow), בתגית `v*` או כשבהודעת ה-commit יש `[apple]`, כי בריפו פרטי דקות של Mac עולות פי 10.
+## What's in the game
 
-## במחשב — גרסה משוכללת
-- **2 שחקנים על מחשב אחד**: שחקן 1 עם WASD, שחקן 2 עם החצים (או שני ג'ויסטיקים).
-- שליטה בעכבר (החללית עוקבת אחרי העכבר), מקלדת וג'ויסטיק/שלט.
-- גרפיקה משופרת: זוהר ליריות, שובל מנועים, יותר חלקיקים בפיצוצים, כוכבי לכת ברקע.
-- F11 מסך מלא, P הפסקה, ברירת מחדל: מצב לרוחב.
+### 4 worlds × 500 levels
+Four regular worlds of 500 levels each. They open in order: a world opens when you finish level 500 of the one before it. Each world has its own meteors, enemy ships, background and music:
+1. ☄️ **Asteroid Belt**: red scout ships
+2. ❄️ **Frozen Nebula**: ice saucers, with an aurora in the background
+3. 🌋 **Lava Galaxy**: spiked fire raiders, with flames and embers in the background
+4. 🌀 **Void Core**: warships that fire three shots at once, with a black hole in the background
 
-## כניסה עם CutVid (OAuth)
-CutVid משמש כשרת OAuth 2.1 (Supabase Auth OAuth Server בפרויקט CutVid), ו-SpaceShip הוא אפליקציית לקוח:
-1. SpaceShip פותח את `…supabase.co/auth/v1/oauth/authorize` עם PKCE.
-2. Supabase מעביר לדף ההסכמה של CutVid (`cutvid.vercel.app/oauth/consent`) — נכנסים עם אימייל/סיסמה או Google ומאשרים.
-3. CutVid מחזיר ל-SpaceShip קוד (`com.spaceship.game://oauth` בטלפון ובמחשב, כתובת הדף בדפדפן), והאפליקציה מחליפה אותו לטוקן.
-4. פונקציית ה-Edge‏ `supabase/functions/cutvid-auth` בודקת את הטוקן מול CutVid ומחברת / יוצרת את משתמש ה-SpaceShip.
+Enemy ships sway side to side and shoot back. Every 5th level is a boss (a mothership). Difficulty rises with the level and levels off, so level 500 is hard but beatable. Each level gives 1–3 stars.
 
-SpaceShip כבר רשום ב-OAuth Apps של CutVid (Client ID `5a0c5e5b-0000-4000-8000-5ea0c0de0001`, Public, scopes: email profile),
-ובדף ההסכמה מופיע עם וי כחול "אפליקציה רשמית של CutVid".
-נשאר להפעיל פעם אחת בפרויקט CutVid: Authentication → OAuth Server → Enable, Authorization Path = `/oauth/consent`.
+### 20 secret worlds and diamonds
+Secret worlds hide in world 1. Each one opens through a special task: a golden comet, beating a boss without getting hit, crystals, golden meteors, coins, a no-hit level, a speed run. The hint appears on the levels screen. Clearing a secret level for the first time gives **diamonds**.
 
-## חברים ומסיבות
-- **חברים**: מחפשים לפי @ או שם ולוחצים "הוסף". החבר מקבל בקשת חברות (גם כהתראה) וצריך לאשר — אי אפשר להוסיף מישהו בלי הסכמה.
-- **מסיבות**: קבוצות של עד 10 שחקנים, עם שם, תיאור וקוד. ציבורית — כל אחד מוצא בחיפוש; פרטית — מצטרפים רק עם הקוד (מחפשים את הקוד). "שחקו ביחד" פותח חדר ומזמין את כל מי שמחובר.
-- **מסיבות כמו מועדונים** — דרגות:
-  - 👑 **מנהל**: יכול הכול — ממנה לבכיר, לסגן מנהל או למנהל, מגדיר מילים חסומות ומוציא חברים. כשממנים מישהו למנהל מופיעה הודעת אזהרה עם CONFIRM או CANCEL, והמנהל הקודם הופך לסגן.
-  - ⭐ **סגן מנהל**: משנה שם, תיאור ולוגו, מוריד בכיר לחבר ומוציא מהמסיבה כל אחד חוץ מהמנהל.
-  - 🔷 **בכיר**: יכול לשנות את לוגו המסיבה.
-  - **חבר**: הדרגה הרגילה.
-- **לוגואים**: 16 לוגואים למסיבה.
-- **צ'אט במסיבה** בזמן אמת. המנהל מגדיר **מילים חסומות**, והן מופיעות בצ'אט כ-`#` לפי מספר האותיות (גם בהודעות ישנות).
-- ברשימת המסיבה רואים כל הזמן מי **מחובר**, מי **בקבוצה** (בחדר) ומי לא מחובר. לחיצה על חבר פותחת: לשחק ביחד (גם בלי להיות חברים), לבקש להצטרף לקבוצה שלו, להוסיף לחברים, ולהיכנס ל**פרופיל** שלו.
-- הקוד ב-`supabase/social.sql`.
+### Shop
+- **Coin ships**, from Falcon up to Comet (7,500), Nebula (10,000), Titan (15,000) and Vortex (20,000).
+- **Diamond ships**: Phoenix, Ghost, Crystal, Superstar, Void (80), Aurora (100) and Supernova (150), the strongest.
+- Every ship has its own weapon and animation: faster fire, more damage, side shots and its own shot style. The pricier the ship, the stronger it is. Stats are shown in the shop.
+- **Upgrades**: cannon, shields, magnet, lives, fire rate, power-up time and lucky coins (+10% per level).
+- **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
+- **Auras** (trail, orbit, storm) and many avatars.
+- **Convert diamonds**: 1 diamond = 10 coins.
 
-## חדרים
-- עד 10 שחקנים בחדר, כל אחד עם החללית שלו על אותו מסך. כולם לוחצים "אני מוכן", ורק כשכולם מוכנים (לפחות 2) המארח יכול להתחיל.
-- בחירת השלב בתוך המשחק: כל 500 השלבים בפרקים של 50 והעולמות הסודיים — רק שלבים שנפתחו, לפי הסדר. אחרי ניצחון: "השלב הבא".
-- עולם סודי שמתגלה בחדר נפתח לכל השחקנים בחדר.
-- חבר שנמצא בחדר מופיע עם "בקש להצטרף" — הוא מקבל בקשה ומאשר.
+### Coupon codes and free gifts
+Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.
 
-## 4 עולמות × 500 שלבים ו-20 עולמות סודיים
-יש 4 עולמות רגילים, לכל אחד 500 שלבים, והם נפתחים לפי הסדר: עולם נפתח כשמסיימים את שלב 500 של העולם הקודם. לכל עולם מטאורים וחלליות אויב משלו, רקע משלו ומוזיקה משלו:
-1. ☄️ חגורת האסטרואידים — חלליות סיור אדומות
-2. ❄️ הערפילית הקפואה — צלחות מעופפות של קרח, זוהר צפוני ברקע
-3. 🌋 גלקסיית הלבה — פושטים קוצניים של אש, להבות וגחלים ברקע
-4. 🌀 ליבת הריק — ספינות מלחמה שיורות שלוש יריות, חור שחור ברקע
+Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase → Table Editor → coupons* and it works in the game right away, with no new build:
 
-חלליות האויב זזות מצד לצד ויורות. העולמות הסודיים מתגלים בעולם הראשון.
+| Column | Meaning |
+|---|---|
+| `code` | the code players type (3–32 letters, digits, `-` or `_`; not case sensitive) |
+| `coins` / `gems` | coins and diamonds the code gives |
+| `max_uses` | total number of players who can use it (empty = unlimited) |
+| `starts_at` / `expires_at` | optional time window |
+| `active` | untick to turn the code off |
+| `is_gift` | tick to show it as a **free gift** with a *Claim* button, so nobody needs to type the code |
+| `note` | text shown with a free gift |
 
-הקושי עולה עם השלבים ומתייצב כך שגם שלב 500 קשה אבל אפשרי; בוס כל 5 שלבים. כל עולם סודי נפתח במשימה אחרת (שביט זהב, בוס בלי להיפגע, גבישים, מטאורים זהובים, מטבעות, שלב בלי פגיעה, שלב מהיר) — הרמז מופיע במסך השלבים.
+Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is there to start with. SQL: `supabase/coupons.sql`.
 
-## חלליות
-חנות גדולה יותר: חלליות חדשות במטבעות — שביט (7,500), ערפילית (10,000), טיטאן (15,000), מערבולת (20,000) — וביהלומים — ריק (80), זוהר צפוני (100) וסופרנובה (150), החזקה ביותר. שדרוגים חדשים: קצב ירי, זמן חיזוקים ומטבעות מזל (+10% לכל רמה). חיזוקים מיוחדים חדשים: הזדמנות שנייה (חוזרים לחיים פעם בכל משחק) ורחפן עוזר שיורה לידך. ועוד אייקונים.
-לכל חללית שקונים יש נשק משלה — ירי מהיר יותר, נזק גבוה יותר, יריות לצדדים וצורת ירי מיוחדת — ואנימציה משלה. ככל שהחללית יקרה יותר היא חזקה ומרשימה יותר (הנתונים מופיעים בחנות).
+### Friends, clubs and chat
+- **Friends**: search by `@handle` or name and send a request. The other player has to accept it.
+- **Clubs** (parties) of up to 10 players, with a name, description, logo (16 to choose from) and a code. Public clubs show up in search. Private clubs are joined with the code only.
+- **Ranks**:
+  - 👑 **Leader**: can do everything. Appoints seniors, co-leaders or a new leader, sets blocked words and kicks members. Making someone leader shows a warning with CONFIRM / CANCEL, and the old leader becomes co-leader.
+  - ⭐ **Co-leader**: changes the name, description and logo, demotes a senior to member, and can kick anyone except the leader.
+  - 🔷 **Senior**: can change the club logo.
+  - **Member**: the regular rank.
+- **Club chat** in real time. Words the leader blocks show as `#` per letter, in old messages too.
+- The member list always shows who is **online**, who is **in a room** and who is offline. Tapping a member lets you play together (even if you are not friends), ask to join their room, add them as a friend or open their **profile**.
 
-## משתמש בכמה מכשירים
-אין טוקן. בסוף ההרשמה המשחק שואל אם להוסיף אימייל — מאמתים אותו עם **קוד של 6 ספרות** שנשלח מהאימייל הרשמי של SpaceShip (Gmail, ב-Secrets של `ss-email`).
-- כניסה ממכשיר אחר: "יש לי משתמש" → **כניסה עם אימייל** → קוד של 6 ספרות.
-- מפתח התחברות שמור במכשיר — כניסה בלחיצה אחת.
-- **כפתור CutVid** (OAuth).
-- המייל מעוצב (HTML): כותרת חללית, כל ספרה של הקוד בקופסה משלה, כמה זמן הקוד תקף ואזהרה לא לשתף אותו — בעברית לשחקנים בעברית ובאנגלית לכל השאר. הקוד מופיע גם בנושא המייל.
-- אם אי אפשר לשלוח את המייל — מתבקשים לנסות מאוחר יותר, ואפשר להיכנס עם CutVid (אימייל וסיסמה בתוך המשחק).
-- בלי אימייל השחקן קיים רק במכשיר הזה. אפשר להוסיף אימייל בכל זמן מההגדרות.
+### Rooms
+Up to 10 players in a room, each with their own ship on the same screen. Everyone taps "Ready". When all are ready (at least 2), the host starts. The host picks the level inside the game, from levels everyone has unlocked. After a win: "Next level". A secret world found in a room opens for everyone in it. Friends in a room show "Ask to join".
 
-## מסך טעינה, הגדרות וכמה חשבונות
-- **מסך טעינה** עם מיני-שלב: כשפותחים את האפליקציה אפשר לירות במטאורים בזמן שהמשחק מתחבר לשרת ומסנכרן; כשהכול מוכן מופיע כפתור "שחק".
-- **הגדרות** (⚙ בתפריט): שפה, צליל, מצב מסך, עדכונים, הוספת אימייל (קוד של 6 ספרות, מתחבר לשרת אוטומטית), חשבונות, התנתקות.
-- **כמה חשבונות במכשיר אחד**: "הוסף חשבון נוסף" ו"עבור" בין חשבונות; לכל חשבון ההתקדמות שלו, שנשמרת ומסתנכרנת בנפרד.
+### Accounts on many devices
+- Every player has a name and a unique `@handle`.
+- Add an email to sign in on other devices: a **6-digit code** arrives by email. The email is a designed HTML message, in Hebrew for Hebrew players and English for everyone else.
+- Sign in on another device: "I have an account" → **email** → 6-digit code.
+- Sign in with **CutVid** (OAuth, or CutVid email + password inside the game).
+- Several accounts on one device, each with its own progress.
 
-## מוזיקה
-שלושה שירים מקוריים שנוצרים בזמן אמת בקוד (Web Audio, בלי קבצי אודיו): מסך הטעינה, התפריטים, והמשחק עצמו. ב**הגדרות**: כפתור מוזיקה פועלת/כבויה ועוצמה מ-1% עד 100% (ברירת מחדל 60%). המוזיקה נעצרת כשהאפליקציה ברקע. הקוד ב-`www/js/music.js`.
+### Desktop extras
+Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard and gamepad control. Extra glow, trails and particles. F11 for full screen, P to pause.
 
-## עדכונים בזמן אמת
-המשחק מבקש רשות לשלוח עדכונים (אפשר להדליק/לכבות בתפריט). כשהמשחק ברקע מגיעה התראה, וכשהוא פתוח — הודעה במסך:
-- הזמנה למשחק, חבר שהוסיף אותך, חבר שהתחבר (פעם ב-10 דקות לכל חבר)
-- הודעות לכל השחקנים: שליחת broadcast בערוץ `ss-lobby` עם event ‏`news` ו-payload ‏`{"title": "...", "body": "..."}` (למשל מ-Supabase → Realtime → Inspector).
-ההתראות עובדות כשהאפליקציה פתוחה או ברקע; כשהיא סגורה לגמרי צריך Push (Firebase/APNs) — עוד לא מחובר.
+### More
+- **14 languages**: English, עברית, العربية, Español, Français, Deutsch, Русский, Português, Italiano, Türkçe, 中文, 日本語, 한국어, हिन्दी. Hebrew and Arabic are right-to-left. Texts are in `www/js/i18n.js`.
+- **Portrait and landscape** modes.
+- **Loading screen** with a mini level you can play while the game connects.
+- **Original music** generated live with Web Audio, with no audio files: loading, menus, and a track for each world. Volume is in Settings.
+- **Notifications** for invites, friend requests, friends coming online and news to all players: broadcast event `news` on channel `ss-lobby` with `{"title": "...", "body": "..."}`.
 
-## שמירת נתונים
-מטבעות, שלבים, חנות והגדרות נשמרים **במכשיר** (localStorage) ומסונכרנים לשרת כשיש חיבור.
-## שרת
-החשבונות, החברים והמשחק המשותף רצים על Supabase:
-- `supabase/schema.sql` — טבלאות ופונקציות (שם משתמש ייחודי, קודי חבר, שמירת התקדמות, טבלת שיאים).
-- Realtime (presence + broadcast) — מי מחובר, הזמנות וחדרי משחק.
-- הגדרות החיבור ב-`www/js/config.js`.
+## Builds
 
-## הרצה מקומית
+`.github/workflows/build.yml` runs on every push. Pushes that only change `site/` or `.md` files are skipped. It builds Android, Windows, Linux, macOS and iOS and publishes them as a GitHub Release (`release-N`, version `1.1.N`). You can also start it by hand: *Actions → Build SpaceShip apps → Run workflow*.
+
+The iOS build is **unsigned**. For a signed iPhone download, sign it yourself and put the link in the website's `IOS_DOWNLOAD_URL` (below).
+
+## Website
+
+`site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device, in Hebrew and English. It also detects the visitor's device and highlights that download.
+
+- Android / Windows / macOS / Linux links, the version and file sizes come from the latest GitHub release automatically (`site/api/config.js`).
+- **iPhone**: set the Vercel environment variable **`IOS_DOWNLOAD_URL`**. It can be a direct signed `.ipa`, an `itms-services://` link, TestFlight or the App Store. Optional: `IOS_NOTE`, a short line shown under the iPhone button. Redeploy after changing it. While it is empty, the button shows "Coming soon".
+
+Deploy: Vercel → Add New → Project → import this repo → **Root Directory `site`**, Framework **Other** → Deploy.
+
+## Server
+
+Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables have RLS on, and everything goes through `SECURITY DEFINER` functions checked with the player's id and secret:
+- `supabase/schema.sql`: profiles, handles, friend codes, progress, leaderboard, email codes
+- `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
+- `supabase/coupons.sql`: coupon codes and free gifts
+- `supabase/functions/ss-email`: sends email codes over Gmail SMTP (secrets `GMAIL_USER`, `GMAIL_APP_PASSWORD`)
+- Realtime (presence and broadcast): who is online, invites, rooms and chat
+- Connection settings: `www/js/config.js`
+
+## Run locally
+
 ```bash
 npm install
 npm run vendor
-npm run serve   # http://localhost:8080
+npm run serve      # http://localhost:8080
+npm run desktop    # Electron
 ```

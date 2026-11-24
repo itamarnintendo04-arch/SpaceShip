@@ -1,19 +1,14 @@
 name: Build SpaceShip apps
 
-# Every push: Android + Windows + Linux.
-# macOS runners cost 10x minutes on private repos, so iOS and macOS builds run when started
-# manually (Actions -> Build SpaceShip apps -> Run workflow, tick "Apple"), on a v* tag,
-# or when the commit message contains [apple].
+# Every push (except changes to only the website or docs) builds every app:
+# Android, Windows, Linux, macOS and iOS. The repository is public, so Actions minutes are free.
+# Can also be started by hand: Actions -> Build SpaceShip apps -> Run workflow.
 on:
   push:
     branches: ['**']
     tags: ['v*']
+    paths-ignore: ['site/**', '**.md']
   workflow_dispatch:
-    inputs:
-      apple:
-        description: Also build iOS and macOS
-        type: boolean
-        default: true
 
 permissions:
   contents: write
@@ -37,13 +32,13 @@ jobs:
           body: |
             **SpaceShip ${{ env.VERSION }}** (${{ github.ref_name }})
 
-            | מכשיר | קובץ |
+            | Device | File |
             |---|---|
-            | Android | `SpaceShip.apk` — פתח בטלפון והתקן |
-            | Windows | `SpaceShip-Setup-….exe` (התקנה) או `SpaceShip-Portable-….exe` (בלי התקנה) |
+            | Android | `SpaceShip.apk` (open it on the phone and install) |
+            | Windows | `SpaceShip-Setup-….exe` (installer) or `SpaceShip-Portable-….exe` (no install) |
             | Linux | `SpaceShip-….AppImage` |
-            | macOS | `SpaceShip-…-mac.dmg` (בבנייה ידנית) — קליק ימני → Open בפעם הראשונה |
-            | iPhone / iPad | `SpaceShip-iOS-unsigned.ipa` (בבנייה ידנית) — התקנה דרך Sideloadly / AltStore |
+            | macOS | `SpaceShip-…-mac.dmg` (first launch: right-click → Open) |
+            | iPhone / iPad | `SpaceShip-iOS-unsigned.ipa` (unsigned, install with Sideloadly / AltStore) |
 
   android:
     needs: release
@@ -79,18 +74,10 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Skip macOS unless requested
-        id: gate
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "macos-latest" ] && [ "${{ inputs.apple }}" != "true" ] && [[ "${{ github.ref }}" != refs/tags/v* ]] && [ "${{ contains(github.event.head_commit.message, '[apple]') }}" != "true" ]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v5
-        if: steps.gate.outputs.skip != '1'
       - uses: actions/setup-node@v5
-        if: steps.gate.outputs.skip != '1'
         with: { node-version: 20, cache: npm }
-      - if: steps.gate.outputs.skip != '1'
-        shell: bash
+      - shell: bash
         run: |
           npm ci
           npm run vendor
@@ -98,8 +85,7 @@ jobs:
           npx electron-builder --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - if: steps.gate.outputs.skip != '1'
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: |
@@ -109,7 +95,6 @@ jobs:
 
   ios:
     needs: release
-    if: inputs.apple == true || startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[apple]')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
