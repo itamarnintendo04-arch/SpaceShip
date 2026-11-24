@@ -359,3 +359,13 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .spam-hint { margin: 2px 0 0; line-height: 1.4; }
 .ready-go { font-weight: 800; color: var(--green, #4ade80); animation: pulse 1s ease-in-out infinite alternate; margin: 4px 0; }
 @keyframes pulse { to { opacity: .55; } }
+
+/* secret ship */
+.item.secret { border-color: #f0abfc; background: linear-gradient(160deg, rgba(240,171,252,.18), rgba(76,29,149,.35)); }
+.item.secret.locked { filter: saturate(.85); }
+.pic.mystery { display: grid; place-items: center; font-size: 46px; font-weight: 900; color: #f0abfc; text-shadow: 0 0 18px #f0abfc; animation: pulse 1.2s ease-in-out infinite alternate; }
+.sec-bar { width: 100%; height: 8px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+.sec-bar i { display: block; height: 100%; background: linear-gradient(90deg, #22d3ee, #a855f7, #f0abfc); }
+.sec-n { font-weight: 800; color: #f0abfc; }
+.secret-reveal { display: grid; place-items: center; margin: 0 auto 6px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(240,171,252,.45), rgba(76,29,149,0) 70%); animation: pulse 1.4s ease-in-out infinite alternate; }
+.secret-reveal img { width: 170px; height: 170px; }

@@ -21,6 +21,8 @@
     { id: 'void',    gems: 80, shape: 'titan', fx: 'ghost', body: '#1e1b4b', accent: '#7c3aed', glow: '#a78bfa', gun: { rate: 1.85, dmg: 3.8, side: 4, style: 'void', pierce: true }, aura: 'storm' },
     { id: 'aurora',  gems: 100, shape: 'phoenix', fx: 'aurora', body: '#a7f3d0', accent: '#0e7490', glow: '#5eead4', gun: { rate: 1.95, dmg: 4, side: 5, style: 'aurora', pierce: true }, aura: 'orbit' },
     { id: 'supernova', gems: 150, shape: 'nova', fx: 'rainbow', body: '#fff7ed', accent: '#ea580c', glow: '#fde047', gun: { rate: 2.1, dmg: 4.5, side: 5, style: 'supernova', pierce: true }, aura: 'shine' },
+    // secret ship - not for sale: it is given to whoever owns the whole shop
+    { id: 'cosmos', secret: true, shape: 'cosmos', fx: 'cosmic', body: '#fef3c7', accent: '#4c1d95', glow: '#f0abfc', gun: { rate: 2.35, dmg: 5.2, side: 6, style: 'cosmic', pierce: true }, aura: 'galaxy' },
   ];
 
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
@@ -33,6 +35,7 @@
     if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
     if (k.aura) drawAura(ctx, k, s, t);
     if (k.fx === 'aurora') { const h = 140 + 50 * Math.sin(t * 2); k = Object.assign({}, k, { body: `hsl(${h},80%,78%)`, glow: `hsl(${h + 20},90%,62%)` }); }
+    if (k.fx === 'cosmic') { const h = (t * 60) % 360; k = Object.assign({}, k, { glow: `hsl(${h},95%,72%)`, accent: `hsl(${(h + 200) % 360},70%,30%)` }); }
     if (k.fx === 'rainbow') { const h = (t * 90) % 360; k = Object.assign({}, k, { body: `hsl(${h},90%,75%)`, accent: `hsl(${(h + 60) % 360},80%,40%)`, glow: `hsl(${(h + 30) % 360},95%,65%)` }); }
     // engine flame
     const fl = (0.7 + 0.3 * Math.sin(t * 40)) * thrust;
@@ -93,6 +96,15 @@
         ctx.fill(); ctx.stroke();
         ctx.fillStyle = k.glow; for (const sx of [-1, 1]) { ctx.fillRect(sx * s * 0.78 - s * 0.07, -s * 0.35, s * 0.14, s * 0.55); }
         break;
+      case 'cosmos': { // secret ship: swept golden wings, a glowing core and a ring that turns around it
+        path(ctx, [0, -s * 1.05, s * 0.28, -s * 0.45, s * 1.05, -s * 0.05, s * 0.75, s * 0.25, s * 1.0, s * 0.75, s * 0.32, s * 0.5, 0, s * 0.72, -s * 0.32, s * 0.5, -s * 1.0, s * 0.75, -s * 0.75, s * 0.25, -s * 1.05, -s * 0.05, -s * 0.28, -s * 0.45]);
+        ctx.fill(); ctx.stroke();
+        ctx.save(); ctx.strokeStyle = k.glow; ctx.lineWidth = Math.max(1, s * 0.07); ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.62, s * 0.2, Math.sin(t * 1.5) * 0.35, 0, 7); ctx.stroke(); ctx.restore();
+        const cg = ctx.createRadialGradient(0, -s * 0.05, 1, 0, -s * 0.05, s * 0.32); cg.addColorStop(0, '#fff'); cg.addColorStop(0.5, k.glow); cg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, -s * 0.05, s * 0.32, 0, 7); ctx.fill();
+        break;
+      }
       case 'nova': { // a star with spikes that slowly turns
         ctx.save(); ctx.rotate(t * 0.6);
         ctx.beginPath(); for (let i = 0; i < 16; i++) { const r = i % 2 ? s * 0.45 : s * (0.95 + 0.06 * Math.sin(t * 6 + i)), a = i * Math.PI / 8; ctx[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); }
@@ -105,7 +117,7 @@
         path(ctx, [0, -s, s * 0.22, -s * 0.35, s * 0.3, s * 0.05, s * 0.95, s * 0.55, s * 0.9, s * 0.72, s * 0.3, s * 0.55, s * 0.2, s * 0.7, -s * 0.2, s * 0.7, -s * 0.3, s * 0.55, -s * 0.9, s * 0.72, -s * 0.95, s * 0.55, -s * 0.3, s * 0.05, -s * 0.22, -s * 0.35]);
         ctx.fill(); ctx.stroke();
     }
-    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova') { // cockpit
+    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova' && k.shape !== 'cosmos') { // cockpit
       ctx.shadowBlur = 0;
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
@@ -130,6 +142,12 @@
       }
     } else if (k.aura === 'spin') {
       for (let i = 0; i < 6; i++) { const a = t * 3 + i * Math.PI / 3; ctx.fillStyle = i % 2 ? g : '#fff'; ctx.beginPath(); ctx.arc(Math.cos(a) * s * 1.15, Math.sin(a) * s * 0.55 + s * 0.15, s * 0.07, 0, 7); ctx.fill(); }
+    } else if (k.aura === 'galaxy') { // a turning spiral of coloured stars
+      for (let arm = 0; arm < 3; arm++) for (let i = 0; i < 9; i++) {
+        const a = t * 1.6 + arm * 2.094 + i * 0.42, rr = s * (0.35 + i * 0.11);
+        ctx.globalAlpha = 0.85 - i * 0.08; ctx.fillStyle = `hsl(${(t * 80 + arm * 120 + i * 14) % 360},95%,72%)`;
+        ctx.beginPath(); ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr * 0.75 + s * 0.1, s * (0.075 - i * 0.005), 0, 7); ctx.fill();
+      }
     } else if (k.aura === 'cloak') {
       ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, s * 0.05); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 5);
       ctx.beginPath(); ctx.ellipse(0, s * 0.1, s * 1.2, s * 0.95, 0, 0, 7); ctx.stroke();

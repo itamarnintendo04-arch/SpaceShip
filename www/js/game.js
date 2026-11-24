@@ -129,6 +129,13 @@
       case 'vortex': { x.rotate(t * 16); x.strokeStyle = '#34d399'; x.lineWidth = 2.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 6, i * 2.1, i * 2.1 + 1.4); x.stroke(); } x.fillStyle = '#ecfdf5'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break; }
       case 'void': { x.fillStyle = '#000'; x.strokeStyle = '#a78bfa'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 6.5, 0, 7); x.fill(); x.stroke(); x.globalAlpha = 0.5; x.beginPath(); x.arc(0, 0, 9 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); break; }
       case 'aurora': { const h = 150 + 40 * Math.sin(t * 8 + b.x * 0.05); x.strokeStyle = `hsl(${h},90%,65%)`; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 6; i++) x[i ? 'lineTo' : 'moveTo'](Math.sin(t * 30 + i) * 3, i * 4); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'cosmic': { // a turning star with a rainbow tail
+        const h = (t * 240 + b.x) % 360;
+        x.globalAlpha = 0.55; for (let i = 1; i <= 4; i++) { x.fillStyle = `hsl(${(h + i * 40) % 360},95%,65%)`; x.beginPath(); x.arc(0, i * 5, 5 - i, 0, 7); x.fill(); }
+        x.globalAlpha = 1; x.rotate(t * 12); x.fillStyle = `hsl(${h},100%,80%)`; x.beginPath();
+        for (let i = 0; i < 10; i++) { const r = i % 2 ? 3 : 8, a = i * Math.PI / 5; x[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); }
+        x.closePath(); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break;
+      }
       case 'supernova': { const r = 9 + Math.sin(t * 25) * 1.5, gr = x.createRadialGradient(0, 0, 1, 0, 0, r); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, '#fde047'); gr.addColorStop(0.75, '#f97316'); gr.addColorStop(1, 'rgba(249,115,22,0)'); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill();
         x.rotate(t * 12); x.strokeStyle = '#fff'; x.lineWidth = 1.2; for (let i = 0; i < 4; i++) { x.rotate(Math.PI / 4); x.beginPath(); x.moveTo(-r * 1.1, 0); x.lineTo(r * 1.1, 0); x.stroke(); } break; }
       case 'rainbow': { const h = (t * 400 + b.x) % 360; x.strokeStyle = `hsl(${h},95%,65%)`; x.lineWidth = 6; x.globalAlpha = 0.55; x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 22); x.stroke();

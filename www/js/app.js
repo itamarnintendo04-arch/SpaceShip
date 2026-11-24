@@ -740,8 +740,39 @@
   // ---------- shop ----------
   let shopTab = 'ships';
   $('#shop-tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (!t) return; shopTab = t.dataset.tab; $$('#shop-tabs .tab').forEach(x => x.classList.toggle('on', x === t)); renderShop(); });
+  // ---------- secret ship: owning the whole shop unlocks Cosmos ----------
+  const SECRET_SHIP = 'cosmos';
+  function shopProgress(D) {
+    const parts = [
+      ...Art.SHIPS.filter(s => !s.secret && (s.price > 0 || s.gems)).map(s => D.ships.includes(s.id)),
+      ...UPGRADES.map(u => ((D.up[u.id] || u.base) - u.base) >= u.costs.length),
+      ...Art.AVATARS.filter(a => a.price > 0 || a.gems).map(a => (D.avatars || []).includes(a.id)),
+      ...GEM_ITEMS.map(it => (D.items || []).includes(it.id)),
+    ];
+    return { have: parts.filter(Boolean).length, total: parts.length };
+  }
+  function checkSecretShip() {
+    const D = user && user.data; if (!D || D.ships.includes(SECRET_SHIP)) return false;
+    const p = shopProgress(D); if (p.have < p.total) return false;
+    D.ships.push(SECRET_SHIP); D.skin = SECRET_SHIP; save();
+    Sfx.init(); Sfx.power();
+    modal(`<div class="secret-reveal"><img src="${Art.shipPreview(SECRET_SHIP, 220)}" alt=""></div>
+      <h2>${t('secret_ship_title')}</h2><p>${t('secret_unlocked', { x: `<b>${t('ship_' + SECRET_SHIP)}</b>` })}</p>
+      <p class="muted small">${t('shipd_' + SECRET_SHIP)}</p>
+      <button class="btn primary big" id="ss-ok">${t('use')}</button>`, m => { m.querySelector('#ss-ok').onclick = () => { closeModal(); if (current === 'shop') renderShop(); }; });
+    return true;
+  }
+  function secretCard(D) {
+    const s = Art.SHIPS.find(x => x.id === SECRET_SHIP), own = D.ships.includes(s.id), eq = D.skin === s.id;
+    if (own) return `<div class="item special secret ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>✦ ${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
+      ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : `<button class="btn small" data-equip="${s.id}">${t('use')}</button>`}</div>`;
+    const p = shopProgress(D);
+    return `<div class="item special secret locked"><div class="pic mystery">?</div><b>${t('secret_ship_title')}</b><small>${t('secret_ship_hint')}</small>
+      <div class="sec-bar"><i style="width:${Math.round(p.have / p.total * 100)}%"></i></div><small class="sec-n" dir="ltr">${p.have} / ${p.total}</small>
+      <button class="btn small" disabled>🔒</button></div>`;
+  }
   function renderShop() {
-    const D = user.data; $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(D));
+    const D = user.data; if (!D.ships.includes(SECRET_SHIP)) setTimeout(checkSecretShip, 300); $$('[data-coins]').forEach(e => e.innerHTML = walletHtml(D));
     let html = '';
     if (shopTab === 'gems') {
       const g = D.gems || 0;
@@ -754,7 +785,7 @@
           <button class="icon-btn" data-cv="1" ${g ? '' : 'disabled'}>+</button><button class="chip" data-cv="max" ${g ? '' : 'disabled'}>${t('max')}</button></div>
         <div class="conv-out" id="cv-out">${g ? `${t('you_get')} ${coinHtml(GEM_RATE)}` : t('no_gems')}</div>
         <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>${t('convert')}</button></div>`;
-      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems).map(s => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems && !s.secret).map(s => {
         const own = D.ships.includes(s.id), eq = D.skin === s.id;
         return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
@@ -770,7 +801,7 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
-    else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems).map(s => {
+    else if (shopTab === 'ships') html = secretCard(D) + Art.SHIPS.filter(s => !s.gems && !s.secret).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
@@ -805,15 +836,15 @@
       D.gems -= v; D.coins += v * GEM_RATE; Sfx.init(); Sfx.coin(); toast(t('converted', { g: v, c: (v * GEM_RATE).toLocaleString() }));
       save(); renderShop(); return;
     }
-    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); return renderShop(); }
-    if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(t('item_yours', { x: t('it_' + it.id) })); save(); return renderShop(); }
-    if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('special_icon')); save(); return renderShop(); }
+    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); renderShop(); return checkSecretShip(); }
+    if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(t('item_yours', { x: t('it_' + it.id) })); save(); renderShop(); return checkSecretShip(); }
+    if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('special_icon')); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.equip) D.skin = b.dataset.equip;
     else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast(t('bought', { x: t('ship_' + s.id) })); }
     else if (b.dataset.up) { const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base; if (!pay(u.costs[lvl - u.base])) return; D.up[u.id] = lvl + 1; toast(t('upgraded', { x: t('up_' + u.id) })); }
     else if (b.dataset.avEq) user.avatar = b.dataset.avEq;
     else if (b.dataset.buyAv) { const a = Art.AVATARS.find(x => x.id === b.dataset.buyAv); if (!pay(a.price)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('new_icon')); }
-    save(); renderShop();
+    save(); renderShop(); checkSecretShip();
   });
 
   // ---------- friends: search by @ or name, requests that need the other player's OK ----------
