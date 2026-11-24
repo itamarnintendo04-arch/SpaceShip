@@ -325,7 +325,9 @@
     const cutvidFallback = async e => { failReason = String((e && e.message) || ''); step('later'); };
     const sendFailed = e => /send_failed|smtp_|offline|Failed to fetch|FunctionsFetchError/i.test(String(e && e.message));
     const step = (state, msg) => {
-      const codeInput = `<input id="ef-code" inputmode="numeric" maxlength="8" dir="ltr" autocomplete="one-time-code" placeholder="123456" style="text-align:center;font-size:24px;letter-spacing:6px">`;
+      // our codes are 6 digits; CutVid's own codes can be up to 8
+      const codeLen = state === 'cvcode' ? 8 : 6;
+      const codeInput = `<input id="ef-code" class="code-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="${codeLen}" dir="ltr" autocomplete="one-time-code" placeholder="${'0'.repeat(6)}">`;
       const body = {
         email: `<label>${t('email_label')}<input id="ef-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com" value="${esc(email)}"></label>
           <button class="btn primary" id="ef-go">${t('next')}</button>`,
@@ -347,6 +349,9 @@
         const cvb = m.querySelector('#ef-cv'); if (cvb) cvb.onclick = () => cutvidModal(intent === 'add' ? 'link' : 'login', email);
         const st = m.querySelector('#ef-st'), go = m.querySelector('#ef-go');
         const input = m.querySelector('input'); if (input) { input.focus(); input.onkeydown = e => { if (e.key === 'Enter') go.click(); }; }
+        // code box: digits only (pasted spaces or dashes are dropped); our 6-digit code submits by itself
+        const ci = m.querySelector('#ef-code');
+        if (ci) ci.oninput = () => { const v = ci.value.replace(/\D/g, '').slice(0, codeLen); if (v !== ci.value) ci.value = v; if (state === 'code' && v.length === 6 && !go.disabled) go.click(); };
         go.onclick = async () => {
           go.disabled = true; st.className = 'status'; st.textContent = t('wait');
           try {
@@ -363,7 +368,7 @@
                 if (r && r.found) step('code'); else step('noplayer'); // not a SpaceShip email: new player, or CutVid
               }
             } else if (state === 'code') {
-              const code = m.querySelector('#ef-code').value.trim();
+              const code = m.querySelector('#ef-code').value.replace(/\D/g, '');
               if (intent === 'add') {
                 const em = await Net.emailSetConfirm(user, code);
                 if (!em) throw new Error('bad_code');
@@ -371,7 +376,7 @@
                 if (current === 'menu') renderMenu();
               } else finish(await Net.emailLoginConfirmByEmail(email, code));
             } else if (state === 'cvcode') {
-              const tok = await Net.cvVerifyCode(email, m.querySelector('#ef-code').value);
+              const tok = await Net.cvVerifyCode(email, m.querySelector('#ef-code').value.replace(/\D/g, ''));
               if (intent === 'add') await cutvidLink(tok, email); else await cutvidLogin(tok, email);
             } else if (state === 'later') step('email');
             else if (state === 'noplayer') { closeModal(); $('#r-tabs [data-rt="new"]').click(); }

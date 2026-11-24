@@ -354,3 +354,5 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .ev-upd { margin-top: 8px; }
 .ev-upd .ic { width: 16px; height: 16px; }
 .ev-need { margin-top: 6px; font-size: 12px; font-weight: 700; color: #fde047; }
+.code-in { width: 100%; min-width: 0; box-sizing: border-box; text-align: center; direction: ltr; font-family: 'Courier New', ui-monospace, monospace; font-weight: 700;
+  font-size: clamp(20px, 7vw, 30px); letter-spacing: clamp(4px, 2.2vw, 12px); padding: 12px 8px; }
