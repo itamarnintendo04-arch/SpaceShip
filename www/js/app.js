@@ -314,6 +314,7 @@
     }
   });
   $('#l-go').addEventListener('click', () => { Sfx.init(); emailFlow('login'); });
+  $('#l-key').addEventListener('click', () => { Sfx.init(); keyLogin(); });
 
   // Email with 6-digit codes (sent from SpaceShip's own email address).
   //   intent 'add'   — verify an email for the signed-in player
@@ -516,7 +517,8 @@
       ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
         : `<div class="small muted">${t('ask_email_body')}</div>
-           <button class="btn small primary" id="s-email">✉️ ${t('add_email')}</button>`}</div>`}
+           <button class="btn small primary" id="s-email">✉️ ${t('add_email')}</button>`}
+        <button class="btn small" id="s-key">🔑 ${t('save_key')}</button><div class="muted small">${t('save_key_note')}</div></div>`}
       <div class="sec"><h3>${t('accounts')}</h3>
         ${accs.map(a => `<div class="acc-row"><div class="avatar">${Art.avatar(a.avatar)}</div><div class="info"><b>${esc(a.name)}</b><br><small dir="ltr" style="color:var(--cyan)">@${esc(a.handle)}</small></div>
           ${user && a.id === user.id ? `<span class="chip">${t('current_acc')}</span>` : `<button class="btn small" data-switch="${esc(a.id)}">${t('switch_to')}</button>`}</div>`).join('')}
@@ -537,13 +539,59 @@
       on('#s-email', () => emailFlow('add'));
       on('#s-add', addAccount);
       on('#s-out', signOut);
+      on('#s-key', saveLoginKey);
       m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
     });
   }
+  // signing out removes the account from this device: its saved login key and its local data
   function signOut() {
-    if (!confirm(t('confirm_signout'))) return;
-    flushSave(); Net.stopPresence(); user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
+    if (!confirm(t('confirm_signout_del'))) return;
+    const id = user.id;
+    flushSave(); Net.stopPresence();
+    store.set('ss_accounts', savedAccounts().filter(a => a.id !== id));
+    try { Object.keys(localStorage).filter(k => k.endsWith('_' + id) || k.includes(id)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    user = null; store.set('ss_user', null); closeModal(); friends = []; history = []; show('register', false);
     $('#r-tabs [data-rt="login"]').click();
+  }
+
+  // ---------- login key saved as a file on the device (or shared to Files / Notes on a phone) ----------
+  const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+  const makeKey = u => 'SSK1.' + b64u(JSON.stringify({ i: u.id, s: u.secret, h: u.handle }));
+  function readKey(text) {
+    const m = /SSK1\.([A-Za-z0-9_-]{20,})/.exec(String(text || '')); if (!m) return null;
+    try { const k = JSON.parse(unb64u(m[1])); return k && k.i && k.s ? k : null; } catch (e) { return null; }
+  }
+  async function saveLoginKey() {
+    if (!user || user.offline) return;
+    const key = makeKey(user), name = `SpaceShip-key-${user.handle}.txt`;
+    const text = `SpaceShip\n@${user.handle}\n\n${t('key_file_note')}\n\n${key}\n`;
+    try {
+      if (NATIVE && Cap.Share) { await Cap.Share.share({ title: name, text }); }
+      else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = name;
+        document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      }
+      toast(t('key_saved'), 3500);
+    } catch (e) { copy(key); }
+  }
+  function keyLogin() {
+    modal(`<div style="font-size:40px">🔑</div><h2>${t('key_login')}</h2><p class="muted small">${t('key_login_note')}</p>
+      <textarea id="k-in" rows="3" dir="ltr" spellcheck="false" autocomplete="off" placeholder="SSK1.…" style="width:100%;font-family:monospace;font-size:13px"></textarea>
+      <label class="btn small" style="cursor:pointer">📄 ${t('key_file_pick')}<input id="k-file" type="file" accept=".txt,text/plain" hidden></label>
+      <div class="status" id="k-st"></div>
+      <button class="btn primary" id="k-go">${t('login')}</button><button class="btn ghost" id="k-x">${t('cancel')}</button>`, m => {
+      const st = m.querySelector('#k-st'), inp = m.querySelector('#k-in'), go = m.querySelector('#k-go');
+      m.querySelector('#k-x').onclick = closeModal;
+      m.querySelector('#k-file').onchange = async e => { const f = e.target.files[0]; if (f) { inp.value = (await f.text()).trim(); go.click(); } };
+      go.onclick = async () => {
+        const k = readKey(inp.value);
+        if (!k) { st.className = 'status err'; st.textContent = t('key_bad'); return; }
+        go.disabled = true; st.className = 'status'; st.textContent = t('connecting');
+        try { const r = await Net.login(k.i, k.s); closeModal(); finishLogin(Object.assign(r, { secret: k.s })); }
+        catch (er) { go.disabled = false; st.className = 'status err'; st.textContent = String(er.message).includes('unauthorized') ? t('key_bad') : errText(er); }
+      };
+    });
   }
 
   function editProfile() {
@@ -1183,7 +1231,19 @@
       $('#c-go').disabled = !allReady || !room.pick;
       $('#c-need').classList.toggle('hidden', allReady);
     }
+    // everyone ready (2 or more): the game starts by itself after a short countdown
+    const everyone = ms.length >= 2 && ms.every(m => m.ready);
+    $('#c-auto').classList.toggle('hidden', !everyone);
+    if (everyone) $('#c-auto').textContent = t('all_ready_starting');
+    autoStart(isHost && everyone && !!room.pick);
     icons($('#c-lobby'));
+  }
+  let autoT = null;
+  function autoStart(on) {
+    if (!on || game || current !== 'coop') { clearTimeout(autoT); autoT = null; return; }
+    if (autoT) return;
+    autoT = setTimeout(() => { autoT = null; const ms = roomMembers();
+      if (room && room.role === 'host' && !game && current === 'coop' && ms.length >= 2 && ms.every(m => m.ready)) startRoomGame(); }, 3000);
   }
   $('#c-ready').addEventListener('click', () => { if (!room) return; const me = room.members.find(m => m.id === user.id); room.setMeta({ ready: !(me && me.ready) }); Sfx.init(); });
   $('#c-pick').addEventListener('click', e => {
@@ -1303,6 +1363,7 @@
   function unlockOrientation() { try { if (Cap.ScreenOrientation) Cap.ScreenOrientation.unlock(); else if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
   function startGame(o) {
     Sfx.init(); closeModal();
+    if (o.coop && o.coop.room) { clearTimeout(autoT); autoT = null; o.coop.room.setMeta({ ready: false }); }
     if (game) game.destroy();
     gameTrack = o.secret ? 'game' : GALAXIES[(o.world || 1) - 1].music; // every world has its own music
     show('game', false);

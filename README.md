@@ -89,7 +89,7 @@ Every build writes its version (`1.1.<build number>`, the same number as the Git
 - The member list always shows who is **online**, who is **in a room** and who is offline. Tapping a member lets you play together (even if you are not friends), ask to join their room, add them as a friend or open their **profile**.
 
 ### Rooms
-Up to 10 players in a room, each with their own ship on the same screen. Everyone taps "Ready". When all are ready (at least 2), the host starts. The host picks the level inside the game, from levels everyone has unlocked. After a win: "Next level". A secret world found in a room opens for everyone in it. Friends in a room show "Ask to join".
+Up to 10 players in a room, each with their own ship on the same screen. Everyone taps "Ready". When all are ready (at least 2), the game **starts by itself** after a 3-second "Everyone is ready! Starting…". Readiness resets for the next round. The host picks the level inside the game, from levels everyone has unlocked. After a win: "Next level". A secret world found in a room opens for everyone in it. Friends in a room show "Ask to join".
 
 ### Accounts on many devices
 - Every player has a name and a unique `@handle`.
@@ -97,6 +97,8 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
 - Sign in on another device: "I have an account" → **email** → 6-digit code.
 - Sign in with **CutVid** (OAuth, or CutVid email + password inside the game).
 - Several accounts on one device, each with its own progress.
+- **Login key file**: Settings → *Save login key to this device* saves a small text file (`SpaceShip-key-<handle>.txt`). On a phone it opens the share sheet, so you can save it to Files, Notes or Drive. To sign in with it: *I have an account* → *Sign in with a login key*, then pick the file or paste the key (it starts with `SSK1.`). Anyone with the key can open the account, so keep it private.
+- **Sign out** removes the account from the device: its saved login key and its local data. To come back you need the email or the key file.
 
 ### Desktop extras
 Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard and gamepad control. Extra glow, trails and particles. F11 for full screen, P to pause.

@@ -357,3 +357,5 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .code-in { width: 100%; min-width: 0; box-sizing: border-box; text-align: center; direction: ltr; font-family: 'Courier New', ui-monospace, monospace; font-weight: 700;
   font-size: clamp(20px, 7vw, 30px); letter-spacing: clamp(4px, 2.2vw, 12px); padding: 12px 8px; }
 .spam-hint { margin: 2px 0 0; line-height: 1.4; }
+.ready-go { font-weight: 800; color: var(--green, #4ade80); animation: pulse 1s ease-in-out infinite alternate; margin: 4px 0; }
+@keyframes pulse { to { opacity: .55; } }
