@@ -435,7 +435,7 @@
   function renderMenu() {
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
     $('#m-coins').innerHTML = walletHtml(user.data);
-    loadGifts();
+    loadGifts(); loadEvents();
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
     $('#t-lang').innerHTML = langLabel();
     $('#t-notif').innerHTML = (settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off'));
@@ -1351,7 +1351,10 @@
     // the luck upgrade adds 10% per level to the coins of every game
     const luck = Math.round(r.coins * 0.1 * (D.up.luck || 0));
     r = Object.assign({}, r, { coins: r.coins + luck, bonus: r.bonus + luck });
-    D.coins += r.coins;
+    // live events from the server: coin multiplier and extra diamonds for a won level
+    const boost = eventBoost(), evCoins = Math.round(r.coins * (boost.mult - 1)), evGems = r.win && r.mode === 'level' ? boost.gems : 0;
+    r = Object.assign({}, r, { coins: r.coins + evCoins, bonus: r.bonus + evCoins });
+    D.coins += r.coins; D.gems = (D.gems || 0) + evGems;
     let newBest = false, unlocked = false, gemsWon = 0, newGal = 0;
     const wld = r.world || 1;
     D.gems = D.gems || 0; D.worlds = D.worlds || []; D.slevels = D.slevels || {}; D.items = D.items || [];
@@ -1389,6 +1392,7 @@
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
+      ${evCoins || evGems ? `<div class="ev-won">${Art.icon('gift')} ${t('ev_bonus')}: ${evCoins ? `+${evCoins} ${Art.icon('coin')}` : ''} ${evGems ? `+${evGems} ${Art.icon('gem')}` : ''}</div>` : ''}
       <div class="muted small">${t('collected_bonus', { a: r.collected, b: r.bonus })}</div>${buttons}`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } }
@@ -1453,6 +1457,31 @@
     },
     onNews: p => { if (p && (p.title || p.body)) notify(p.title || 'SpaceShip', p.body || ''); },
   };
+
+  // ---------- live events from the server (rows in the Supabase "game_events" table) ----------
+  let events = [], eventsAt = 0;
+  const runningEvents = () => { const now = Date.now(); return events.filter(e => Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now); };
+  const eventBoost = () => { const ev = runningEvents(); return { mult: ev.reduce((m, e) => Math.max(m, +e.coins_mult || 1), 1), gems: ev.reduce((s, e) => s + (e.gems_per_win | 0), 0) }; };
+  const timeLeft = ms => { const m = Math.max(1, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`; };
+  async function loadEvents(force) {
+    if (!force && Date.now() - eventsAt < 120000) return renderEvents();
+    try { events = await Net.activeEvents() || []; eventsAt = Date.now(); } catch (e) { console.warn('events', e); }
+    renderEvents();
+  }
+  function renderEvents() {
+    const box = $('#m-events'); if (!box) return;
+    const now = Date.now();
+    box.innerHTML = events.filter(e => Date.parse(e.ends_at) > now).map(e => {
+      const live = Date.parse(e.starts_at) <= now, c = /^#[0-9a-f]{6}$/i.test(e.color) ? e.color : '#8b5cf6';
+      const perks = [+e.coins_mult > 1 ? `<span class="ev-perk">${Art.icon('coin')} ${t('ev_coins', { n: +e.coins_mult })}</span>` : '',
+        e.gems_per_win > 0 ? `<span class="ev-perk">${Art.icon('gem')} ${t('ev_gems', { n: e.gems_per_win })}</span>` : ''].join('');
+      return `<div class="ev-card" style="--ev:${c}"><div class="ev-top"><span class="ev-tag">${live ? t('ev_live') : t('ev_soon')}</span>
+        <small>${live ? t('ev_ends', { t: timeLeft(Date.parse(e.ends_at) - now) }) : t('ev_starts', { t: timeLeft(Date.parse(e.starts_at) - now) })}</small></div>
+        <b>${esc(e.title)}</b>${e.body ? `<p>${esc(e.body)}</p>` : ''}${perks ? `<div class="ev-perks">${perks}</div>` : ''}</div>`;
+    }).join('');
+  }
+  setInterval(() => { if (current === 'menu') loadEvents(); }, 60000);
 
   // ---------- coupon codes and free gifts (rows in the Supabase "coupons" table) ----------
   let gifts = [], giftsAt = 0;

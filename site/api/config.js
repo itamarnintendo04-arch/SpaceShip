@@ -20,6 +20,7 @@ module.exports = async (req, res) => {
         else if (/portable.*\.exe$/i.test(n)) out.files.windowsPortable = f;
         else if (/\.dmg$/i.test(n)) out.files.mac = f;
         else if (/\.appimage$/i.test(n)) out.files.linux = f;
+        else if (/\.ipa$/i.test(n)) out.files.ios = f;          // unsigned, used when IOS_DOWNLOAD_URL is empty
       }
     }
   } catch (e) { out.error = 'github_unreachable'; }

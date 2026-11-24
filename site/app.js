@@ -28,15 +28,74 @@
     q2: 'How do I switch devices without losing progress?', a2: 'On the new device choose "I have an account" and sign in with your @name and email. A sign-in code arrives by email and all your progress loads from the cloud.',
     q3: "Can I play with someone who isn't on my friends list?", a3: 'Yes. Being in the same club is enough, or just send them the room code.',
     q4: 'Windows shows a warning. Is that OK?', a4: 'Yes. The game is new and not yet known to SmartScreen. Click "More info" and then "Run anyway".',
-    title: 'SpaceShip — space shooter',
+    title: 'SpaceShip — space shooter', ios_unsigned: 'Unsigned build: install it with Sideloadly or AltStore.',
   };
-  const HE = {};
-  document.querySelectorAll('[data-k]').forEach((el) => { HE[el.dataset.k] = el.textContent; });
-  Object.assign(HE, { ios_soon: 'בקרוב', version: 'גרסה', mine: 'המכשיר שלך', dl_for: 'הורדה ל-', title: document.title });
+  const HE = {
+    "nav_features": "תכונות",
+    "nav_worlds": "עולמות",
+    "nav_download": "הורדה",
+    "nav_faq": "שאלות",
+    "free": "חינם · בלי פרסומות",
+    "lead": "טסים, יורים ומנצחים. 4 עולמות עם 2,000 שלבים, חלליות מיוחדות, מועדונים עם צ'אט, ומשחק בזמן אמת עם חברים.",
+    "dl_now": "להורדה",
+    "more": "מה יש במשחק?",
+    "st_worlds": "עולמות",
+    "st_levels": "שלבים",
+    "st_secret": "עולמות סודיים",
+    "st_langs": "שפות",
+    "feat_title": "מה מחכה לך בחלל",
+    "f1_t": "4 עולמות, 2,000 שלבים",
+    "f1_p": "חגורת האסטרואידים, הערפילית הקפואה, גלקסיית הלבה וליבת הריק. בכל עולם יש חלליות אויב, רקע ומוזיקה משלו, והעולמות נפתחים לפי הסדר.",
+    "f2_t": "20 עולמות סודיים",
+    "f2_p": "מסתתרים בין השלבים. מי שמוצא אותם מקבל יהלומים ופרסים מיוחדים.",
+    "f3_t": "חלליות ונשק",
+    "f3_p": "חנות גדולה עם חלליות, הילות, אווטרים ושדרוגים. ככל שהחללית יקרה יותר, היריות שלה חזקות ויפות יותר, עד לסופרנובה.",
+    "f4_t": "מועדונים עם דרגות",
+    "f4_p": "מנהל, סגן מנהל, בכיר וחבר. לכל מועדון יש לוגו, צ'אט עם סינון מילים, ורואים מי מחובר ומי בחדר משחק.",
+    "f5_t": "משחק עם חברים",
+    "f5_p": "פותחים חדר, מזמינים חברים ומשחקים יחד באותו שלב בזמן אמת. אפשר גם לבקש להצטרף לחבר שכבר משחק.",
+    "f6_t": "שמירה בענן",
+    "f6_p": "כל ההתקדמות נשמרת בחשבון. נכנסים מכל מכשיר עם @שם וקוד באימייל וממשיכים מאותה נקודה.",
+    "worlds_title": "ארבעה עולמות",
+    "worlds_sub": "500 שלבים בכל עולם. מסיימים אחד ונפתח הבא.",
+    "g1": "חגורת האסטרואידים",
+    "g2": "הערפילית הקפואה",
+    "g3": "גלקסיית הלבה",
+    "g4": "ליבת הריק",
+    "dl_title": "הורדה",
+    "dl_sub": "חינם לכל מכשיר.",
+    "ios_meta": "iOS 13 ומעלה",
+    "ios_btn": "הורדה לאייפון",
+    "android_btn": "הורדת APK",
+    "android_note": "פותחים את הקובץ בטלפון ומאשרים \"התקנה ממקורות לא ידועים\".",
+    "win_btn": "התקנה ל-Windows",
+    "win_port": "גרסה ניידת (בלי התקנה)",
+    "mac_btn": "הורדה ל-Mac",
+    "mac_note": "בפתיחה הראשונה: קליק ימני על האפליקציה ואז Open.",
+    "linux_btn": "הורדת AppImage",
+    "linux_note": "מסמנים את הקובץ כהרצה (chmod +x) ופותחים.",
+    "all_rel": "כל הגרסאות והקבצים ←",
+    "shop_title": "חנות ענקית",
+    "shop_sub": "אוספים מטבעות ויהלומים בשלבים וקונים חלליות חדשות עם יריות מיוחדות, הילות, אווטרים, רחפן עוזר, חיים נוספים ושדרוגי מהירות, כוח ומזל.",
+    "t1": "שביט, ערפילית, טיטאן, מערבולת",
+    "t2": "חלליות יהלום: ריק, זוהר צפוני, סופרנובה",
+    "t3": "הילות: שובל, מסלול, סערה",
+    "faq_title": "שאלות נפוצות",
+    "q1": "המשחק באמת חינם?",
+    "a1": "כן. אין תשלומים ואין פרסומות. את כל המטבעות והיהלומים מרוויחים במשחק.",
+    "q2": "איך עוברים מכשיר בלי לאבד התקדמות?",
+    "a2": "במכשיר החדש בוחרים \"יש לי משתמש\" ונכנסים עם ה-@שם והאימייל. קוד כניסה מגיע למייל, וכל ההתקדמות נטענת מהענן.",
+    "q3": "אפשר לשחק עם חבר שלא נמצא ברשימת החברים?",
+    "a3": "כן. מספיק להיות איתו באותו מועדון, או לשלוח לו את קוד החדר.",
+    "q4": "Windows מציג אזהרה. זה בסדר?",
+    "a4": "כן. המשחק חדש ועדיין לא מוכר ל-SmartScreen. לוחצים \"מידע נוסף\" ואז \"הפעל בכל זאת\".",
+    ios_soon: "בקרוב", version: "גרסה", mine: "המכשיר שלך", dl_for: "הורדה ל-", title: "SpaceShip — משחק חלליות", ios_unsigned: "גרסה לא חתומה: מתקינים עם Sideloadly או AltStore."
+  };
 
-  let lang = 'he';
-  try { lang = localStorage.getItem('ss_site_lang') || (/^he\b/i.test(navigator.language) ? 'he' : 'en'); } catch (e) { lang = /^he\b/i.test(navigator.language) ? 'he' : 'en'; }
-  const T = (k) => (lang === 'he' ? HE : EN)[k] || HE[k] || '';
+  // English by default; Hebrew when the visitor picks it
+  let lang = 'en';
+  try { lang = localStorage.getItem('ss_site_lang') === 'he' ? 'he' : 'en'; } catch (e) {}
+  const T = (k) => (lang === 'he' ? HE : EN)[k] || EN[k] || '';
 
   // which device is this?
   const ua = navigator.userAgent, isIPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
@@ -65,10 +124,10 @@
       a.href = f ? f.url : fallback; a.removeAttribute('aria-disabled');
       const m = $('m-' + k); if (m && f) m.textContent = f.name.replace(/^SpaceShip-?/, '').replace(/^\./, '') + ' · ' + mb(f.size);
     }
-    const ios = $('dl-ios');
-    if (cfg && cfg.ios) { ios.href = cfg.ios; ios.removeAttribute('aria-disabled'); ios.firstElementChild.textContent = T('ios_btn'); }
-    else { ios.href = '#'; ios.setAttribute('aria-disabled', 'true'); ios.firstElementChild.textContent = cfg ? T('ios_soon') : T('ios_btn'); }
-    $('ios-note').textContent = (cfg && cfg.iosNote) || '';
+    const ios = $('dl-ios'), iosUrl = cfg && (cfg.ios || (files.ios && files.ios.url));
+    if (iosUrl) { ios.href = iosUrl; ios.removeAttribute('aria-disabled'); ios.firstElementChild.textContent = T('ios_btn'); }
+    else { ios.href = fallback; ios.removeAttribute('aria-disabled'); ios.firstElementChild.textContent = T('ios_btn'); }
+    $('ios-note').textContent = (cfg && cfg.iosNote) || (cfg && !cfg.ios && files.ios ? T('ios_unsigned') : '');
     if (cfg && cfg.version) $('ver-line').textContent = T('version') + ' ' + cfg.version + (cfg.published ? ' · ' + new Date(cfg.published).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US') : '');
     if (cfg && cfg.page) $('all-rel').href = cfg.page;
     // quick download buttons under the hero, one per device
@@ -78,7 +137,7 @@
       q.title = url ? T('dl_for') + (lang === 'he' ? '' : ' ') + NAMES[k] : (k === 'ios' ? T('ios_soon') : '');
     }
     // hero button: straight to this device's file when there is one
-    const hero = $('hero-dl'), mine = device && (device === 'ios' ? cfg && cfg.ios : files[device] && files[device].url);
+    const hero = $('hero-dl'), mine = device && (device === 'ios' ? cfg && (cfg.ios || (files.ios && files.ios.url)) : files[device] && files[device].url);
     hero.href = mine || '#download';
   }
 

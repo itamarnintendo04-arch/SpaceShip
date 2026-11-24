@@ -54,6 +54,20 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase �
 
 Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is there to start with. SQL: `supabase/coupons.sql`.
 
+### Live events
+Events run from the server. Add a row to the Supabase table **`game_events`** and every player sees it within a few minutes, with no new build. Events show as a banner in the main menu with a countdown ("Live event · ends in 2d 5h", or "Coming soon" up to a day before they start).
+
+| Column | Meaning |
+|---|---|
+| `title`, `body` | banner text |
+| `coins_mult` | coin multiplier while it runs (2 = double coins, max 10) |
+| `gems_per_win` | extra diamonds for every level won |
+| `starts_at` / `ends_at` | when it runs |
+| `color` | banner color, e.g. `#f59e0b` |
+| `active` | untick to stop it early |
+
+When several events run at once, the highest multiplier applies and the diamonds add up. SQL: `supabase/events.sql`.
+
 ### Friends, clubs and chat
 - **Friends**: search by `@handle` or name and send a request. The other player has to accept it.
 - **Clubs** (parties) of up to 10 players, with a name, description, logo (16 to choose from) and a code. Public clubs show up in search. Private clubs are joined with the code only.
@@ -79,7 +93,7 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
 Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard and gamepad control. Extra glow, trails and particles. F11 for full screen, P to pause.
 
 ### More
-- **14 languages**: English, עברית, العربية, Español, Français, Deutsch, Русский, Português, Italiano, Türkçe, 中文, 日本語, 한국어, हिन्दी. Hebrew and Arabic are right-to-left. Texts are in `www/js/i18n.js`.
+- **14 languages**, English by default: English, עברית, العربية, Español, Français, Deutsch, Русский, Português, Italiano, Türkçe, 中文, 日本語, 한국어, हिन्दी. Hebrew and Arabic are right-to-left. Texts are in `www/js/i18n.js`.
 - **Portrait and landscape** modes.
 - **Loading screen** with a mini level you can play while the game connects.
 - **Original music** generated live with Web Audio, with no audio files: loading, menus, and a track for each world. Volume is in Settings.
@@ -106,6 +120,7 @@ Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables 
 - `supabase/schema.sql`: profiles, handles, friend codes, progress, leaderboard, email codes
 - `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
 - `supabase/coupons.sql`: coupon codes and free gifts
+- `supabase/events.sql`: live events
 - `supabase/functions/ss-email`: sends email codes over Gmail SMTP (secrets `GMAIL_USER`, `GMAIL_APP_PASSWORD`)
 - Realtime (presence and broadcast): who is online, invites, rooms and chat
 - Connection settings: `www/js/config.js`
