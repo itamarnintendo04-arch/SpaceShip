@@ -106,6 +106,9 @@ jobs:
       - run: npm run vendor
       - run: echo "window.SS_VERSION = '${{ env.VERSION }}';" > www/js/version.js
       - run: npx cap add ios && node scripts/patch-native.mjs
+        env:
+          # optional repo variable: links the app to the website for Apple Passwords (see README)
+          IOS_ASSOCIATED_DOMAIN: ${{ vars.IOS_ASSOCIATED_DOMAIN }}
       - run: npx capacitor-assets generate --ios --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
       - run: npx cap sync ios
       - name: Build unsigned IPA

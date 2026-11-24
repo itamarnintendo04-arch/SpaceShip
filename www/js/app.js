@@ -562,29 +562,66 @@
     const m = /SSK1\.([A-Za-z0-9_-]{20,})/.exec(String(text || '')); if (!m) return null;
     try { const k = JSON.parse(unb64u(m[1])); return k && k.i && k.s ? k : null; } catch (e) { return null; }
   }
-  async function saveLoginKey() {
-    if (!user || user.offline) return;
+  // Login key saved in the device's own password manager (Apple Passwords / iCloud Keychain, Google Password Manager,
+  // the browser's saved passwords): username = @handle, password = the key. A file is still offered as a backup.
+  const canStoreCred = () => !!(window.PasswordCredential && navigator.credentials && navigator.credentials.store);
+  function saveKeyFile() {
     const key = makeKey(user), name = `SpaceShip-key-${user.handle}.txt`;
     const text = `SpaceShip\n@${user.handle}\n\n${t('key_file_note')}\n\n${key}\n`;
     try {
-      if (NATIVE && Cap.Share) { await Cap.Share.share({ title: name, text }); }
-      else {
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = name;
-        document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-      }
+      if (NATIVE && Cap.Share) return Cap.Share.share({ title: name, text }).then(() => toast(t('key_saved'), 3500));
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = name;
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
       toast(t('key_saved'), 3500);
     } catch (e) { copy(key); }
   }
+  function saveLoginKey() {
+    if (!user || user.offline) return;
+    const key = makeKey(user), handle = '@' + user.handle;
+    // a real form: password managers offer "Save password?" when it is submitted
+    modal(`<div style="font-size:40px">🔑</div><h2>${t('save_key')}</h2><p class="muted small">${t('pw_save_note')}</p>
+      <form id="kp-form" class="col" action="#" method="post" autocomplete="on">
+        <input name="username" id="kp-user" autocomplete="username" dir="ltr" value="${esc(handle)}" readonly>
+        <input name="password" id="kp-pass" type="password" autocomplete="new-password" dir="ltr" value="${esc(key)}" readonly>
+        <button class="btn primary" type="submit">🔐 ${t('pw_save_btn')}</button>
+      </form>
+      <button class="btn small" id="kp-file">📄 ${t('pw_save_file')}</button>
+      <p class="muted small">${t('save_key_note')}</p>
+      <button class="btn ghost" id="kp-x">${t('close')}</button>`, m => {
+      m.querySelector('#kp-x').onclick = closeModal;
+      m.querySelector('#kp-file').onclick = saveKeyFile;
+      m.querySelector('#kp-form').onsubmit = async e => {
+        e.preventDefault();
+        let stored = false;
+        if (canStoreCred()) {
+          try { await navigator.credentials.store(new PasswordCredential({ id: handle, password: key, name: user.name })); stored = true; } catch (er) { console.warn('credential store', er); }
+        }
+        // let the browser / phone see the form "sent" so it offers to save it, then close
+        setTimeout(() => { closeModal(); toast(stored ? t('pw_saved') : t('pw_offered'), 4000); }, 300);
+      };
+    });
+  }
   function keyLogin() {
-    modal(`<div style="font-size:40px">🔑</div><h2>${t('key_login')}</h2><p class="muted small">${t('key_login_note')}</p>
-      <textarea id="k-in" rows="3" dir="ltr" spellcheck="false" autocomplete="off" placeholder="SSK1.…" style="width:100%;font-family:monospace;font-size:13px"></textarea>
+    modal(`<div style="font-size:40px">🔑</div><h2>${t('key_login')}</h2><p class="muted small">${t('pw_login_note')}</p>
+      <form id="k-form" class="col" action="#" method="post" autocomplete="on">
+        <input name="username" id="k-user" autocomplete="username" dir="ltr" placeholder="@handle" autocapitalize="off" spellcheck="false">
+        <input name="password" id="k-in" type="password" autocomplete="current-password" dir="ltr" placeholder="SSK1.…" spellcheck="false">
+        <div class="status" id="k-st"></div>
+        <button class="btn primary" id="k-go" type="submit">${t('login')}</button>
+      </form>
       <label class="btn small" style="cursor:pointer">📄 ${t('key_file_pick')}<input id="k-file" type="file" accept=".txt,text/plain" hidden></label>
-      <div class="status" id="k-st"></div>
-      <button class="btn primary" id="k-go">${t('login')}</button><button class="btn ghost" id="k-x">${t('cancel')}</button>`, m => {
-      const st = m.querySelector('#k-st'), inp = m.querySelector('#k-in'), go = m.querySelector('#k-go');
+      <button class="btn ghost" id="k-x">${t('cancel')}</button>`, m => {
+      const st = m.querySelector('#k-st'), inp = m.querySelector('#k-in'), go = m.querySelector('#k-go'), form = m.querySelector('#k-form');
       m.querySelector('#k-x').onclick = closeModal;
-      m.querySelector('#k-file').onchange = async e => { const f = e.target.files[0]; if (f) { inp.value = (await f.text()).trim(); go.click(); } };
-      go.onclick = async () => {
+      m.querySelector('#k-file').onchange = async e => { const f = e.target.files[0]; if (f) { inp.value = (await f.text()).trim(); form.requestSubmit ? form.requestSubmit() : go.click(); } };
+      // browsers that support it can hand over a saved key directly (the person picks it)
+      if (window.PasswordCredential && navigator.credentials && navigator.credentials.get) {
+        navigator.credentials.get({ password: true, mediation: 'optional' }).then(c => {
+          if (c && c.password && readKey(c.password) && !inp.value) { m.querySelector('#k-user').value = c.id; inp.value = c.password; }
+        }).catch(() => {});
+      }
+      form.onsubmit = async e => {
+        e.preventDefault();
         const k = readKey(inp.value);
         if (!k) { st.className = 'status err'; st.textContent = t('key_bad'); return; }
         go.disabled = true; st.className = 'status'; st.textContent = t('connecting');

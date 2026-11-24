@@ -50,3 +50,28 @@ if (existsSync(plist)) {
     console.log('ios: URL scheme registered');
   }
 }
+
+// Apple Passwords (iCloud Keychain) for the login key inside the iPhone app: the app must be linked to the
+// website with an Associated Domain. Set IOS_ASSOCIATED_DOMAIN (e.g. spaceship-game.vercel.app) in the build to turn it on;
+// the website then serves /.well-known/apple-app-site-association with your APPLE_TEAM_ID.
+const domain = (process.env.IOS_ASSOCIATED_DOMAIN || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+const ent = 'ios/App/App/App.entitlements', pbx = 'ios/App/App.xcodeproj/project.pbxproj';
+if (domain && existsSync(pbx)) {
+  writeFileSync(ent, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>com.apple.developer.associated-domains</key>
+\t<array>
+\t\t<string>webcredentials:${domain}</string>
+\t</array>
+</dict>
+</plist>
+`);
+  let p = readFileSync(pbx, 'utf8');
+  if (!p.includes('CODE_SIGN_ENTITLEMENTS')) {
+    p = p.replace(/(INFOPLIST_FILE = App\/Info\.plist;)/g, '$1\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = App/App.entitlements;');
+    writeFileSync(pbx, p);
+  }
+  console.log('ios: Apple Passwords linked to ' + domain);
+}
