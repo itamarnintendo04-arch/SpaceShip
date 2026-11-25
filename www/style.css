@@ -375,3 +375,14 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .welcome-gift .ic { width: 60px; height: 60px; }
 .welcome-rw { display: flex; justify-content: center; gap: 6px; font-size: 26px; margin: 6px 0 10px; }
 .welcome-rw .ic { width: 28px; height: 28px; }
+
+/* celebration after redeeming a code */
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.confetti i { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; opacity: 0; animation: confetti 1.8s ease-out forwards; }
+@keyframes confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), 420px) rotate(var(--rot)); } }
+.modal-card { position: relative; }
+.cele-ic { width: 104px; height: 104px; margin: 4px auto 6px; border-radius: 30px; display: grid; place-items: center; background: linear-gradient(135deg, #22d3ee, #a855f7 55%, #f43f5e); box-shadow: 0 14px 40px rgba(168,85,247,.5); animation: cele-pop .6s cubic-bezier(.2,1.6,.4,1) both, pulse 1.2s .6s ease-in-out infinite alternate; }
+.cele-ic .ic { width: 64px; height: 64px; }
+@keyframes cele-pop { from { transform: scale(.2) rotate(-25deg); } to { transform: scale(1) rotate(0); } }
+.cele-code { display: inline-block; margin: 0 auto; padding: 4px 14px; border-radius: 999px; font-weight: 800; letter-spacing: 3px; color: #fde047; background: rgba(253,224,71,.12); border: 1px dashed #fde047; }
+.cele-rw { font-size: 30px; animation: cele-pop .7s .2s cubic-bezier(.2,1.6,.4,1) both; }

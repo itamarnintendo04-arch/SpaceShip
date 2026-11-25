@@ -1748,10 +1748,24 @@
       const go = m.querySelector('#wg-go'), st = m.querySelector('#wg-st');
       go.onclick = async () => {
         go.disabled = true;
-        try { const r = await Net.redeemCoupon(user, w.code); gifts = gifts.filter(g => g !== w); grant(r); closeModal(); toast(`${t('coupon_got')} +${(r.coins | 0).toLocaleString()} 🪙 +${r.gems | 0} 💎`, 3500); $('#m-gift-dot').classList.toggle('hidden', !gifts.length); }
+        try { const r = await Net.redeemCoupon(user, w.code); gifts = gifts.filter(g => g !== w); grant(r); $('#m-gift-dot').classList.toggle('hidden', !gifts.length); celebrate(r); }
         catch (e) { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); }
       };
     });
+  }
+  // celebration window after a code or gift is redeemed
+  function celebrate(r) {
+    Sfx.init(); Sfx.coin(); setTimeout(() => Sfx.power(), 180);
+    const colors = ['#f43f5e', '#fde047', '#22d3ee', '#a855f7', '#4ade80', '#fb923c'];
+    const confetti = Array.from({ length: 36 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${colors[i % colors.length]};animation-delay:${(i % 9) * 0.07}s;--dx:${((i * 53) % 120) - 60}px;--rot:${(i * 97) % 720}deg"></i>`).join('');
+    const welcome = String(r.code || '').toUpperCase() === 'WELCOME';
+    modal(`<div class="confetti">${confetti}</div>
+      <div class="cele-ic">${Art.icon('gift')}</div>
+      <h2>${t(welcome ? 'welcome_gift_title' : 'coupon_win_title')}</h2>
+      ${welcome ? '' : `<div class="cele-code" dir="ltr">${esc(r.code)}</div>`}
+      <p>${t('coupon_win_body')}</p>
+      <div class="welcome-rw cele-rw">${rewardHtml(r)}</div>
+      <button class="btn primary big" id="ce-ok">${t('coupon_win_ok')}</button>`, m => { m.querySelector('#ce-ok').onclick = closeModal; });
   }
   function couponBox() {
     if (!user || user.offline) return toast(t('coupon_offline'));
@@ -1770,8 +1784,8 @@
         try {
           const r = await Net.redeemCoupon(user, code);
           gifts = gifts.filter(g => g.code.toUpperCase() !== String(r.code).toUpperCase());
-          grant(r); inp.value = '';
-          st.className = 'status ok'; st.innerHTML = `${t('coupon_got')} ${rewardHtml(r)}`;
+          grant(r); $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
+          return celebrate(r);
         } catch (e) { st.className = 'status err'; st.textContent = errText(e); }
         btn.disabled = false;
         m.querySelector('#cp-gifts').innerHTML = giftList(); $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
