@@ -26,7 +26,7 @@
     { id: 'rate', icon: 'bolt', base: 0, costs: [400, 900, 1800, 3500] },
     { id: 'power', icon: 'timer', base: 0, costs: [300, 800, 1600] },
     { id: 'luck', icon: 'clover', base: 0, costs: [500, 1200, 2500, 5000] },
-    { id: 'sides', icon: 'wings', base: 0, costs: [2000], gems: [10] },   // side shots (ships don't have them without it)
+    { id: 'sides', icon: 'wings', base: 0, costs: [2000, 4000, 8000, 12000], gems: [10, 20, 35, 50] },   // each level: one more pair of side shots   // side shots (ships don't have them without it)
   ];
 
   // ---------- state ----------
@@ -85,8 +85,8 @@
   function modal(html, onBind) { $('#modal-card').innerHTML = html; icons($('#modal-card')); $('#modal').classList.remove('hidden'); onBind && onBind($('#modal-card')); }
   function closeModal() { $('#modal').classList.add('hidden'); }
   // weapon line for the shop: fire rate, damage, side shots
-  const gunHtml = s => { const g = s.gun || {}, sides = user && user.data && (user.data.up.sides || 0) > 0;
-    return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${sides ? ' · ↔+' + Math.max(1, g.side || 0) * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
+  const gunHtml = s => { const g = s.gun || {}, sides = (user && user.data && user.data.up.sides) || 0;
+    return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${sides ? ' · ↔+' + sides * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
   // big amounts in short form (1.2M, 1B, in the player's language) so the wallet always fits; the full number shows on hover
   const fmtN = n => { n = Number(n) || 0; if (Math.abs(n) < 1e6) return n.toLocaleString();
     try { return new Intl.NumberFormat(I18N.lang, { notation: 'compact', maximumFractionDigits: 1 }).format(n); } catch (e) { return (n / 1e6).toFixed(1) + 'M'; } };
@@ -1279,7 +1279,7 @@
     return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
       life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma'),
       rate: D.up.rate || 0, power: D.up.power || 0, luck: D.up.luck || 0, revive: has('revive'), drone: has('drone'),
-      sides: (D.up.sides || 0) > 0, dbl: !!(D.levels && D.levels[5]) };   // dbl: two shots ahead once the first boss (level 5) is beaten
+      sides: D.up.sides || 0, dbl: !!(D.levels && D.levels[5]) };   // dbl: two shots ahead once the first boss (level 5) is beaten
   };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
