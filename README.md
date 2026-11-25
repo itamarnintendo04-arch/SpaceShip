@@ -57,7 +57,9 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase �
 | `is_gift` | tick to show it as a **free gift** with a *Claim* button, so nobody needs to type the code |
 | `note` | text shown with a free gift |
 
-Each player can use a code once. Who used what is kept in `coupon_redemptions`. A `WELCOME` gift (500 coins + 10 diamonds) is always visible to everyone. The first time a player reaches the main menu, a **welcome gift window** offers it with one tap. It also stays under Codes & gifts until it's claimed. SQL: `supabase/coupons.sql`.
+Each player can use a code once. Who used what is kept in `coupon_redemptions`.
+
+**Gift for every new world.** When a regular world opens (2, 3 or 4), the player gets a personal gift waiting in *Codes & gifts*. The end screen says so, and a red dot appears on the button. Players who reached a world before this update get it too. The rewards are the coupons `WORLD2` (2,000 🪙 + 20 💎), `WORLD3` (5,000 + 40) and `WORLD4` (10,000 + 75), marked `personal`. Edit them in the `coupons` table. A personal gift can't be typed or claimed by anyone it wasn't unlocked for. A `WELCOME` gift (500 coins + 10 diamonds) is always visible to everyone. The first time a player reaches the main menu, a **welcome gift window** offers it with one tap. It also stays under Codes & gifts until it's claimed. SQL: `supabase/coupons.sql`.
 
 ### Live events
 Events run from the server. Add a row to the Supabase table **`game_events`** and every player sees it within a few minutes, with no new build. Every event is **scheduled**: `starts_at` and `ends_at` are both required. Up to 7 days before it starts, players see it as **Coming soon** with a countdown. At `starts_at` it goes live by itself and players get a notification. At `ends_at` it ends. The countdown is shown in the player's language.

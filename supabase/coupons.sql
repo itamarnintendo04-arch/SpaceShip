@@ -149,3 +149,31 @@ grant execute on function public.redeem_coupon(uuid, text, text), public.free_gi
 
 -- the coupon-only secret ship
 insert into public.coupons (code, coins, gems, ship, note) values ('CHAOS', 0, 0, 'chaos', 'Secret ship: Chaos') on conflict (code) do nothing;
+
+-- personal gifts: a coupon marked personal shows up (and can be claimed) only for players it was unlocked for.
+-- Used for the gift for reaching a new world: WORLD2 / WORLD3 / WORLD4 (edit their rewards in this table).
+alter table public.coupons add column if not exists personal boolean not null default false;
+create table if not exists public.gift_unlocks (
+  code text not null references public.coupons(code) on update cascade on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  at timestamptz not null default now(),
+  primary key (code, profile_id)
+);
+alter table public.gift_unlocks enable row level security;
+insert into public.coupons (code, coins, gems, is_gift, personal, note) values
+  ('WORLD2', 2000, 20, false, true, 'Frozen Nebula'), ('WORLD3', 5000, 40, false, true, 'Lava Galaxy'), ('WORLD4', 10000, 75, false, true, 'Void Core')
+on conflict (code) do nothing;
+
+create or replace function public.unlock_world_gift(p_id uuid, p_secret text, p_world integer) returns boolean
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public.ss_auth(p_id, p_secret);
+  if p_world not between 2 and 4 then return false; end if;
+  insert into public.gift_unlocks(code, profile_id) select c.code, p_id from public.coupons c where c.code = 'WORLD' || p_world and c.active
+  on conflict do nothing;
+  return found;
+end $$;
+-- free_gifts and redeem_coupon were updated the same way in the database: free_gifts also lists personal gifts unlocked
+-- for the player, and redeem_coupon refuses a personal gift that was not unlocked for them (see migration world_gifts).
+revoke all on function public.unlock_world_gift(uuid, text, integer) from public;
+grant execute on function public.unlock_world_gift(uuid, text, integer) to anon, authenticated;

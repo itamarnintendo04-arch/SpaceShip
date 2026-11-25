@@ -1543,6 +1543,7 @@
     const wShip = r.mode === 'level' && r.win && !sec && r.level === LEVELS ? Art.SHIPS.find(s => s.world === wld) : null;
     if (wShip && !D.ships.includes(wShip.id)) { D.ships.push(wShip.id); D.skin = wShip.id; gotSecret = wShip.id; }
     D.gems += gemsWon;
+    if (newGal) setTimeout(() => loadGifts(true), 800);   // the new world's gift appears in Codes & gifts
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
     D.worlds.push(...newWorlds);
     save();
@@ -1561,7 +1562,7 @@
       <button class="btn" id="e-shop">${Art.icon('shop')}${t('shop')}</button><button class="btn ghost" id="e-menu">${t('menu')}</button>`;
     modal(`<h2>${title}</h2>${stars}
       ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${wld > 1 ? galIcons[wld - 1] + ' ' + t('gal_' + wld) + ' · ' : ''}${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
-      ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}</div>` : ''}
+      ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}<br><small>🎁 ${t('world_gift_wait')}</small></div>` : ''}
       ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(gotSecret, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { w: t('gal_' + wld), x: `<b>${t('ship_' + gotSecret)}</b>` })}</div></div>` : ''}
       ${dblNow ? `<div class="found">${Art.icon('gun')} ${t('dbl_unlocked')}</div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
@@ -1727,8 +1728,19 @@
 
   // ---------- coupon codes and free gifts (rows in the Supabase "coupons" table) ----------
   let gifts = [], giftsAt = 0;
+  async function unlockWorldGifts() {
+    const D = user && user.data; if (!D || user.offline) return false;
+    let any = false;
+    for (let g = 2; g <= GALS; g++) {
+      const flag = 'ss_wgift_' + user.id + '_' + g;
+      if (!galOpen(D, g) || store.get(flag, false)) continue;
+      try { await Net.unlockWorldGift(user, g); store.set(flag, true); any = true; } catch (e) { console.warn('world gift', e); }
+    }
+    return any;
+  }
   async function loadGifts(force) {
     if (!user || user.offline || (!force && Date.now() - giftsAt < 60000)) return;
+    await unlockWorldGifts();
     try { gifts = await Net.freeGifts(user) || []; giftsAt = Date.now(); } catch (e) { console.warn('gifts', e); }
     $('#m-gift-dot').classList.toggle('hidden', !gifts.length);
     const g = $('#cp-gifts'); if (g) g.innerHTML = giftList();
@@ -1736,7 +1748,9 @@
   }
   const rewardHtml = r => (r.ship ? `<span class="rw rw-ship"><img src="${Art.shipPreview(r.ship, 120)}" alt="">${t('ship_' + r.ship)}</span>` : '')
     + (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
-  const giftList = () => gifts.length ? gifts.map(g => `<div class="gift-row"><div class="gift-ic">${Art.icon('gift')}</div><div class="gift-txt"><div>${rewardHtml(g)}</div>${g.note ? `<small>${esc(g.note)}</small>` : ''}</div>
+  const worldOfGift = g => { const m = /^WORLD([2-4])$/i.exec(g.code || ''); return m ? +m[1] : 0; };
+  const giftNote = g => worldOfGift(g) ? `${galIcons[worldOfGift(g) - 1]} ${t('world_gift', { w: t('gal_' + worldOfGift(g)) })}` : g.note ? esc(g.note) : '';
+  const giftList = () => gifts.length ? gifts.map(g => `<div class="gift-row ${worldOfGift(g) ? 'world-gift' : ''}"><div class="gift-ic">${Art.icon('gift')}</div><div class="gift-txt"><div>${rewardHtml(g)}</div>${giftNote(g) ? `<small>${giftNote(g)}</small>` : ''}</div>
       <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
   function grant(r) {
     const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
@@ -1770,11 +1784,11 @@
     Sfx.init(); Sfx.coin(); setTimeout(() => Sfx.power(), 180);
     const colors = ['#f43f5e', '#fde047', '#22d3ee', '#a855f7', '#4ade80', '#fb923c'];
     const confetti = Array.from({ length: 36 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${colors[i % colors.length]};animation-delay:${(i % 9) * 0.07}s;--dx:${((i * 53) % 120) - 60}px;--rot:${(i * 97) % 720}deg"></i>`).join('');
-    const welcome = String(r.code || '').toUpperCase() === 'WELCOME';
+    const welcome = String(r.code || '').toUpperCase() === 'WELCOME', wg = worldOfGift(r);
     modal(`<div class="confetti">${confetti}</div>
       <div class="cele-ic">${Art.icon('gift')}</div>
-      <h2>${t(welcome ? 'welcome_gift_title' : 'coupon_win_title')}</h2>
-      ${welcome ? '' : `<div class="cele-code" dir="ltr">${esc(r.code)}</div>`}
+      <h2>${welcome ? t('welcome_gift_title') : wg ? `${galIcons[wg - 1]} ${t('world_gift', { w: t('gal_' + wg) })}` : t('coupon_win_title')}</h2>
+      ${welcome || wg ? '' : `<div class="cele-code" dir="ltr">${esc(r.code)}</div>`}
       <p>${t('coupon_win_body')}</p>
       <div class="welcome-rw cele-rw">${rewardHtml(r)}</div>
       <button class="btn primary big" id="ce-ok">${t('coupon_win_ok')}</button>`, m => { m.querySelector('#ce-ok').onclick = closeModal; });
