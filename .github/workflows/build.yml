@@ -4,7 +4,7 @@ name: Build SpaceShip apps
 # Android, Windows, Linux, macOS and iOS. The repository is public, so Actions minutes are free.
 # Can also be started by hand: Actions -> Build SpaceShip apps -> Run workflow.
 # Replacing an older release instead of making a new one: put [replace release-N] in the commit message
-# (and optionally [delete release-M] to remove another release). The build then waits for earlier runs to finish,
+# (and optionally [delete release-M] to remove another release). The build then waits (up to 3 hours) for earlier runs to finish,
 # deletes those releases and publishes into release-N (version 1.1.N; the Android version code still goes up).
 on:
   push:
@@ -16,6 +16,12 @@ on:
 permissions:
   contents: write
   actions: read
+
+# one build at a time: a newer push waits for the running build instead of racing it
+# (if several are waiting, only the newest one runs - it contains everything)
+concurrency:
+  group: build-apps
+  cancel-in-progress: false
 
 env:
   VERSION_CODE: ${{ github.run_number }}0
@@ -36,7 +42,7 @@ jobs:
           N=$(printf '%s' "$MSG" | grep -oE '\[replace release-[0-9]+\]' | grep -oE '[0-9]+' | head -1 || true)
           if [ -n "$N" ]; then
             # wait for earlier runs of this workflow so they can't re-create what we delete
-            for i in $(seq 1 60); do
+            for i in $(seq 1 360); do
               busy=$(gh run list -R "$GITHUB_REPOSITORY" -w "${{ github.workflow }}" --limit 20 --json databaseId,status \
                 --jq "[.[] | select(.databaseId < ${{ github.run_id }} and .status != \"completed\")] | length")
               [ "$busy" = "0" ] && break; echo "waiting for $busy earlier run(s)"; sleep 30
