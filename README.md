@@ -133,6 +133,7 @@ Deploy: Vercel → Add New → Project → import this repo → **Root Directory
 Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables have RLS on, and everything goes through `SECURITY DEFINER` functions checked with the player's id and secret:
 - `supabase/schema.sql`: profiles, handles, friend codes, progress, leaderboard, email codes
 - `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
+- `supabase/auth_users_sync.sql`: every player is also listed in **Authentication → Users** (same id; email only if they have one; display name `@handle · name`; no password), kept in sync automatically
 - `supabase/coupons.sql`: coupon codes and free gifts
 - `supabase/events.sql`: live events
 - `supabase/app_updates.sql`: update prompts for big events (`app_config`, `game_events.min_version`) and the `app_info()` call the game makes at start
