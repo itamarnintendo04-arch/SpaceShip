@@ -26,7 +26,7 @@
     { id: 'rate', icon: 'bolt', base: 0, costs: [400, 900, 1800, 3500] },
     { id: 'power', icon: 'timer', base: 0, costs: [300, 800, 1600] },
     { id: 'luck', icon: 'clover', base: 0, costs: [500, 1200, 2500, 5000] },
-    { id: 'sides', icon: 'wings', base: 0, costs: [2000] },   // side shots (ships don't have them without it)
+    { id: 'sides', icon: 'wings', base: 0, costs: [2000], gems: [10] },   // side shots (ships don't have them without it)
   ];
 
   // ---------- state ----------
@@ -830,10 +830,10 @@
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
     }).join('');
     else if (shopTab === 'up') html = UPGRADES.map(u => {
-      const lvl = D.up[u.id] || u.base, i = lvl - u.base, max = i >= u.costs.length, cost = u.costs[i];
+      const lvl = D.up[u.id] || u.base, i = lvl - u.base, max = i >= u.costs.length, cost = u.costs[i], gcost = u.gems ? u.gems[i] : 0;
       return `<div class="item"><div class="pic">${Art.icon(u.icon)}</div><b>${t('up_' + u.id)}</b><small>${t('up_' + u.id + '_d')}</small>
         <div class="pips">${u.costs.map((_, j) => `<i class="${j < i ? 'on' : ''}"></i>`).join('')}</div>
-        ${max ? `<button class="btn small" disabled>${t('maxed')}</button>` : `<button class="btn small gold" data-up="${u.id}" ${D.coins < cost ? 'disabled' : ''}>${coinHtml(cost)}</button>`}</div>`;
+        ${max ? `<button class="btn small" disabled>${t('maxed')}</button>` : `<button class="btn small gold ${gcost ? 'dual' : ''}" data-up="${u.id}" ${D.coins < cost || (D.gems || 0) < gcost ? 'disabled' : ''}>${coinHtml(cost)}${gcost ? ` + ${gemHtml(gcost)}` : ''}</button>`}</div>`;
     }).join('');
     else html = Art.AVATARS.filter(a => !a.gems).map(a => {
       const own = a.price === 0 || D.avatars.includes(a.id), eq = user.avatar === a.id;
@@ -864,7 +864,12 @@
     if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('special_icon')); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.equip) D.skin = b.dataset.equip;
     else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast(t('bought', { x: t('ship_' + s.id) })); }
-    else if (b.dataset.up) { const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base; if (!pay(u.costs[lvl - u.base])) return; D.up[u.id] = lvl + 1; toast(t('upgraded', { x: t('up_' + u.id) })); }
+    else if (b.dataset.up) {
+      const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base, gc = u.gems ? u.gems[lvl - u.base] || 0 : 0;
+      if (gc && (D.gems || 0) < gc) { toast(t('not_enough_gems')); return; }   // check diamonds first so coins aren't taken for nothing
+      if (!pay(u.costs[lvl - u.base])) return; if (gc) D.gems -= gc;
+      D.up[u.id] = lvl + 1; toast(t('upgraded', { x: t('up_' + u.id) }));
+    }
     else if (b.dataset.avEq) user.avatar = b.dataset.avEq;
     else if (b.dataset.buyAv) { const a = Art.AVATARS.find(x => x.id === b.dataset.buyAv); if (!pay(a.price)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('new_icon')); }
     save(); renderShop(); checkSecretShip();

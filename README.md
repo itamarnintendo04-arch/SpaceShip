@@ -32,7 +32,7 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Coin ships**, from Falcon up to Comet (7,500), Nebula (10,000), Titan (15,000) and Vortex (20,000).
 - **Diamond ships**: Phoenix, Ghost, Crystal, Superstar, Void (80), Aurora (100) and Supernova (150), the strongest.
 - Every ship has its own weapon and animation: faster fire, more damage, its own shot style, and more side shots once you have the Side cannons upgrade. The pricier the ship, the stronger it is. Stats are shown in the shop.
-- **Upgrades**: cannon, shields, magnet, lives, fire rate, power-up time, lucky coins (+10% per level) and **side cannons** (2,000 coins).
+- **Upgrades**: cannon, shields, magnet, lives, fire rate, power-up time, lucky coins (+10% per level) and **side cannons** (2,000 coins + 10 diamonds).
 - **Firing**: every ship fires one shot straight ahead. Beating the **first boss** (level 5) unlocks the **double shot**, and after that the cannon upgrades add more shots ahead. Ships don't fire to the sides on their own. The *Side cannons* upgrade adds side shots, and better ships fire more of them.
 - **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
 - **Auras** (trail, orbit, storm) and many avatars.
@@ -118,7 +118,7 @@ Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard an
 
 ## Builds
 
-`.github/workflows/build.yml` runs on every push. Pushes that only change `site/` or `.md` files are skipped. It builds Android, Windows, Linux, macOS and iOS and publishes them as a GitHub Release (`release-N`, version `1.1.N`). You can also start it by hand: *Actions → Build SpaceShip apps → Run workflow*.
+`.github/workflows/build.yml` runs on every push. To rebuild an older release in place instead of making a new number, put `[replace release-N]` in the commit message. Add `[delete release-M]` to also remove another release. The build waits for earlier runs, deletes those releases and publishes into `release-N`. Pushes that only change `site/` or `.md` files are skipped. It builds Android, Windows, Linux, macOS and iOS and publishes them as a GitHub Release (`release-N`, version `1.1.N`). You can also start it by hand: *Actions → Build SpaceShip apps → Run workflow*.
 
 The iOS build is **unsigned**. For a signed iPhone download, sign it yourself and put the link in the website's `IOS_DOWNLOAD_URL` (below).
 
