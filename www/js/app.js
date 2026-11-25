@@ -26,6 +26,7 @@
     { id: 'rate', icon: 'bolt', base: 0, costs: [400, 900, 1800, 3500] },
     { id: 'power', icon: 'timer', base: 0, costs: [300, 800, 1600] },
     { id: 'luck', icon: 'clover', base: 0, costs: [500, 1200, 2500, 5000] },
+    { id: 'sides', icon: 'wings', base: 0, costs: [2000] },   // side shots (ships don't have them without it)
   ];
 
   // ---------- state ----------
@@ -84,7 +85,8 @@
   function modal(html, onBind) { $('#modal-card').innerHTML = html; icons($('#modal-card')); $('#modal').classList.remove('hidden'); onBind && onBind($('#modal-card')); }
   function closeModal() { $('#modal').classList.add('hidden'); }
   // weapon line for the shop: fire rate, damage, side shots
-  const gunHtml = s => { const g = s.gun || {}; return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${g.side ? ' · ↔+' + g.side * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
+  const gunHtml = s => { const g = s.gun || {}, sides = user && user.data && (user.data.up.sides || 0) > 0;
+    return `<div class="gun">⚡${Math.round((g.rate || 1) * 100)}% · 💥×${g.dmg || 1}${sides ? ' · ↔+' + Math.max(1, g.side || 0) * 2 : ''}${g.pierce ? ' · ➶' : ''}</div>`; };
   // big amounts in short form (1.2M, 1B, in the player's language) so the wallet always fits; the full number shows on hover
   const fmtN = n => { n = Number(n) || 0; if (Math.abs(n) < 1e6) return n.toLocaleString();
     try { return new Intl.NumberFormat(I18N.lang, { notation: 'compact', maximumFractionDigits: 1 }).format(n); } catch (e) { return (n / 1e6).toFixed(1) + 'M'; } };
@@ -1271,7 +1273,8 @@
     const D = user.data, has = id => (D.items || []).includes(id);
     return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
       life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma'),
-      rate: D.up.rate || 0, power: D.up.power || 0, luck: D.up.luck || 0, revive: has('revive'), drone: has('drone') };
+      rate: D.up.rate || 0, power: D.up.power || 0, luck: D.up.luck || 0, revive: has('revive'), drone: has('drone'),
+      sides: (D.up.sides || 0) > 0, dbl: !!(D.levels && D.levels[5]) };   // dbl: two shots ahead once the first boss (level 5) is beaten
   };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
@@ -1515,7 +1518,7 @@
     const boost = eventBoost(), evCoins = Math.round(r.coins * (boost.mult - 1)), evGems = r.win && r.mode === 'level' ? boost.gems : 0;
     r = Object.assign({}, r, { coins: r.coins + evCoins, bonus: r.bonus + evCoins });
     D.coins += r.coins; D.gems = (D.gems || 0) + evGems;
-    let newBest = false, unlocked = false, gemsWon = 0, newGal = 0;
+    let newBest = false, unlocked = false, gemsWon = 0, newGal = 0, dblNow = false;
     const wld = r.world || 1;
     D.gems = D.gems || 0; D.worlds = D.worlds || []; D.slevels = D.slevels || {}; D.items = D.items || [];
     const sec = r.secret, skey = sec ? sec.w + '-' + sec.k : null;
@@ -1526,6 +1529,7 @@
     } else if (r.mode === 'level' && r.win) {
       const k = lvKey(wld, r.level);
       unlocked = !D.levels[k] && r.level < LEVELS;
+      if (wld === 1 && r.level === 5 && !D.levels[5]) dblNow = true;
       newGal = !D.levels[k] && r.level === LEVELS && wld < GALS ? wld + 1 : 0; // finished a world: the next one opens
       D.levels[k] = Math.max(D.levels[k] || 0, r.stars);
     }
@@ -1554,6 +1558,7 @@
       ${sec ? `<div class="muted">✦ ${t(WORLDS[sec.w - 1].id + '_name')} ${sec.k}/3</div>` : r.mode === 'level' ? `<div class="muted">${wld > 1 ? galIcons[wld - 1] + ' ' + t('gal_' + wld) + ' · ' : ''}${t('level_n', { n: r.level })}${unlocked ? ' · ' + t('level_unlocked', { n: r.level + 1 }) : ''}</div>` : ''}
       ${newGal ? `<div class="found gal-open">${galIcons[newGal - 1]} ${t('gal_opened', { w: t('gal_' + newGal) })}</div>` : ''}
       ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(gotSecret, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { w: t('gal_' + wld), x: `<b>${t('ship_' + gotSecret)}</b>` })}</div></div>` : ''}
+      ${dblNow ? `<div class="found">${Art.icon('gun')} ${t('dbl_unlocked')}</div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>

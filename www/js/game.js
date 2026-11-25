@@ -217,6 +217,7 @@
         x: W / 2, y: 0, lives: (this.secret ? 1 : 3) + (st.life || 0), shield: st.shield || 0, plasma: !!st.plasma,
         weapon: st.weapon || 1, magnet: st.magnet || 0, inv: 2, alive: true, fireCd: 0, rapid: 0, triple: 0, tx: W / 2, ty: 0,
         rate: st.rate || 0, power: st.power || 0, luck: st.luck || 0, revive: !!st.revive && !(this.o && this.o.mini), drone: !!st.drone, dn: 0,
+        sides: !!st.sides, dbl: !!st.dbl,
       };
     }
     spreadPlayers() {
@@ -526,11 +527,14 @@
       }
     }
     fire(p) {
-      const lvl = Math.min(6, p.weapon + (p.triple > 0 ? 2 : 0)), owner = this.players.indexOf(p);
+      // one shot ahead; two (and the cannon upgrades) once the first boss is beaten; the triple power-up adds two for a while
+      const base = p.dbl ? Math.max(2, p.weapon) : 1;
+      const lvl = Math.min(6, base + (p.triple > 0 ? 2 : 0)), owner = this.players.indexOf(p);
       const g = gunOf(p.skin), pierce = p.plasma || !!g.pierce;
       const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg: dmg * g.dmg, owner, pierce, hits: pierce ? new Set() : null });
-      // side shots of better ships: pairs fanning out from the wings
-      for (let i = 0; i < g.side; i++) { const ang = 0.32 + i * 0.16; add(-16 - i * 3, -ang, 0.8); add(16 + i * 3, ang, 0.8); }
+      // side shots only with the Side cannons upgrade: pairs fanning out from the wings (better ships fire more)
+      const sides = p.sides ? Math.max(1, g.side || 0) : 0;
+      for (let i = 0; i < sides; i++) { const ang = 0.32 + i * 0.16; add(-16 - i * 3, -ang, 0.8); add(16 + i * 3, ang, 0.8); }
       if (lvl === 1) add(0, 0);
       else if (lvl === 2) { add(-8, 0); add(8, 0); }
       else if (lvl === 3) { add(0, 0); add(-8, -0.12); add(8, 0.12); }
