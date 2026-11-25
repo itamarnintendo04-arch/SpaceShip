@@ -37,6 +37,7 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Auras** (trail, orbit, storm) and many avatars.
 - **Convert diamonds**: 1 diamond = 10 coins.
 - **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
+- **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship. It appears in the shop's secret row only once you own it.
 - **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). The shop's *Secret ships* row shows each one locked, with progress (levels finished / 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
 
 ### Coupon codes and free gifts
@@ -48,6 +49,7 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase â
 |---|---|
 | `code` | the code players type (3â€“32 letters, digits, `-` or `_`; not case sensitive) |
 | `coins` / `gems` | coins and diamonds the code gives (up to 1,000,000,000 each) |
+| `ship` | a ship the code gives (its id, e.g. `chaos`). Leave it empty for coins / diamonds only |
 | `max_uses` | total number of players who can use it (empty = unlimited) |
 | `starts_at` / `expires_at` | optional time window |
 | `active` | untick to turn the code off |

@@ -129,6 +129,11 @@
       case 'vortex': { x.rotate(t * 16); x.strokeStyle = '#34d399'; x.lineWidth = 2.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 6, i * 2.1, i * 2.1 + 1.4); x.stroke(); } x.fillStyle = '#ecfdf5'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break; }
       case 'void': { x.fillStyle = '#000'; x.strokeStyle = '#a78bfa'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 6.5, 0, 7); x.fill(); x.stroke(); x.globalAlpha = 0.5; x.beginPath(); x.arc(0, 0, 9 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); break; }
       case 'aurora': { const h = 150 + 40 * Math.sin(t * 8 + b.x * 0.05); x.strokeStyle = `hsl(${h},90%,65%)`; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 6; i++) x[i ? 'lineTo' : 'moveTo'](Math.sin(t * 30 + i) * 3, i * 4); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'chaos': { // a zig-zag bolt of lightning that flickers through every colour
+        const h = (t * 900 + b.x * 3) % 360; x.strokeStyle = `hsl(${h},100%,65%)`; x.lineWidth = 3; x.lineCap = 'round'; x.beginPath();
+        for (let i = 0; i <= 5; i++) x[i ? 'lineTo' : 'moveTo']((i % 2 ? 1 : -1) * (3 + Math.sin(t * 60 + i) * 2), -8 + i * 4);
+        x.stroke(); x.globalAlpha = 0.6; x.fillStyle = '#fff'; x.beginPath(); x.arc(0, -8, 3, 0, 7); x.fill(); break;
+      }
       case 'rock': { x.rotate(t * 9); x.fillStyle = '#a8a29e'; x.strokeStyle = '#fb923c'; x.lineWidth = 1.5; x.beginPath();
         for (let i = 0; i < 7; i++) { const r = 6 + (i % 3), a = i * Math.PI * 2 / 7; x[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
         x.closePath(); x.fill(); x.stroke(); x.fillStyle = '#fdba74'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }

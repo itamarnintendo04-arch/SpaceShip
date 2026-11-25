@@ -386,3 +386,5 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 @keyframes cele-pop { from { transform: scale(.2) rotate(-25deg); } to { transform: scale(1) rotate(0); } }
 .cele-code { display: inline-block; margin: 0 auto; padding: 4px 14px; border-radius: 999px; font-weight: 800; letter-spacing: 3px; color: #fde047; background: rgba(253,224,71,.12); border: 1px dashed #fde047; }
 .cele-rw { font-size: 30px; animation: cele-pop .7s .2s cubic-bezier(.2,1.6,.4,1) both; }
+.rw-ship { flex-direction: column; font-size: 16px; color: #f0abfc; } .rw-ship img { width: 110px; height: 110px; }
+.welcome-rw { flex-wrap: wrap; align-items: center; }

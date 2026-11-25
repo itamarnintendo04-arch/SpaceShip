@@ -26,6 +26,8 @@
     { id: 'glacier',  secret: true, world: 2, shape: 'crystal', body: '#e0f2fe', accent: '#0369a1', glow: '#7dd3fc', gun: { rate: 2.05, dmg: 4.4, side: 5, style: 'snow', pierce: true }, aura: 'prism' },
     { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
     { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
+    // coupon ship - only from a code: the wildest ship in the game
+    { id: 'chaos', secret: true, coupon: true, shape: 'chaos', fx: 'chaos', body: '#111827', accent: '#f0f', glow: '#22d3ee', gun: { rate: 2.6, dmg: 6, side: 7, style: 'chaos', pierce: true }, aura: 'lightning' },
     // secret ship - not for sale: it is given to whoever owns the whole shop
     { id: 'cosmos', secret: true, shape: 'cosmos', fx: 'cosmic', body: '#fef3c7', accent: '#4c1d95', glow: '#f0abfc', gun: { rate: 2.35, dmg: 5.2, side: 6, style: 'cosmic', pierce: true }, aura: 'galaxy' },
   ];
@@ -40,6 +42,8 @@
     if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
     if (k.aura) drawAura(ctx, k, s, t);
     if (k.fx === 'aurora') { const h = 140 + 50 * Math.sin(t * 2); k = Object.assign({}, k, { body: `hsl(${h},80%,78%)`, glow: `hsl(${h + 20},90%,62%)` }); }
+    if (k.fx === 'chaos') { const h = (t * 400) % 360; ctx.translate(Math.sin(t * 53) * s * 0.03, Math.cos(t * 47) * s * 0.03);
+      k = Object.assign({}, k, { glow: `hsl(${h},100%,60%)`, accent: `hsl(${(h + 180) % 360},100%,55%)` }); }
     if (k.fx === 'cosmic') { const h = (t * 60) % 360; k = Object.assign({}, k, { glow: `hsl(${h},95%,72%)`, accent: `hsl(${(h + 200) % 360},70%,30%)` }); }
     if (k.fx === 'rainbow') { const h = (t * 90) % 360; k = Object.assign({}, k, { body: `hsl(${h},90%,75%)`, accent: `hsl(${(h + 60) % 360},80%,40%)`, glow: `hsl(${(h + 30) % 360},95%,65%)` }); }
     // engine flame
@@ -101,6 +105,16 @@
         ctx.fill(); ctx.stroke();
         ctx.fillStyle = k.glow; for (const sx of [-1, 1]) { ctx.fillRect(sx * s * 0.78 - s * 0.07, -s * 0.35, s * 0.14, s * 0.55); }
         break;
+      case 'chaos': { // a spinning saw-blade ship with a glitching eye
+        ctx.save(); ctx.rotate(t * 3);
+        ctx.beginPath(); for (let i = 0; i < 24; i++) { const r = i % 2 ? s * 0.55 : s * (0.95 + 0.1 * Math.sin(t * 20 + i)), a = i * Math.PI / 12 + (i % 2 ? 0.12 : 0); ctx[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); }
+        ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.rotate(-t * 5); ctx.strokeStyle = k.glow; ctx.lineWidth = Math.max(1, s * 0.06);
+        ctx.beginPath(); ctx.arc(0, 0, s * 0.42, 0, 4.2); ctx.stroke(); ctx.restore();
+        const eg = ctx.createRadialGradient(0, 0, 1, 0, 0, s * 0.3); eg.addColorStop(0, '#fff'); eg.addColorStop(0.35, k.accent); eg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(Math.sin(t * 31) * s * 0.05, 0, s * 0.3, 0, 7); ctx.fill();
+        break;
+      }
       case 'cosmos': { // secret ship: swept golden wings, a glowing core and a ring that turns around it
         path(ctx, [0, -s * 1.05, s * 0.28, -s * 0.45, s * 1.05, -s * 0.05, s * 0.75, s * 0.25, s * 1.0, s * 0.75, s * 0.32, s * 0.5, 0, s * 0.72, -s * 0.32, s * 0.5, -s * 1.0, s * 0.75, -s * 0.75, s * 0.25, -s * 1.05, -s * 0.05, -s * 0.28, -s * 0.45]);
         ctx.fill(); ctx.stroke();
@@ -122,7 +136,7 @@
         path(ctx, [0, -s, s * 0.22, -s * 0.35, s * 0.3, s * 0.05, s * 0.95, s * 0.55, s * 0.9, s * 0.72, s * 0.3, s * 0.55, s * 0.2, s * 0.7, -s * 0.2, s * 0.7, -s * 0.3, s * 0.55, -s * 0.9, s * 0.72, -s * 0.95, s * 0.55, -s * 0.3, s * 0.05, -s * 0.22, -s * 0.35]);
         ctx.fill(); ctx.stroke();
     }
-    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova' && k.shape !== 'cosmos') { // cockpit
+    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova' && k.shape !== 'cosmos' && k.shape !== 'chaos') { // cockpit
       ctx.shadowBlur = 0;
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
@@ -147,6 +161,15 @@
       }
     } else if (k.aura === 'spin') {
       for (let i = 0; i < 6; i++) { const a = t * 3 + i * Math.PI / 3; ctx.fillStyle = i % 2 ? g : '#fff'; ctx.beginPath(); ctx.arc(Math.cos(a) * s * 1.15, Math.sin(a) * s * 0.55 + s * 0.15, s * 0.07, 0, 7); ctx.fill(); }
+    } else if (k.aura === 'lightning') { // electric arcs crackling around the ship
+      ctx.lineWidth = Math.max(1, s * 0.05); ctx.lineCap = 'round';
+      for (let n = 0; n < 4; n++) {
+        const a0 = Math.floor(t * 12 + n * 7) * 1.7, r0 = s * 0.7, r1 = s * 1.45;
+        ctx.strokeStyle = `hsl(${(t * 500 + n * 90) % 360},100%,70%)`; ctx.globalAlpha = 0.9; ctx.beginPath();
+        for (let i = 0; i <= 5; i++) { const f = i / 5, r = r0 + (r1 - r0) * f, a = a0 + Math.sin((t * 40 + i) * (n + 1)) * 0.25;
+          ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+        ctx.stroke();
+      }
     } else if (k.aura === 'galaxy') { // a turning spiral of coloured stars
       for (let arm = 0; arm < 3; arm++) for (let i = 0; i < 9; i++) {
         const a = t * 1.6 + arm * 2.094 + i * 0.42, rr = s * (0.35 + i * 0.11);

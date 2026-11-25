@@ -821,7 +821,7 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
-    else if (shopTab === 'ships') html = `<div class="sh-sec">✦ ${t('secret_ships')}</div>` + secretCard(D) + Art.SHIPS.filter(s => s.world).map(s => worldCard(D, s)).join('')
+    else if (shopTab === 'ships') html = `<div class="sh-sec">✦ ${t('secret_ships')}</div>` + secretCard(D) + Art.SHIPS.filter(s => s.world).map(s => worldCard(D, s)).join('') + Art.SHIPS.filter(s => s.coupon && D.ships.includes(s.id)).map(s => worldCard(D, s)).join('')
       + `<div class="sh-sec">${Art.icon('coin')} ${t('ships')}</div>` + Art.SHIPS.filter(s => !s.gems && !s.secret).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
@@ -1724,11 +1724,13 @@
     const g = $('#cp-gifts'); if (g) g.innerHTML = giftList();
     welcomeGift();
   }
-  const rewardHtml = r => (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
+  const rewardHtml = r => (r.ship ? `<span class="rw rw-ship"><img src="${Art.shipPreview(r.ship, 120)}" alt="">${t('ship_' + r.ship)}</span>` : '')
+    + (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
   const giftList = () => gifts.length ? gifts.map(g => `<div class="gift-row"><div class="gift-ic">${Art.icon('gift')}</div><div class="gift-txt"><div>${rewardHtml(g)}</div>${g.note ? `<small>${esc(g.note)}</small>` : ''}</div>
       <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
   function grant(r) {
-    const D = user.data; D.coins += r.coins | 0; D.gems = (D.gems || 0) + (r.gems | 0);
+    const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
+    if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; }
     Sfx.init(); Sfx.coin(); save();
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
     if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
