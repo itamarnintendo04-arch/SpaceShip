@@ -27,7 +27,77 @@ if (existsSync(manifest)) {
   }
 }
 
+// .slk (SpaceShip Login Key) files open the app: Android intent filter for the file's MIME type
+if (existsSync(manifest)) {
+  let xml = readFileSync(manifest, 'utf8');
+  if (!xml.includes('application/x-spaceship-login-key')) {
+    xml = xml.replace('</activity>', `    <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/x-spaceship-login-key" />
+            </intent-filter>
+        </activity>`);
+    writeFileSync(manifest, xml);
+    console.log('android: .slk files registered');
+  }
+}
+
 const plist = 'ios/App/App/Info.plist';
+// iOS: declare the .slk type (com.spaceship.game.slk) so Files, Mail and the share sheet know it and open it in SpaceShip
+if (existsSync(plist)) {
+  let xml = readFileSync(plist, 'utf8');
+  if (!xml.includes('com.spaceship.game.slk')) {
+    const entry = `\t<key>UTExportedTypeDeclarations</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>UTTypeIdentifier</key>
+\t\t\t<string>com.spaceship.game.slk</string>
+\t\t\t<key>UTTypeDescription</key>
+\t\t\t<string>SpaceShip Login Key</string>
+\t\t\t<key>UTTypeConformsTo</key>
+\t\t\t<array>
+\t\t\t\t<string>public.data</string>
+\t\t\t</array>
+\t\t\t<key>UTTypeTagSpecification</key>
+\t\t\t<dict>
+\t\t\t\t<key>public.filename-extension</key>
+\t\t\t\t<array>
+\t\t\t\t\t<string>slk</string>
+\t\t\t\t</array>
+\t\t\t\t<key>public.mime-type</key>
+\t\t\t\t<array>
+\t\t\t\t\t<string>application/x-spaceship-login-key</string>
+\t\t\t\t</array>
+\t\t\t</dict>
+\t\t</dict>
+\t</array>
+\t<key>CFBundleDocumentTypes</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>CFBundleTypeName</key>
+\t\t\t<string>SpaceShip Login Key</string>
+\t\t\t<key>CFBundleTypeRole</key>
+\t\t\t<string>Viewer</string>
+\t\t\t<key>LSHandlerRank</key>
+\t\t\t<string>Owner</string>
+\t\t\t<key>LSItemContentTypes</key>
+\t\t\t<array>
+\t\t\t\t<string>com.spaceship.game.slk</string>
+\t\t\t</array>
+\t\t</dict>
+\t</array>
+\t<key>LSSupportsOpeningDocumentsInPlace</key>
+\t<false/>
+`;
+    const end = xml.lastIndexOf('</dict>');
+    xml = xml.slice(0, end) + entry + xml.slice(end);
+    writeFileSync(plist, xml);
+    console.log('ios: .slk files registered');
+  }
+}
 if (existsSync(plist)) {
   let xml = readFileSync(plist, 'utf8');
   if (!xml.includes('CFBundleURLSchemes')) {

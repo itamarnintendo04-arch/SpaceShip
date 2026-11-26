@@ -1,6 +1,7 @@
 :root {
   --bg: #05021a; --panel: rgba(20, 16, 52, .78); --panel2: rgba(40, 32, 90, .6); --line: rgba(148, 130, 255, .25);
   --text: #eef2ff; --muted: #a5b4fc; --cyan: #22d3ee; --pink: #f472b6; --violet: #a855f7; --gold: #facc15; --green: #4ade80; --red: #f43f5e;
+  --g1: #06b6d4; --g2: #8b5cf6; --g3: #ec4899; --glow: rgba(139, 92, 246, .45);
   --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -17,7 +18,7 @@ h1, h2, h3 { margin: 0; }
 h2 { font-size: 20px; }
 h3 { font-size: 17px; margin-bottom: 6px; }
 .title { font-size: 44px; font-weight: 900; letter-spacing: 1px; direction: ltr;
-  background: linear-gradient(90deg, #67e8f9, #a78bfa, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent;
+  background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3)); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 18px rgba(168, 85, 247, .6)); }
 .muted { color: var(--muted); } .small { font-size: 13px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 16px; backdrop-filter: blur(8px); margin-bottom: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
@@ -39,7 +40,7 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .btn:active { transform: scale(.96); }
 .btn:disabled { opacity: .45; }
 .btn.big { padding: 16px; font-size: 18px; }
-.btn.primary { border: 0; background: linear-gradient(135deg, #06b6d4, #8b5cf6 60%, #ec4899); box-shadow: 0 6px 24px rgba(139, 92, 246, .45); }
+.btn.primary { border: 0; background: linear-gradient(135deg, var(--g1), var(--g2) 60%, var(--g3)); box-shadow: 0 6px 24px var(--glow); }
 .btn.coop { border-color: rgba(250, 204, 21, .5); background: linear-gradient(135deg, rgba(234, 88, 12, .45), rgba(250, 204, 21, .3)); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .btn.gold { border: 0; background: linear-gradient(135deg, #f59e0b, #facc15); color: #3b2300; }
@@ -408,3 +409,12 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .pf-pen { position: absolute; bottom: -4px; inset-inline-end: -10px; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--cyan, #22d3ee); background: #0b0825; font-size: 15px; cursor: pointer; display: grid; place-items: center; }
 .pf-icons { margin: 8px 0; }
 .appicon-img { width: 56px !important; height: 56px !important; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+
+/* ---- app design (Settings -> Look -> App design) ---- */
+:root[data-theme="ocean"] { --bg: #020a1c; --panel: rgba(10, 24, 52, .8); --panel2: rgba(20, 52, 100, .6); --line: rgba(96, 165, 250, .28); --muted: #93c5fd; --violet: #3b82f6; --pink: #38bdf8; --g1: #22d3ee; --g2: #3b82f6; --g3: #6366f1; --glow: rgba(59, 130, 246, .45); }
+:root[data-theme="emerald"] { --bg: #01140e; --panel: rgba(6, 40, 30, .8); --panel2: rgba(12, 80, 58, .55); --line: rgba(52, 211, 153, .28); --muted: #6ee7b7; --violet: #10b981; --pink: #a3e635; --g1: #a3e635; --g2: #10b981; --g3: #0d9488; --glow: rgba(16, 185, 129, .45); }
+:root[data-theme="sunset"] { --bg: #1a0805; --panel: rgba(52, 20, 12, .8); --panel2: rgba(110, 42, 20, .55); --line: rgba(251, 146, 60, .3); --muted: #fdba74; --violet: #f97316; --pink: #f43f5e; --g1: #facc15; --g2: #f97316; --g3: #e11d48; --glow: rgba(249, 115, 22, .45); }
+:root[data-theme="crimson"] { --bg: #16020a; --panel: rgba(50, 8, 22, .8); --panel2: rgba(100, 16, 40, .55); --line: rgba(251, 113, 133, .3); --muted: #fda4af; --violet: #e11d48; --pink: #f472b6; --g1: #fb7185; --g2: #e11d48; --g3: #9333ea; --glow: rgba(225, 29, 72, .45); }
+:root[data-theme="midnight"] { --bg: #05070c; --panel: rgba(17, 22, 32, .85); --panel2: rgba(36, 44, 60, .6); --line: rgba(148, 163, 184, .25); --muted: #94a3b8; --violet: #64748b; --pink: #22d3ee; --g1: #22d3ee; --g2: #0ea5e9; --g3: #475569; --glow: rgba(14, 165, 233, .35); }
+.theme-sw { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+.theme-sw i { width: 30px; height: 12px; border-radius: 6px; }

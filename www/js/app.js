@@ -157,6 +157,22 @@
     else if (b.dataset.act === 'endless') startGame({ mode: 'endless' });
   });
 
+  // ---------- app design: the colours of the whole interface ----------
+  const THEMES = {
+    galaxy: { bg: ['#2a0f5c', '#0b0630', '#03010f'], g: ['#06b6d4', '#8b5cf6', '#ec4899'], base: '#05021a' },
+    ocean: { bg: ['#0c2f66', '#06163a', '#010714'], g: ['#22d3ee', '#3b82f6', '#6366f1'], base: '#020a1c' },
+    emerald: { bg: ['#0b4d36', '#04261b', '#010c08'], g: ['#a3e635', '#10b981', '#0d9488'], base: '#01140e' },
+    sunset: { bg: ['#5c1f0c', '#2a0c06', '#0d0302'], g: ['#facc15', '#f97316', '#e11d48'], base: '#1a0805' },
+    crimson: { bg: ['#5c0a24', '#2a0410', '#0d0105'], g: ['#fb7185', '#e11d48', '#9333ea'], base: '#16020a' },
+    midnight: { bg: ['#1e293b', '#0b1120', '#020409'], g: ['#22d3ee', '#0ea5e9', '#475569'], base: '#05070c' },
+  };
+  const theme = () => THEMES[settings.theme] || THEMES.galaxy;
+  function applyTheme() {
+    const id = THEMES[settings.theme] ? settings.theme : 'galaxy';
+    if (id === 'galaxy') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = id;
+    const mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.content = theme().base;
+  }
+  applyTheme();
   // ---------- background stars on menus ----------
   (function bg() {
     const c = $('#bgfx'), x = c.getContext('2d'); let st = [];
@@ -165,7 +181,7 @@
     const g = () => {
       if (c.style.display !== 'none') {
         const gr = x.createRadialGradient(c.width * 0.7, c.height * 0.2, 0, c.width * 0.7, c.height * 0.2, c.width);
-        gr.addColorStop(0, '#2a0f5c'); gr.addColorStop(0.5, '#0b0630'); gr.addColorStop(1, '#03010f');
+        const tb = theme().bg; gr.addColorStop(0, tb[0]); gr.addColorStop(0.5, tb[1]); gr.addColorStop(1, tb[2]);
         x.fillStyle = gr; x.fillRect(0, 0, c.width, c.height);
         for (const s of st) { s.y += (0.2 + s.z * 1.2); if (s.y > c.height) { s.y = 0; s.x = Math.random() * c.width; } x.globalAlpha = 0.3 + s.z * 0.7; x.fillStyle = '#fff'; x.fillRect(s.x, s.y, 1 + s.z * 1.5, 1 + s.z * 1.5); }
         x.globalAlpha = 1;
@@ -547,6 +563,9 @@
       </div>
       <label class="vol ${settings.music ? '' : 'off'}">${t('music_vol')} <b id="s-vol-n">${settings.musicVol}%</b>
         <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
+      <div class="sec look-ui"><h3>🖌️ ${t('ui_design')}</h3><p class="muted small">${t('ui_design_note')}</p>
+        <div class="look-grid">${Object.keys(THEMES).map(id => `<button class="look-it ${(THEMES[settings.theme] ? settings.theme : 'galaxy') === id ? 'on' : ''}" data-theme-id="${id}"><span class="theme-sw" style="background:radial-gradient(circle at 70% 20%, ${THEMES[id].bg[0]}, ${THEMES[id].bg[2]})"><i style="background:linear-gradient(90deg, ${THEMES[id].g.join(', ')})"></i></span><small>${t('th_' + id)}</small></button>`).join('')}</div>
+      </div>
       <div class="sec look"><h3>🎨 ${t('look')}</h3><p class="muted small">${t('app_icon_note')}</p>
         <div class="look-grid">${APP_ICONS.map(id => `<button class="look-it ${(settings.appIcon || 'classic') === id ? 'on' : ''}" data-appicon="${id}"><img src="img/appicons/${id}.png" alt="" class="appicon-img"><small>${t('ai_' + id)}</small></button>`).join('')}</div>
       </div>
@@ -578,6 +597,10 @@
       on('#s-key', saveLoginKey);
       m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
       m.querySelectorAll('[data-appicon]').forEach(b => b.onclick = async () => { await setAppIcon(b.dataset.appicon); openSettings(); });
+      m.querySelectorAll('[data-theme-id]').forEach(b => b.onclick = () => {
+        settings.theme = b.dataset.themeId; saveSettings(); applyTheme(); Sfx.init(); Sfx.click && Sfx.click();
+        m.querySelectorAll('[data-theme-id]').forEach(x => x.classList.toggle('on', x === b)); toast(t('ui_design_set', { x: t('th_' + settings.theme) }));
+      });
     });
   }
   // signing out removes the account from this device: its saved login key and its local data
@@ -602,12 +625,27 @@
   // Login key saved in the device's own password manager (Apple Passwords / iCloud Keychain, Google Password Manager,
   // the browser's saved passwords): username = @handle, password = the key. A file is still offered as a backup.
   const canStoreCred = () => !!(window.PasswordCredential && navigator.credentials && navigator.credentials.store);
-  function saveKeyFile() {
-    const key = makeKey(user), name = `SpaceShip-key-${user.handle}.txt`;
-    const text = `SpaceShip\n@${user.handle}\n\n${t('key_file_note')}\n\n${key}\n`;
+  // .slk = SpaceShip Login Key: a small text file with a header and the key. The game reads the SSK1. key from it
+  // (old .txt key files still work). On phones it is written as a real file and handed to the share sheet
+  // (Save to Files / Drive / AirDrop); tapping a .slk file opens SpaceShip with the key filled in.
+  const SLK_MIME = 'application/x-spaceship-login-key';
+  const PW_DOMAIN = String(window.SS_DOMAIN || '').trim();
+  // the device's own password manager: Google Password Manager (Credential Manager) on Android,
+  // Apple Passwords (shared web credentials) on iPhone - iPhone needs the app linked to the website (Associated Domain)
+  const OS = window.Capacitor && window.Capacitor.getPlatform ? window.Capacitor.getPlatform() : 'web';
+  const nativePw = () => NATIVE && !!Cap.SavePassword && (OS === 'android' || (OS === 'ios' && !!PW_DOMAIN));
+  function slkText() {
+    return `SpaceShip Login Key (SLK)\nFormat: SLK/1\nAccount: @${user.handle}\nName: ${user.name}\nCreated: ${new Date().toISOString()}\n\n${t('key_file_note')}\n\n${makeKey(user)}\n`;
+  }
+  async function saveKeyFile() {
+    const key = makeKey(user), name = `SpaceShip-${user.handle}.slk`, text = slkText();
     try {
-      if (NATIVE && Cap.Share) return Cap.Share.share({ title: name, text }).then(() => toast(t('key_saved'), 3500));
-      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = name;
+      if (NATIVE && Cap.Filesystem && Cap.Share) {
+        const w = await Cap.Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+        await Cap.Share.share({ title: name, files: [w.uri] }); toast(t('key_saved'), 3500); return;
+      }
+      if (NATIVE && Cap.Share) { await Cap.Share.share({ title: name, text }); toast(t('key_saved'), 3500); return; }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: SLK_MIME })); a.download = name;
       document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
       toast(t('key_saved'), 3500);
     } catch (e) { copy(key); }
@@ -630,6 +668,10 @@
       m.querySelector('#kp-form').onsubmit = async e => {
         e.preventDefault();
         let stored = false;
+        if (nativePw()) {   // the phone's own "Save password?" sheet
+          try { await Cap.SavePassword.promptDialog({ username: handle, password: key, url: PW_DOMAIN || undefined }); closeModal(); toast(t('pw_saved'), 4000); return; }
+          catch (er) { console.warn('save password', er); if (/cancel/i.test(String(er && er.message))) return; toast(t('pw_native_fail'), 4500); return; }
+        }
         if (canStoreCred()) {
           try { await navigator.credentials.store(new PasswordCredential({ id: handle, password: key, name: user.name })); stored = true; } catch (er) { console.warn('credential store', er); }
         }
@@ -638,7 +680,7 @@
       };
     });
   }
-  function keyLogin() {
+  function keyLogin(prefill) {
     modal(`<div style="font-size:40px">🔑</div><h2>${t('key_login')}</h2><p class="muted small">${t('pw_login_note')}</p>
       <form id="k-form" class="col" action="#" method="post" autocomplete="on">
         <input name="username" id="k-user" autocomplete="username" dir="ltr" placeholder="@handle" autocapitalize="off" spellcheck="false">
@@ -646,11 +688,19 @@
         <div class="status" id="k-st"></div>
         <button class="btn primary" id="k-go" type="submit">${t('login')}</button>
       </form>
-      <label class="btn small" style="cursor:pointer">📄 ${t('key_file_pick')}<input id="k-file" type="file" accept=".txt,text/plain" hidden></label>
+      ${nativePw() ? `<button class="btn small" id="k-saved" type="button">🔐 ${t('pw_use_saved')}</button>` : ''}
+      <label class="btn small" style="cursor:pointer">📄 ${t('key_file_pick')}<input id="k-file" type="file" accept=".slk,.txt,text/plain,${SLK_MIME}" hidden></label>
       <button class="btn ghost" id="k-x">${t('cancel')}</button>`, m => {
       const st = m.querySelector('#k-st'), inp = m.querySelector('#k-in'), go = m.querySelector('#k-go'), form = m.querySelector('#k-form');
       m.querySelector('#k-x').onclick = closeModal;
-      m.querySelector('#k-file').onchange = async e => { const f = e.target.files[0]; if (f) { inp.value = (await f.text()).trim(); form.requestSubmit ? form.requestSubmit() : go.click(); } };
+      const submit = () => (form.requestSubmit ? form.requestSubmit() : go.click());
+      m.querySelector('#k-file').onchange = async e => { const f = e.target.files[0]; if (f) { inp.value = (await f.text()).trim(); submit(); } };
+      const ks = m.querySelector('#k-saved');
+      if (ks) ks.onclick = async () => {
+        try { const c = await Cap.SavePassword.readPassword(); if (c && c.password) { m.querySelector('#k-user').value = c.username || ''; inp.value = c.password; submit(); } }
+        catch (er) { if (!/cancel/i.test(String(er && er.message))) { st.className = 'status err'; st.textContent = t('pw_none_saved'); } }
+      };
+      if (prefill) { const k0 = /SSK1\.[A-Za-z0-9_-]{20,}/.exec(prefill), h0 = /Account:\s*(@\S+)/.exec(prefill); if (h0) m.querySelector('#k-user').value = h0[1]; if (k0) { inp.value = k0[0]; setTimeout(submit, 300); } }
       // browsers that support it can hand over a saved key directly (the person picks it)
       if (window.PasswordCredential && navigator.credentials && navigator.credentials.get) {
         navigator.credentials.get({ password: true, mediation: 'optional' }).then(c => {
@@ -1891,9 +1941,21 @@
     try { const r = await Net.redeemCoupon(user, code); gifts = gifts.filter(g => g.code.toUpperCase() !== String(r.code).toUpperCase()); grant(r); setTimeout(() => celebrate(r, t('link_gift_title')), 600); }
     catch (e) { toast(errText(e), 3500); }
   }
+  async function openKeyFileUrl(url) {
+    try {
+      const r = await Cap.Filesystem.readFile({ path: url, encoding: 'utf8' }), text = String(r && r.data || '');
+      if (!/SSK1\./.test(text)) return toast(t('key_bad'), 3500);
+      setTimeout(() => keyLogin(text), 400);
+    } catch (e) { console.warn('slk open', e); toast(t('key_bad'), 3500); }
+  }
+  const onOpenUrl = url => {
+    if (!url) return;
+    if (url.startsWith('com.spaceship.game://gift')) giftFromUrl(url);
+    else if (/^(file|content):/i.test(url) && Cap.Filesystem) openKeyFileUrl(url);
+  };
   if (Cap.App) {
-    Cap.App.addListener('appUrlOpen', ev => { if (ev && ev.url && ev.url.startsWith('com.spaceship.game://gift')) giftFromUrl(ev.url); });
-    if (Cap.App.getLaunchUrl) Cap.App.getLaunchUrl().then(r => { if (r && r.url) giftFromUrl(r.url); }).catch(() => {});
+    Cap.App.addListener('appUrlOpen', ev => onOpenUrl(ev && ev.url));
+    if (Cap.App.getLaunchUrl) Cap.App.getLaunchUrl().then(r => onOpenUrl(r && r.url)).catch(() => {});
   }
   if (/[?&]gift=/.test(location.search)) { giftFromUrl(location.href); try { window.history.replaceState(null, '', location.pathname); } catch (e) {} }
   // a secret token typed in the login-key sign-in: its ship goes to the account that signs in

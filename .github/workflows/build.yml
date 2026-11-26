@@ -83,7 +83,7 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - run: npm ci
       - run: npm run vendor
-      - run: echo "window.SS_VERSION = '${{ needs.release.outputs.version }}';" > www/js/version.js
+      - run: echo "window.SS_VERSION = '${{ needs.release.outputs.version }}'; window.SS_DOMAIN = '${{ vars.IOS_ASSOCIATED_DOMAIN }}';" > www/js/version.js
       - run: npx cap add android && node scripts/patch-native.mjs
       - run: npx capacitor-assets generate --android --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
       - name: Set version
@@ -114,7 +114,7 @@ jobs:
         run: |
           npm ci
           npm run vendor
-          echo "window.SS_VERSION = '${{ needs.release.outputs.version }}';" > www/js/version.js
+          echo "window.SS_VERSION = '${{ needs.release.outputs.version }}'; window.SS_DOMAIN = '${{ vars.IOS_ASSOCIATED_DOMAIN }}';" > www/js/version.js
           npm version ${{ needs.release.outputs.version }} --no-git-tag-version --allow-same-version
           npx electron-builder --publish never
         env:
@@ -136,7 +136,7 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npm run vendor
-      - run: echo "window.SS_VERSION = '${{ needs.release.outputs.version }}';" > www/js/version.js
+      - run: echo "window.SS_VERSION = '${{ needs.release.outputs.version }}'; window.SS_DOMAIN = '${{ vars.IOS_ASSOCIATED_DOMAIN }}';" > www/js/version.js
       - run: npx cap add ios && node scripts/patch-native.mjs
         env:
           # optional repo variable: links the app to the website for Apple Passwords (see README)
