@@ -161,3 +161,4 @@ details p { margin: 0 0 16px; color: var(--muted); }
   .phone img { border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }
+.hidden { display: none !important; }

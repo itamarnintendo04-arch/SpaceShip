@@ -129,7 +129,7 @@ The iOS build is **unsigned**. For a signed iPhone download, sign it yourself an
 `site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device. It is in English by default, and a globe button switches between the same 14 languages as the game. It also detects the visitor's device and highlights that download.
 
 - Android / Windows / macOS / Linux links, the version and file sizes come from the latest GitHub release automatically (`site/api/config.js`).
-- **iPhone**: set the Vercel environment variable **`IOS_DOWNLOAD_URL`**. It can be a direct signed `.ipa`, an `itms-services://` link, TestFlight or the App Store. Optional: `IOS_NOTE`, a short line shown under the iPhone button. Redeploy after changing it. While it is empty, the button shows "Coming soon".
+- **iPhone**: set the Vercel environment variable **`IOS_DOWNLOAD_URL`**. When it is set, the iPhone card also has a second button, *Download the .ipa file* (the unsigned .ipa from the latest release, for Sideloadly / AltStore). When it is empty, the main button downloads the .ipa itself. It can be a direct signed `.ipa`, an `itms-services://` link, TestFlight or the App Store. Optional: `IOS_NOTE`, a short line shown under the iPhone button. Redeploy after changing it. While it is empty, the button shows "Coming soon".
 
 Deploy: Vercel → Add New → Project → import this repo → **Root Directory `site`**, Framework **Other** → Deploy.
 
