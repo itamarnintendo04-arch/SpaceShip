@@ -62,6 +62,8 @@
     partyMessages: (u, party, after) => rpc('party_messages', { p_id: u.id, p_secret: u.secret, p_party: party, p_after: after || 0 }),
     activeEvents: () => rpc('active_events'),
     shopCatalog: () => rpc('shop_catalog'),
+    checkSecretToken: (token) => rpc('check_secret_token', { p_token: token }),
+    claimSecretToken: (u, token) => rpc('claim_secret_token', { p_id: u.id, p_secret: u.secret, p_token: token }),
     shopBuy: (u, kind, item) => rpc('shop_buy', { p_id: u.id, p_secret: u.secret, p_kind: kind, p_item: item }),
     shopConvert: (u, gems) => rpc('shop_convert', { p_id: u.id, p_secret: u.secret, p_gems: gems }),
     appInfo: () => rpc('app_info'),

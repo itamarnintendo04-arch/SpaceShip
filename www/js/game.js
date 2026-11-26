@@ -99,6 +99,7 @@
     frost: { c1: '#f0f9ff', c2: '#38bdf8', hp: 1.6, sp: 1.1 },
     magma: { c1: '#fecaca', c2: '#b91c1c', hp: 1.5, sp: 1.25 },
     dark: { c1: '#a78bfa', c2: '#1e1b4b', hp: 2.2, sp: 0.95 },
+    steel: { c1: '#cbd5e1', c2: '#1f2937', hp: Infinity, sp: 0.8 },   // secret worlds only: shots bounce off, dodge it
   };
   const FX_COLORS = ['#fbbf24', '#60a5fa', '#f87171', '#a3e635', '#e879f9', '#ffffff'];
   const PICK_TYPES = ['coin', 'shield', 'rapid', 'triple', 'life', 'crystal'];
@@ -129,6 +130,11 @@
       case 'vortex': { x.rotate(t * 16); x.strokeStyle = '#34d399'; x.lineWidth = 2.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 6, i * 2.1, i * 2.1 + 1.4); x.stroke(); } x.fillStyle = '#ecfdf5'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill(); break; }
       case 'void': { x.fillStyle = '#000'; x.strokeStyle = '#a78bfa'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 6.5, 0, 7); x.fill(); x.stroke(); x.globalAlpha = 0.5; x.beginPath(); x.arc(0, 0, 9 + Math.sin(t * 20) * 1.5, 0, 7); x.stroke(); break; }
       case 'aurora': { const h = 150 + 40 * Math.sin(t * 8 + b.x * 0.05); x.strokeStyle = `hsl(${h},90%,65%)`; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 6; i++) x[i ? 'lineTo' : 'moveTo'](Math.sin(t * 30 + i) * 3, i * 4); x.stroke(); x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 2, 0, 7); x.fill(); break; }
+      case 'holy': { // a golden lance of light
+        const gr = x.createLinearGradient(0, -12, 0, 8); gr.addColorStop(0, '#fff'); gr.addColorStop(0.5, '#fde047'); gr.addColorStop(1, 'rgba(202,138,4,0)');
+        x.fillStyle = gr; x.beginPath(); x.moveTo(0, -13); x.lineTo(3.5, -2); x.lineTo(1.5, 9); x.lineTo(-1.5, 9); x.lineTo(-3.5, -2); x.closePath(); x.fill();
+        x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-4, -5); x.lineTo(4, -5); x.stroke(); break;
+      }
       case 'chaos': { // a zig-zag bolt of lightning that flickers through every colour
         const h = (t * 900 + b.x * 3) % 360; x.strokeStyle = `hsl(${h},100%,65%)`; x.lineWidth = 3; x.lineCap = 'round'; x.beginPath();
         for (let i = 0; i <= 5; i++) x[i ? 'lineTo' : 'moveTo']((i % 2 ? 1 : -1) * (3 + Math.sin(t * 60 + i) * 2), -8 + i * 4);
@@ -390,6 +396,7 @@
         for (const m of this.meteors) {
           if (m.dead) continue;
           if (Math.abs(m.x - b.x) < m.r + 4 && Math.abs(m.y - b.y) < m.r + 4 && Math.hypot(m.x - b.x, m.y - b.y) < m.r + 4) {
+            if (m.kind === 'steel') { b.dead = true; m.flash = 0.04; this.spark(b.x, b.y, 3, 0); break; }   // shots bounce off steel
             if (b.pierce) { if (b.hits.has(m.id)) continue; b.hits.add(m.id); } else b.dead = true;
             m.hp -= b.dmg; m.flash = 0.06;
             if (m.hp <= 0) this.killMeteor(m, b.owner);
@@ -411,7 +418,7 @@
       // meteor vs player
       for (const m of this.meteors) {
         if (m.dead) continue;
-        for (const p of this.players) if (p.alive && Math.hypot(p.x - m.x, p.y - m.y) < m.r + 14) { this.hurt(p); m.hp = 0; this.killMeteor(m, -1); }
+        for (const p of this.players) if (p.alive && Math.hypot(p.x - m.x, p.y - m.y) < m.r + 14) { this.hurt(p); if (m.kind !== 'steel') { m.hp = 0; this.killMeteor(m, -1); } }
       }
       this.meteors = this.meteors.filter(m => !m.dead && m.y < this.H + 80);
 
@@ -442,7 +449,7 @@
     spawnMeteor(opt = {}) {
       const cfg = this.cfg;
       let tier = opt.tier != null ? opt.tier : Math.random() < cfg.bigChance ? 2 : Math.random() < 0.5 ? 1 : 0;
-      const kind = opt.kind || (Math.random() < cfg.goldChance ? 'gold' : pick(cfg.kinds));
+      const kind = opt.kind || (this.secret && !opt.tier && Math.random() < 0.22 ? 'steel' : Math.random() < cfg.goldChance ? 'gold' : pick(cfg.kinds));
       const K = KIND[kind];
       const r = [15, 27, 44][tier] * rnd(0.9, 1.12);
       const n = 9 + tier * 2, pts = [];
@@ -547,6 +554,7 @@
     }
     hurt(p) {
       if (p.inv > 0 || !p.alive || this.over && this.result && this.result.win) return;
+      if ((Art.SHIPS.find(s => s.id === p.skin) || {}).invincible) { p.inv = 0.5; this.spark(p.x, p.y, 10, 0); return; }   // the Immortal ship
       this.shake = 8; Sfx.hit(); this.hits++;
       if (p.shield > 0) { p.shield--; p.inv = 1.2; this.fxQueue.push([p.x, p.y, -2, 1]); this.spark(p.x, p.y, 12, 1); return; }
       p.lives--; this.livesLost++; p.inv = 2;
@@ -653,7 +661,7 @@
       else if (ev === 'st' && this.isGuest) this.applyState(p);
     }
     applyState(st) {
-      const kinds = { r: 'rock', i: 'ice', l: 'lava', g: 'gold', f: 'frost', m: 'magma', d: 'dark' };
+      const kinds = { r: 'rock', i: 'ice', l: 'lava', g: 'gold', f: 'frost', m: 'magma', d: 'dark', s: 'steel' };
       const old = new Map(this.meteors.map(m => [m.id, m]));
       this.meteors = st.m.map(a => {
         const o = old.get(a[0]);
@@ -840,7 +848,7 @@
       if (m.ship) return this.drawEnemy(x, m);
       const K = KIND[m.kind];
       x.save(); x.translate(m.x, m.y); x.rotate(m.rot);
-      const glow = { lava: '#f97316', gold: '#facc15', magma: '#ef4444', dark: '#a855f7', frost: '#7dd3fc' }[m.kind];
+      const glow = { lava: '#f97316', gold: '#facc15', magma: '#ef4444', dark: '#a855f7', frost: '#7dd3fc', steel: '#f43f5e' }[m.kind];
       if (glow) { x.shadowColor = glow; x.shadowBlur = 16; }
       const g = x.createRadialGradient(-m.r * 0.3, -m.r * 0.3, m.r * 0.1, 0, 0, m.r);
       g.addColorStop(0, m.flash > 0 ? '#fff' : K.c1); g.addColorStop(1, K.c2);
@@ -850,6 +858,11 @@
       x.shadowBlur = 0; x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 2; x.stroke();
       x.fillStyle = 'rgba(0,0,0,.22)';
       for (const c of m.craters) { x.beginPath(); x.arc(c[0] * m.r, c[1] * m.r, c[2] * m.r, 0, 7); x.fill(); }
+      if (m.kind === 'steel') { // riveted armour plates with a red warning core
+        x.strokeStyle = '#64748b'; x.lineWidth = 2; x.beginPath(); x.arc(0, 0, m.r * 0.62, 0, 7); x.stroke();
+        x.fillStyle = '#e2e8f0'; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; x.beginPath(); x.arc(Math.cos(a) * m.r * 0.62, Math.sin(a) * m.r * 0.62, Math.max(1.5, m.r * 0.06), 0, 7); x.fill(); }
+        x.fillStyle = `rgba(244,63,94,${0.55 + 0.35 * Math.sin(this.t * 8)})`; x.beginPath(); x.arc(0, 0, m.r * 0.22, 0, 7); x.fill();
+      }
       if (m.kind === 'dark') { x.strokeStyle = 'rgba(216,180,254,.7)'; x.lineWidth = 1.2; x.beginPath(); x.arc(0, 0, m.r * 0.55, 0, 4.5); x.stroke(); }
       if (m.kind === 'frost') { x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 1.2; x.beginPath(); for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; x.moveTo(Math.cos(a) * m.r * 0.5, Math.sin(a) * m.r * 0.5); x.lineTo(-Math.cos(a) * m.r * 0.5, -Math.sin(a) * m.r * 0.5); } x.stroke(); }
       if (m.kind === 'lava' || m.kind === 'magma') { x.strokeStyle = '#fbbf24'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-m.r * 0.5, 0); x.lineTo(0, m.r * 0.2); x.lineTo(m.r * 0.4, -m.r * 0.3); x.stroke(); }

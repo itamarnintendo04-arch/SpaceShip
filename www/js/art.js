@@ -26,6 +26,8 @@
     { id: 'glacier',  secret: true, world: 2, shape: 'crystal', body: '#e0f2fe', accent: '#0369a1', glow: '#7dd3fc', gun: { rate: 2.05, dmg: 4.4, side: 5, style: 'snow', pierce: true }, aura: 'prism' },
     { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
     { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
+    // secret-token ship - from a secret token typed in the login-key sign-in: nothing can hurt it
+    { id: 'aegis', secret: true, coupon: true, invincible: true, shape: 'aegis', body: '#f8fafc', accent: '#ca8a04', glow: '#fde047', gun: { rate: 2.4, dmg: 5.5, side: 6, style: 'holy', pierce: true }, aura: 'aegis' },
     // coupon ship - only from a code: the wildest ship in the game
     { id: 'chaos', secret: true, coupon: true, shape: 'chaos', fx: 'chaos', body: '#111827', accent: '#f0f', glow: '#22d3ee', gun: { rate: 2.6, dmg: 6, side: 7, style: 'chaos', pierce: true }, aura: 'lightning' },
     // secret ship - not for sale: it is given to whoever owns the whole shop
@@ -105,6 +107,13 @@
         ctx.fill(); ctx.stroke();
         ctx.fillStyle = k.glow; for (const sx of [-1, 1]) { ctx.fillRect(sx * s * 0.78 - s * 0.07, -s * 0.35, s * 0.14, s * 0.55); }
         break;
+      case 'aegis': { // armoured hexagon hull with golden wings
+        path(ctx, [0, -s * 1.0, s * 0.42, -s * 0.55, s * 0.42, s * 0.2, s * 1.0, s * 0.45, s * 0.85, s * 0.78, s * 0.3, s * 0.62, 0, s * 0.8, -s * 0.3, s * 0.62, -s * 0.85, s * 0.78, -s * 1.0, s * 0.45, -s * 0.42, s * 0.2, -s * 0.42, -s * 0.55]);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = k.accent; path(ctx, [0, -s * 0.55, s * 0.24, -s * 0.2, 0, s * 0.35, -s * 0.24, -s * 0.2]); ctx.fill();
+        ctx.fillStyle = k.glow; ctx.beginPath(); ctx.arc(0, -s * 0.12, s * 0.12, 0, 7); ctx.fill();
+        break;
+      }
       case 'chaos': { // a spinning saw-blade ship with a glitching eye
         ctx.save(); ctx.rotate(t * 3);
         ctx.beginPath(); for (let i = 0; i < 24; i++) { const r = i % 2 ? s * 0.55 : s * (0.95 + 0.1 * Math.sin(t * 20 + i)), a = i * Math.PI / 12 + (i % 2 ? 0.12 : 0); ctx[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, -Math.cos(a) * r); }
@@ -136,7 +145,7 @@
         path(ctx, [0, -s, s * 0.22, -s * 0.35, s * 0.3, s * 0.05, s * 0.95, s * 0.55, s * 0.9, s * 0.72, s * 0.3, s * 0.55, s * 0.2, s * 0.7, -s * 0.2, s * 0.7, -s * 0.3, s * 0.55, -s * 0.9, s * 0.72, -s * 0.95, s * 0.55, -s * 0.3, s * 0.05, -s * 0.22, -s * 0.35]);
         ctx.fill(); ctx.stroke();
     }
-    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova' && k.shape !== 'cosmos' && k.shape !== 'chaos') { // cockpit
+    if (k.shape !== 'saucer' && k.shape !== 'crystal' && k.shape !== 'nova' && k.shape !== 'cosmos' && k.shape !== 'chaos' && k.shape !== 'aegis') { // cockpit
       ctx.shadowBlur = 0;
       const cg = ctx.createLinearGradient(0, -s * 0.6, 0, 0);
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
@@ -161,6 +170,15 @@
       }
     } else if (k.aura === 'spin') {
       for (let i = 0; i < 6; i++) { const a = t * 3 + i * Math.PI / 3; ctx.fillStyle = i % 2 ? g : '#fff'; ctx.beginPath(); ctx.arc(Math.cos(a) * s * 1.15, Math.sin(a) * s * 0.55 + s * 0.15, s * 0.07, 0, 7); ctx.fill(); }
+    } else if (k.aura === 'aegis') { // a turning hexagon force field
+      ctx.rotate(t * 0.7); ctx.lineWidth = Math.max(1, s * 0.06);
+      for (let ring = 0; ring < 2; ring++) {
+        const r = s * (1.3 + ring * 0.18 + 0.05 * Math.sin(t * 4 + ring));
+        ctx.globalAlpha = 0.55 - ring * 0.2; ctx.strokeStyle = ring ? '#fff' : g; ctx.beginPath();
+        for (let i = 0; i <= 6; i++) { const a = i * Math.PI / 3 + ring * 0.5; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 0.12; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, s * 1.3, 0, 7); ctx.fill();
     } else if (k.aura === 'lightning') { // electric arcs crackling around the ship
       ctx.lineWidth = Math.max(1, s * 0.05); ctx.lineCap = 'round';
       for (let n = 0; n < 4; n++) {

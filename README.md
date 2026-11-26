@@ -26,7 +26,7 @@ Four regular worlds of 500 levels each. They open in order: a world opens when y
 Enemy ships sway side to side and shoot back. Every 5th level is a boss (a mothership). Difficulty rises with the level and levels off, so level 500 is hard but beatable. Each level gives 1–3 stars.
 
 ### 20 secret worlds and diamonds
-Secret worlds hide in world 1. Each one opens through a special task: a golden comet, beating a boss without getting hit, crystals, golden meteors, coins, a no-hit level, a speed run. The hint appears on the levels screen. Clearing a secret level for the first time gives **diamonds**.
+Secret worlds hide in world 1. Each one opens through a special task: a golden comet, beating a boss without getting hit, crystals, golden meteors, coins, a no-hit level, a speed run. There are **no hints**: players have to discover them. Secret worlds also have **steel meteors**: shots bounce off them, so you have to dodge them. Clearing a secret level for the first time gives **diamonds**.
 
 ### Shop
 - **Coin ships**, from Falcon up to Comet (7,500), Nebula (10,000), Titan (15,000) and Vortex (20,000).
@@ -39,6 +39,7 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Convert diamonds**: 1 diamond = 10 coins.
 - **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
 - **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship. It appears in the shop's secret row only once you own it.
+- **Immortal (secret token).** Nothing can hurt it: a hexagon force field and golden light lances. You get it with a **secret token** (starts with `SST-`) typed in *Sign in with a login key*. The game remembers it, and the ship is added to the account that signs in next. Tokens live in the `secret_tokens` table: add rows or untick `active`. They are never stored in this repository. SQL: `supabase/secret_tokens.sql`.
 - **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). The shop's *Secret ships* row shows each one locked, with progress (levels finished / 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
 
 ### Shop on the server

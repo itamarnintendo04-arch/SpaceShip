@@ -630,6 +630,18 @@
       }
       form.onsubmit = async e => {
         e.preventDefault();
+        // a secret token (SST-...) instead of a login key: remember it, and its ship is added to the account you sign in with
+        const tok = /^\s*(SST-[A-Za-z0-9-]{8,64})\s*$/i.exec(inp.value);
+        if (tok) {
+          go.disabled = true;
+          try {
+            const ship = await Net.checkSecretToken(tok[1].toUpperCase()); go.disabled = false;
+            if (!ship) { st.className = 'status err'; st.textContent = t('secret_token_bad'); return; }
+            store.set('ss_secret_tok', tok[1].toUpperCase()); inp.value = '';
+            st.className = 'status ok'; st.textContent = t('secret_token_ok', { x: t('ship_' + ship) }); Sfx.init(); Sfx.power();
+          } catch (er) { go.disabled = false; st.className = 'status err'; st.textContent = errText(er); }
+          return;
+        }
         const k = readKey(inp.value);
         if (!k) { st.className = 'status err'; st.textContent = t('key_bad'); return; }
         go.disabled = true; st.className = 'status'; st.textContent = t('connecting');
@@ -706,9 +718,9 @@
     if (g !== 1) return html; // the secret worlds are found in world 1
     html += `<div class="sw-head">${Art.icon('secret')} ${t('secret_worlds')} <small>${D.worlds.length}/${WORLDS.length}</small></div>`;
     WORLDS.forEach((w, i) => {
-      const wn = i + 1, hint = t('h_' + w.trig.type, { l: w.trig.level, n: w.trig.n });
+      const wn = i + 1;
       if (!D.worlds.includes(w.id)) {
-        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} ${t('secret_world_q')} <small class="muted">#${wn}</small></div><div class="w-hint">${t('hint')} ${hint}</div></div>`;
+        html += `<div class="world locked-w"><div class="w-title">${Art.icon('lock')} ${t('secret_world_q')} <small class="muted">#${wn}</small></div></div>`;   // no hints: find them yourself
         return;
       }
       html += `<div class="world" style="--h:${w.hue}"><div class="w-title">${Art.icon('secret')} ${t(w.id + '_name')}</div><div class="w-levels">` +
@@ -761,7 +773,7 @@
       Object.assign(s, { shape: r.shape, body: r.body, accent: r.accent, glow: r.glow, aura: r.aura || undefined, fx: r.fx || undefined,
         gun: { rate: +r.gun.rate, dmg: +r.gun.dmg, side: +r.gun.side, style: r.gun.style, pierce: !!r.gun.pierce },
         price: r.gems > 0 ? undefined : +r.price, gems: r.gems > 0 ? +r.gems : undefined,
-        secret: !!r.secret || undefined, world: r.world || undefined, coupon: !!r.coupon || undefined, hidden: !r.active || undefined });
+        secret: !!r.secret || undefined, world: r.world || undefined, coupon: !!r.coupon || undefined, hidden: !r.active || undefined, invincible: !!r.invincible || undefined });
       if (r.name && Object.keys(r.name).length) I18N.add('ship_' + r.id, r.name);
       if (r.description && Object.keys(r.description).length) I18N.add('shipd_' + r.id, r.description);
       if (!I18N.has('ship_' + r.id)) I18N.add('ship_' + r.id, { en: r.id[0].toUpperCase() + r.id.slice(1) });
@@ -1819,6 +1831,14 @@
     if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
     if (current === 'shop') renderShop();
   }
+  // a secret token typed in the login-key sign-in: its ship goes to the account that signs in
+  async function claimSecretToken() {
+    const tok = store.get('ss_secret_tok', null); if (!tok || !user || user.offline) return;
+    try {
+      const r = await Net.claimSecretToken(user, tok); store.set('ss_secret_tok', null);
+      if (r && r.ship) { const D = user.data; if (!D.ships.includes(r.ship)) D.ships.push(r.ship); D.skin = r.ship; save(); setTimeout(() => celebrate({ code: '🔑', ship: r.ship }, t('secret_token_title')), 900); }
+    } catch (e) { console.warn('secret token', e); if (/not_found|used/.test(String(e.message))) store.set('ss_secret_tok', null); }
+  }
   // the first time a player plays: a gift window with the WELCOME reward (it also stays in Codes & gifts)
   function welcomeGift() {
     const w = gifts.find(g => g.code.toUpperCase() === 'WELCOME'), flag = 'ss_welcome_' + (user && user.id);
@@ -1839,14 +1859,14 @@
     });
   }
   // celebration window after a code or gift is redeemed
-  function celebrate(r) {
+  function celebrate(r, title) {
     Sfx.init(); Sfx.coin(); setTimeout(() => Sfx.power(), 180);
     const colors = ['#f43f5e', '#fde047', '#22d3ee', '#a855f7', '#4ade80', '#fb923c'];
     const confetti = Array.from({ length: 36 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${colors[i % colors.length]};animation-delay:${(i % 9) * 0.07}s;--dx:${((i * 53) % 120) - 60}px;--rot:${(i * 97) % 720}deg"></i>`).join('');
     const welcome = String(r.code || '').toUpperCase() === 'WELCOME', wg = worldOfGift(r);
     modal(`<div class="confetti">${confetti}</div>
       <div class="cele-ic">${Art.icon('gift')}</div>
-      <h2>${welcome ? t('welcome_gift_title') : wg ? `${galIcons[wg - 1]} ${t('world_gift', { w: t('gal_' + wg) })}` : t('coupon_win_title')}</h2>
+      <h2>${title ? esc(title) : welcome ? t('welcome_gift_title') : wg ? `${galIcons[wg - 1]} ${t('world_gift', { w: t('gal_' + wg) })}` : t('coupon_win_title')}</h2>
       ${welcome || wg ? '' : `<div class="cele-code" dir="ltr">${esc(r.code)}</div>`}
       <p>${t('coupon_win_body')}</p>
       <div class="welcome-rw cele-rw">${rewardHtml(r)}</div>
@@ -1890,6 +1910,7 @@
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
+    claimSecretToken();
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();
