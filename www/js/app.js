@@ -974,11 +974,6 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
-    else if (shopTab === 'mine') html = Art.SHIPS.filter(s => D.ships.includes(s.id)).map(s => {
-      const eq = D.skin === s.id;
-      return `<div class="item ${s.secret ? 'special secret' : ''} ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.secret ? '✦ ' : ''}${t('ship_' + s.id)}</b>${gunHtml(s)}
-        ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : `<button class="btn small" data-equip="${s.id}">${t('use')}</button>`}</div>`;
-    }).join('');
     else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems && !s.secret && (!s.hidden || user.data.ships.includes(s.id))).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
@@ -2034,6 +2029,22 @@
     loadGifts(true);
   }
   $('#m-gift').addEventListener('click', () => { Sfx.init(); couponBox(); });
+  // Choose: every ship you own (secret ones too) - picked from the main menu, not the shop
+  function chooseShip() {
+    const D = user.data;
+    const draw = () => Art.SHIPS.filter(s => (D.ships || []).includes(s.id)).map(s =>
+      `<button class="look-it ${s.secret ? 'secret' : ''} ${D.skin === s.id ? 'on' : ''}" data-pick="${s.id}"><img src="${Art.shipPreview(s.id, 120)}" alt=""><small>${s.secret ? '✦ ' : ''}${esc(t('ship_' + s.id))}</small></button>`).join('');
+    modal(`<h2>🚀 ${t('choose_tab')}</h2><p class="muted small">${t('choose_note')}</p><div class="look-grid choose-grid" id="ch-grid">${draw()}</div>
+      <button class="btn ghost" id="ch-x">${t('close')}</button>`, m => {
+      m.querySelector('#ch-x').onclick = closeModal;
+      m.querySelector('#ch-grid').onclick = e => {
+        const b = e.target.closest('[data-pick]'); if (!b || D.skin === b.dataset.pick) return;
+        D.skin = b.dataset.pick; save(); Sfx.init(); Sfx.power && Sfx.power(); renderMenu();
+        m.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', x === b)); toast(t('ship_' + D.skin));
+      };
+    });
+  }
+  $('#m-choose').addEventListener('click', chooseShip);
 
   // ---------- boot ----------
   async function afterLogin() {

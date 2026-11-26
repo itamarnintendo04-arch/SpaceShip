@@ -37,7 +37,7 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
 - **Auras** (trail, orbit, storm) and many avatars.
 - **Convert diamonds**: 1 diamond = 10 coins.
-- **Secret ships are not in the shop.** Every ship you own, secret ones included, is chosen in the shop's **Choose** tab. Your player icon is changed from your profile: tap it in the menu, then the ✏️ pencil.
+- **Secret ships are not in the shop.** Every ship you own, secret ones included, is chosen with **Choose** in the main menu (not in the shop). Your player icon is changed from your profile: tap it in the menu, then the ✏️ pencil.
 - **Voyager (website ship).** A crystal comet with a cosmic trail. The SpaceShip website has a button that opens the app (`com.spaceship.game://gift?code=VOYAGER`) and gives it to the signed-in player; on the web game the same works with `?gift=VOYAGER`. Any coupon code can be used in such a link.
 - **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
 - **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship.

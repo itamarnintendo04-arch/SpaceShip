@@ -418,3 +418,5 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 :root[data-theme="midnight"] { --bg: #05070c; --panel: rgba(17, 22, 32, .85); --panel2: rgba(36, 44, 60, .6); --line: rgba(148, 163, 184, .25); --muted: #94a3b8; --violet: #64748b; --pink: #22d3ee; --g1: #22d3ee; --g2: #0ea5e9; --g3: #475569; --glow: rgba(14, 165, 233, .35); }
 .theme-sw { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
 .theme-sw i { width: 30px; height: 12px; border-radius: 6px; }
+.menu-grid .gift-btn { grid-column: span 2; }
+.choose-grid img { width: 64px; height: 64px; object-fit: contain; }
