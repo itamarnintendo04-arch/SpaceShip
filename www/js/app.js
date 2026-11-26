@@ -510,6 +510,7 @@
   }
 
   // ---------- settings ----------
+  let lookTab = 'ship';
   function openSettings() {
     const accs = savedAccounts();
     modal(`<h2>${Art.icon('gear')} ${t('settings')}</h2>
@@ -522,6 +523,12 @@
       </div>
       <label class="vol ${settings.music ? '' : 'off'}">${t('music_vol')} <b id="s-vol-n">${settings.musicVol}%</b>
         <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
+      <div class="sec look"><h3>🎨 ${t('look')}</h3>
+        <div class="look-tabs"><button class="chip ${lookTab === 'ship' ? 'on' : ''}" data-look="ship">${Art.icon('rocket')} ${t('look_ship')}</button><button class="chip ${lookTab === 'icon' ? 'on' : ''}" data-look="icon">${Art.icon('star')} ${t('look_icon')}</button></div>
+        <div class="look-grid">${lookTab === 'ship'
+          ? Art.SHIPS.filter(s => user.data.ships.includes(s.id)).map(s => `<button class="look-it ${user.data.skin === s.id ? 'on' : ''} ${s.secret ? 'secret' : ''}" data-skin="${s.id}" title="${esc(t('ship_' + s.id))}"><img src="${Art.shipPreview(s.id, 90)}" alt=""><small>${esc(t('ship_' + s.id))}</small></button>`).join('')
+          : Art.AVATARS.filter(a => a.price === 0 && !a.gems || (user.data.avatars || []).includes(a.id)).map(a => `<button class="look-it ${user.avatar === a.id ? 'on' : ''}" data-av="${a.id}"><div class="avatar">${Art.avatar(a.id)}</div></button>`).join('')}</div>
+      </div>
       ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
         : `<div class="small muted">${t('ask_email_body')}</div>
@@ -549,6 +556,9 @@
       on('#s-out', signOut);
       on('#s-key', saveLoginKey);
       m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
+      m.querySelectorAll('[data-look]').forEach(b => b.onclick = () => { lookTab = b.dataset.look; openSettings(); });
+      m.querySelectorAll('[data-skin]').forEach(b => b.onclick = () => { user.data.skin = b.dataset.skin; save(); Sfx.init(); Sfx.power(); toast(t('look_set', { x: t('ship_' + b.dataset.skin) })); openSettings(); if (current === 'menu') renderMenu(); });
+      m.querySelectorAll('[data-av]').forEach(b => b.onclick = () => { user.avatar = b.dataset.av; save(); Sfx.init(); Sfx.coin(); openSettings(); if (current === 'menu') renderMenu(); });
     });
   }
   // signing out removes the account from this device: its saved login key and its local data
@@ -638,7 +648,7 @@
             const ship = await Net.checkSecretToken(tok[1].toUpperCase()); go.disabled = false;
             if (!ship) { st.className = 'status err'; st.textContent = t('secret_token_bad'); return; }
             store.set('ss_secret_tok', tok[1].toUpperCase()); inp.value = '';
-            st.className = 'status ok'; st.textContent = t('secret_token_ok', { x: t('ship_' + ship) }); Sfx.init(); Sfx.power();
+            st.className = 'status ok'; st.textContent = t('secret_token_ok', { x: /^w\d+$/.test(ship) ? worldName(ship) : t('ship_' + ship) }); Sfx.init(); Sfx.power();
           } catch (er) { go.disabled = false; st.className = 'status err'; st.textContent = errText(er); }
           return;
         }
@@ -885,8 +895,7 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
-    else if (shopTab === 'ships') html = `<div class="sh-sec">✦ ${t('secret_ships')}</div>` + secretCard(D) + Art.SHIPS.filter(s => s.world).map(s => worldCard(D, s)).join('') + Art.SHIPS.filter(s => s.coupon && D.ships.includes(s.id)).map(s => worldCard(D, s)).join('')
-      + `<div class="sh-sec">${Art.icon('coin')} ${t('ships')}</div>` + Art.SHIPS.filter(s => !s.gems && !s.secret && (!s.hidden || user.data.ships.includes(s.id))).map(s => {
+    else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems && !s.secret && (!s.hidden || user.data.ships.includes(s.id))).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
@@ -1817,7 +1826,8 @@
     const g = $('#cp-gifts'); if (g) g.innerHTML = giftList();
     welcomeGift();
   }
-  const rewardHtml = r => (r.ship ? `<span class="rw rw-ship"><img src="${Art.shipPreview(r.ship, 120)}" alt="">${t('ship_' + r.ship)}</span>` : '')
+  const worldName = id => { const w = WORLDS.find(x => x.id === id); return w ? t(w.id + '_name') : id; };
+  const rewardHtml = r => (r.world ? `<span class="rw rw-world">${Art.icon('secret')} ${worldName(r.world)}</span>` : '') + (r.ship ? `<span class="rw rw-ship"><img src="${Art.shipPreview(r.ship, 120)}" alt="">${t('ship_' + r.ship)}</span>` : '')
     + (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
   const worldOfGift = g => { const m = /^WORLD([2-4])$/i.exec(g.code || ''); return m ? +m[1] : 0; };
   const giftNote = g => worldOfGift(g) ? `${galIcons[worldOfGift(g) - 1]} ${t('world_gift', { w: t('gal_' + worldOfGift(g)) })}` : g.note ? esc(g.note) : '';
@@ -1826,6 +1836,7 @@
   function grant(r) {
     const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
     if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; }
+    D.worlds = D.worlds || []; if (r.world && WORLDS.some(w => w.id === r.world) && !D.worlds.includes(r.world)) D.worlds.push(r.world);
     Sfx.init(); Sfx.coin(); save();
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
     if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
@@ -1836,7 +1847,12 @@
     const tok = store.get('ss_secret_tok', null); if (!tok || !user || user.offline) return;
     try {
       const r = await Net.claimSecretToken(user, tok); store.set('ss_secret_tok', null);
-      if (r && r.ship) { const D = user.data; if (!D.ships.includes(r.ship)) D.ships.push(r.ship); D.skin = r.ship; save(); setTimeout(() => celebrate({ code: '🔑', ship: r.ship }, t('secret_token_title')), 900); }
+      if (r && (r.ship || r.world)) {
+        const D = user.data; D.worlds = D.worlds || [];
+        if (r.ship && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; }
+        if (r.world && !D.worlds.includes(r.world)) D.worlds.push(r.world);
+        save(); setTimeout(() => celebrate({ code: '🔑', ship: r.ship, world: r.world }, t('secret_token_title')), 900);
+      }
     } catch (e) { console.warn('secret token', e); if (/not_found|used/.test(String(e.message))) store.set('ss_secret_tok', null); }
   }
   // the first time a player plays: a gift window with the WELCOME reward (it also stays in Codes & gifts)

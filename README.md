@@ -37,10 +37,11 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
 - **Auras** (trail, orbit, storm) and many avatars.
 - **Convert diamonds**: 1 diamond = 10 coins.
+- **Secret ships are not in the shop.** Every ship you own, secret ones included, plus your icon, is chosen in **Settings → Look**.
 - **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
-- **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship. It appears in the shop's secret row only once you own it.
-- **Immortal (secret token).** Nothing can hurt it: a hexagon force field and golden light lances. You get it with a **secret token** (starts with `SST-`) typed in *Sign in with a login key*. The game remembers it, and the ship is added to the account that signs in next. Tokens live in the `secret_tokens` table: add rows or untick `active`. They are never stored in this repository. SQL: `supabase/secret_tokens.sql`.
-- **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). The shop's *Secret ships* row shows each one locked, with progress (levels finished / 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
+- **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship.
+- **Immortal (secret token).** Nothing can hurt it: a hexagon force field and golden light lances. You get it with a **secret token** (starts with `SST-`) typed in *Sign in with a login key*. The game remembers it, and the ship is added to the account that signs in next. Tokens live in the `secret_tokens` table, and each one gives a `ship` and/or a secret `world` (`w1` … `w20`). Add rows or untick `active`. They are never stored in this repository. SQL: `supabase/secret_tokens.sql`.
+- **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). It's the strongest ship, with a galaxy aura and rainbow star shots.
 
 ### Shop on the server
 The whole shop comes from Supabase, so you can change it with no new build (the game reads it when it starts):
@@ -67,6 +68,7 @@ Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase �
 |---|---|
 | `code` | the code players type (3–32 letters, digits, `-` or `_`; not case sensitive) |
 | `coins` / `gems` | coins and diamonds the code gives (up to 1,000,000,000 each) |
+| `world` | a secret world the code opens (`w1` … `w20`) |
 | `ship` | a ship the code gives (its id, e.g. `chaos`). Leave it empty for coins / diamonds only |
 | `max_uses` | total number of players who can use it (empty = unlimited) |
 | `starts_at` / `expires_at` | optional time window |
