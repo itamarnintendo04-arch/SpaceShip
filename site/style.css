@@ -107,6 +107,14 @@ h2 { font-size: clamp(30px, 5vw, 42px); font-weight: 900; margin: 0 0 8px; text-
 .link-gift > div { flex: 1 1 240px; }
 .link-gift h3 { margin: 0 0 4px; }
 .link-gift img { border-radius: 14px; }
+.bonus-dlg { width: min(560px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; padding: 28px 20px 22px; border-radius: var(--r); border: 1px solid var(--cyan); background: var(--bg2); color: var(--text); text-align: center; box-shadow: 0 20px 80px rgba(34, 211, 238, .25); }
+.bonus-dlg::backdrop { background: rgba(3, 1, 15, .75); backdrop-filter: blur(4px); }
+.bonus-dlg h2 { margin: 4px 0 8px; }
+.bonus-dlg .sub { margin-bottom: 18px; font-size: 15px; }
+.bonus-dlg .link-gift { text-align: start; }
+.dlg-gift { font-size: 46px; animation: pop .5s ease; }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } }
+.dlg-x { position: absolute; top: 10px; inset-inline-end: 10px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--text); font-size: 16px; cursor: pointer; }
 .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .dl { padding: 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; transition: border-color .2s, box-shadow .2s; }
 .dl.mine { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 10px 40px rgba(34, 211, 238, .18); }

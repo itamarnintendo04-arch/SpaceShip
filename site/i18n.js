@@ -7,6 +7,8 @@ window.SITE_LANGS = [
 ];
 window.SITE_I18N = {
   en: {
+    dl_thanks: 'Your download has started!',
+    dl_thanks_sub: 'Here is your bonus for joining: a code and a new ship. In the game open Codes & gifts and type the code.',
     bonus_title: 'Bonus for joining',
     bonus_sub: 'Website-only codes. In the game open Codes & gifts and type the code.',
     bonus_none: 'No bonus codes right now. Check back soon!',
@@ -51,6 +53,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — space shooter', ios_unsigned: 'Unsigned build: install it with Sideloadly or AltStore.',
   },
   he: {
+    dl_thanks: 'ההורדה התחילה!',
+    dl_thanks_sub: 'הנה בונוס ההצטרפות שלך: קוד וחללית חדשה. במשחק פתחו את קודים ומתנות והקלידו את הקוד.',
     bonus_title: 'בונוס הצטרפות',
     bonus_sub: 'קודים שיש רק באתר. במשחק פתחו את קודים ומתנות והקלידו את הקוד.',
     bonus_none: 'אין כרגע קודי בונוס. בדקו שוב בקרוב!',
@@ -95,6 +99,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — משחק חלליות', ios_unsigned: 'גרסה לא חתומה: מתקינים עם Sideloadly או AltStore.',
   },
   ar: {
+    dl_thanks: 'بدأ التنزيل!',
+    dl_thanks_sub: 'إليك مكافأة الانضمام: رمز وسفينة جديدة. افتح في اللعبة الرموز والهدايا واكتب الرمز.',
     bonus_title: 'مكافأة الانضمام',
     bonus_sub: 'رموز متاحة في الموقع فقط. افتح في اللعبة الرموز والهدايا واكتب الرمز.',
     bonus_none: 'لا توجد رموز مكافأة الآن. عد قريبًا!',
@@ -139,6 +145,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — لعبة إطلاق نار فضائية', ios_unsigned: 'نسخة غير موقّعة: ثبّتها عبر Sideloadly أو AltStore.',
   },
   es: {
+    dl_thanks: '¡Tu descarga ha comenzado!',
+    dl_thanks_sub: 'Aquí tienes tu bono de bienvenida: un código y una nave nueva. En el juego abre Códigos y regalos y escribe el código.',
     bonus_title: 'Bono de bienvenida',
     bonus_sub: 'Códigos solo de la web. En el juego abre Códigos y regalos y escribe el código.',
     bonus_none: 'No hay códigos ahora. ¡Vuelve pronto!',
@@ -183,6 +191,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — juego de naves', ios_unsigned: 'Versión sin firmar: instálala con Sideloadly o AltStore.',
   },
   fr: {
+    dl_thanks: 'Ton téléchargement a commencé !',
+    dl_thanks_sub: 'Voici ton bonus de bienvenue : un code et un nouveau vaisseau. Dans le jeu, ouvre Codes et cadeaux et tape le code.',
     bonus_title: 'Bonus de bienvenue',
     bonus_sub: 'Codes réservés au site. Dans le jeu, ouvre Codes et cadeaux et tape le code.',
     bonus_none: "Aucun code pour l'instant. Reviens bientôt !",
@@ -227,6 +237,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — jeu de tir spatial', ios_unsigned: 'Version non signée : installe-la avec Sideloadly ou AltStore.',
   },
   de: {
+    dl_thanks: 'Dein Download hat begonnen!',
+    dl_thanks_sub: 'Hier ist dein Willkommensbonus: ein Code und ein neues Schiff. Öffne im Spiel Codes & Geschenke und gib den Code ein.',
     bonus_title: 'Willkommensbonus',
     bonus_sub: 'Codes nur auf der Website. Öffne im Spiel Codes & Geschenke und gib den Code ein.',
     bonus_none: 'Gerade keine Codes. Schau bald wieder vorbei!',
@@ -271,6 +283,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — Weltraum-Shooter', ios_unsigned: 'Unsignierte Version: mit Sideloadly oder AltStore installieren.',
   },
   ru: {
+    dl_thanks: 'Загрузка началась!',
+    dl_thanks_sub: 'Вот твой бонус за вступление: код и новый корабль. В игре открой «Коды и подарки» и введи код.',
     bonus_title: 'Бонус за вступление',
     bonus_sub: 'Коды только с сайта. В игре откройте «Коды и подарки» и введите код.',
     bonus_none: 'Сейчас кодов нет. Загляните позже!',
@@ -315,6 +329,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — космический шутер', ios_unsigned: 'Неподписанная версия: установи через Sideloadly или AltStore.',
   },
   pt: {
+    dl_thanks: 'Seu download começou!',
+    dl_thanks_sub: 'Aqui está seu bônus de boas-vindas: um código e uma nave nova. No jogo abra Códigos e presentes e digite o código.',
     bonus_title: 'Bônus de boas-vindas',
     bonus_sub: 'Códigos só do site. No jogo abra Códigos e presentes e digite o código.',
     bonus_none: 'Sem códigos agora. Volte em breve!',
@@ -359,6 +375,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — jogo de nave', ios_unsigned: 'Versão não assinada: instale com Sideloadly ou AltStore.',
   },
   it: {
+    dl_thanks: 'Il download è iniziato!',
+    dl_thanks_sub: 'Ecco il tuo bonus di benvenuto: un codice e una nave nuova. Nel gioco apri Codici e regali e scrivi il codice.',
     bonus_title: 'Bonus di benvenuto',
     bonus_sub: 'Codici solo del sito. Nel gioco apri Codici e regali e scrivi il codice.',
     bonus_none: 'Nessun codice ora. Torna presto!',
@@ -403,6 +421,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — sparatutto spaziale', ios_unsigned: 'Versione non firmata: installala con Sideloadly o AltStore.',
   },
   tr: {
+    dl_thanks: 'İndirme başladı!',
+    dl_thanks_sub: "İşte katılım bonusun: bir kod ve yeni bir gemi. Oyunda Kodlar ve hediyeler'i açıp kodu yaz.",
     bonus_title: 'Katılım bonusu',
     bonus_sub: "Yalnızca sitedeki kodlar. Oyunda Kodlar ve hediyeler'i açıp kodu yaz.",
     bonus_none: 'Şu an kod yok. Yakında tekrar bak!',
@@ -447,6 +467,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — uzay nişancı oyunu', ios_unsigned: 'İmzasız sürüm: Sideloadly veya AltStore ile kur.',
   },
   zh: {
+    dl_thanks: '下载已开始！',
+    dl_thanks_sub: '这是你的加入奖励：一个兑换码和一艘新飞船。在游戏中打开“兑换码与礼物”并输入。',
     bonus_title: '加入奖励',
     bonus_sub: '仅限网站的兑换码。在游戏中打开“兑换码与礼物”并输入。',
     bonus_none: '暂时没有奖励码，敬请期待！',
@@ -491,6 +513,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 太空射击游戏', ios_unsigned: '未签名版本：请用 Sideloadly 或 AltStore 安装。',
   },
   ja: {
+    dl_thanks: 'ダウンロードが始まりました！',
+    dl_thanks_sub: '参加ボーナスです：コードと新しい宇宙船。ゲームの「コードとギフト」で入力してください。',
     bonus_title: '参加ボーナス',
     bonus_sub: 'サイト限定コード。ゲームの「コードとギフト」で入力してください。',
     bonus_none: '現在ボーナスコードはありません。またチェックしてね！',
@@ -535,6 +559,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 宇宙シューティング', ios_unsigned: '署名なし版：Sideloadly か AltStore でインストールしてください。',
   },
   ko: {
+    dl_thanks: '다운로드가 시작됐어요!',
+    dl_thanks_sub: '가입 보너스예요: 코드와 새 우주선. 게임에서 코드 및 선물을 열고 입력하세요.',
     bonus_title: '가입 보너스',
     bonus_sub: '웹사이트 전용 코드입니다. 게임에서 코드 및 선물을 열고 입력하세요.',
     bonus_none: '지금은 보너스 코드가 없습니다. 곧 다시 확인하세요!',
@@ -579,6 +605,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 우주 슈팅 게임', ios_unsigned: '서명되지 않은 버전: Sideloadly나 AltStore로 설치하세요.',
   },
   hi: {
+    dl_thanks: 'डाउनलोड शुरू हो गया!',
+    dl_thanks_sub: 'यह रहा आपका जुड़ने का बोनस: एक कोड और नया यान। गेम में कोड और उपहार खोलकर कोड लिखें।',
     bonus_title: 'जुड़ने का बोनस',
     bonus_sub: 'केवल वेबसाइट के कोड। गेम में कोड और उपहार खोलकर कोड लिखें।',
     bonus_none: 'अभी कोई बोनस कोड नहीं है। जल्द फिर देखें!',

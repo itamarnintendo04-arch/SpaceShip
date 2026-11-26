@@ -73,15 +73,15 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n).toLocaleString(lang);
   function drawBonus() {
-    const box = $('bonus-list'); if (!box) return;
-    if (!bonus) { box.innerHTML = ''; return; }
-    if (!bonus.length) { box.innerHTML = `<p class="bonus-empty">${esc(T('bonus_none'))}</p>`; return; }
-    box.innerHTML = bonus.map((c) => {
+    let html = '';
+    if (bonus && !bonus.length) html = `<p class="bonus-empty">${esc(T('bonus_none'))}</p>`;
+    else if (bonus) html = bonus.map((c) => {
       const what = [c.coins ? fmt(c.coins) + ' ' + T('coins') : '', c.gems ? fmt(c.gems) + ' ' + T('gems') : '', c.ship ? T('a_ship') : '', c.world ? T('a_world') : ''].filter(Boolean).join(' + ');
       return `<div class="bonus"><code>${esc(c.code)}</code><span class="what">${esc(what)}</span><button class="btn ghost" type="button" data-copy="${esc(c.code)}">${esc(T('copy'))}</button></div>`;
     }).join('');
+    document.querySelectorAll('.bonus-list').forEach((box) => { box.innerHTML = html; });
   }
-  $('bonus-list').addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-copy]'); if (!b) return;
     const done = () => { b.textContent = T('copied'); setTimeout(() => { b.textContent = T('copy'); }, 1600); };
     if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(done, done); else done();
@@ -89,7 +89,23 @@
   fetch(SB + '/rest/v1/rpc/site_coupons', { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: '{}' })
     .then((r) => (r.ok ? r.json() : [])).then((d) => { bonus = Array.isArray(d) ? d : []; drawBonus(); }).catch(() => { bonus = []; drawBonus(); });
   // the "open the app" link only makes sense on a phone; elsewhere it explains where to tap it
-  if (device !== 'ios' && device !== 'android') $('lg-btn').addEventListener('click', (e) => { e.preventDefault(); alert(T('lg_phone')); });
+  if (device !== 'ios' && device !== 'android') document.querySelectorAll('.lg-btn').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); alert(T('lg_phone')); }));
+
+  // the bonus codes and the Voyager ship are revealed by downloading the game: a window right after the download starts,
+  // and from then on the bonus section stays on the page (remembered in this browser)
+  const dlg = $('bonus-dlg'), sec = $('bonus');
+  let unlocked = false; try { unlocked = localStorage.getItem('ss_site_bonus') === '1'; } catch (e) {}
+  if (unlocked) sec.hidden = false;
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href]'); if (!a || a.classList.contains('lg-btn')) return;
+    if (!a.closest('#download') && !a.closest('.hero')) return;
+    const href = a.getAttribute('href') || ''; if (!href || href[0] === '#') return;   // only a real file/link, not "jump to downloads"
+    try { localStorage.setItem('ss_site_bonus', '1'); } catch (er) {}
+    sec.hidden = false;
+    setTimeout(() => { if (dlg.showModal && !dlg.open) dlg.showModal(); else if (!dlg.showModal) sec.scrollIntoView({ behavior: 'smooth' }); }, 700);
+  });
+  $('bonus-x').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
   // starfield
   const cv = $('stars'), cx = cv.getContext('2d'); let W, H, stars = [];

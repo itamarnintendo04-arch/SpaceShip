@@ -144,17 +144,17 @@
   </section>
 
   <!-- Join bonus: codes from the server (coupons.site = true) + a link that opens the app with a ship -->
-  <section id="bonus" class="block">
+  <section id="bonus" class="block" hidden>
     <h2 data-k="bonus_title">Bonus for joining</h2>
     <p class="sub" data-k="bonus_sub">Website-only codes. In the game open Codes &amp; gifts and type the code.</p>
-    <div class="bonus-list" id="bonus-list"></div>
+    <div class="bonus-list"></div>
     <div class="link-gift">
       <img src="/img/icon-256.png" alt="" width="56" height="56">
       <div>
         <h3 data-k="lg_title">A new ship: Voyager</h3>
         <p class="note" data-k="lg_sub">Install the game, sign in, then tap the button on your phone. The app opens and gives you the ship.</p>
       </div>
-      <a class="btn primary" id="lg-btn" href="com.spaceship.game://gift?code=VOYAGER"><span data-k="lg_btn">Open the app &amp; get the ship</span></a>
+      <a class="btn primary lg-btn" href="com.spaceship.game://gift?code=VOYAGER"><span data-k="lg_btn">Open the app &amp; get the ship</span></a>
     </div>
   </section>
 
@@ -183,6 +183,23 @@
     </div>
   </section>
 </main>
+
+<!-- shown right after a download starts: the join bonus and the Voyager ship -->
+<dialog id="bonus-dlg" class="bonus-dlg">
+  <button class="dlg-x" id="bonus-x" type="button" aria-label="Close">✕</button>
+  <div class="dlg-gift">🎁</div>
+  <h2 data-k="dl_thanks">Your download has started!</h2>
+  <p class="sub" data-k="dl_thanks_sub">Here is your bonus for joining. In the game open Codes &amp; gifts and type the code.</p>
+  <div class="bonus-list"></div>
+    <div class="link-gift">
+      <img src="/img/icon-256.png" alt="" width="56" height="56">
+      <div>
+        <h3 data-k="lg_title">A new ship: Voyager</h3>
+        <p class="note" data-k="lg_sub">Install the game, sign in, then tap the button on your phone. The app opens and gives you the ship.</p>
+      </div>
+      <a class="btn primary lg-btn" href="com.spaceship.game://gift?code=VOYAGER"><span data-k="lg_btn">Open the app &amp; get the ship</span></a>
+    </div>
+</dialog>
 
 <footer class="foot">
   <img src="/img/icon-256.png" alt="" width="28" height="28">
