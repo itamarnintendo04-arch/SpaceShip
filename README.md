@@ -108,6 +108,8 @@ Every build writes its version (`1.1.<build number>`, the same number as the Git
 ### Friends, clubs and chat
 - **Friends**: search by `@handle` or name and send a request. The other player has to accept it.
 - **Clubs** (parties) of up to 10 players, with a name, description, logo (16 to choose from) and a code. Public clubs show up in search. Private clubs are joined with the code only.
+- **One club per player.** A player's profile shows the club they are in; tap it to join (when the club lets you) or to open your own. *Invite to my club* on any player's profile (find them in search).
+- **Who can join** (a switch at the bottom of the club settings): **Public** (default: in search, anyone joins, also from a member's profile), **Closed** (invite only: members invite players from search; not in search), **Open link** (anyone with the club link or code can always join; not in search). *Share link* sends `https://<site>/club?code=CODE`, which opens the app and joins (or `?club=CODE` on the web game). SQL: `supabase/clubs_access.sql`.
 - **Ranks**:
   - 👑 **Leader**: can do everything. Appoints seniors, co-leaders or a new leader, sets blocked words and kicks members. Making someone leader shows a warning with CONFIRM / CANCEL, and the old leader becomes co-leader.
   - ⭐ **Co-leader**: changes the name, description and logo, demotes a senior to member, and can kick anyone except the leader.

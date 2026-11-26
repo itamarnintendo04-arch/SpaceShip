@@ -7,6 +7,8 @@ window.SITE_LANGS = [
 ];
 window.SITE_I18N = {
   en: {
+    club_title: 'Join a SpaceShip club!',
+    club_sub: "Open the app to join the club. Don't have SpaceShip yet? Download it, sign in, and come back to this link.",
     gift_title: 'A SpaceShip gift!',
     gift_sub: "Open the app to get your gift. Don't have SpaceShip yet? Download it, sign in, and come back to this link.",
     gift_open: 'Open SpaceShip',
@@ -56,6 +58,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — space shooter', ios_unsigned: 'Unsigned build: install it with Sideloadly or AltStore.',
   },
   he: {
+    club_title: 'הצטרפו למסיבה ב-SpaceShip!',
+    club_sub: 'פתחו את האפליקציה כדי להצטרף למסיבה. אין לכם עדיין SpaceShip? הורידו, התחברו וחזרו לקישור הזה.',
     gift_title: 'מתנה מ-SpaceShip!',
     gift_sub: 'פתחו את האפליקציה כדי לקבל את המתנה. אין לכם עדיין SpaceShip? הורידו, התחברו וחזרו לקישור הזה.',
     gift_open: 'פתיחת SpaceShip',
@@ -105,6 +109,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — משחק חלליות', ios_unsigned: 'גרסה לא חתומה: מתקינים עם Sideloadly או AltStore.',
   },
   ar: {
+    club_title: 'انضم إلى نادٍ في SpaceShip!',
+    club_sub: 'افتح التطبيق للانضمام إلى النادي. ليس لديك SpaceShip؟ نزّله وسجّل الدخول ثم عد إلى هذا الرابط.',
     gift_title: 'هدية من SpaceShip!',
     gift_sub: 'افتح التطبيق لتحصل على هديتك. ليس لديك SpaceShip بعد؟ نزّله وسجّل الدخول ثم عد إلى هذا الرابط.',
     gift_open: 'افتح SpaceShip',
@@ -154,6 +160,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — لعبة إطلاق نار فضائية', ios_unsigned: 'نسخة غير موقّعة: ثبّتها عبر Sideloadly أو AltStore.',
   },
   es: {
+    club_title: '¡Únete a un club de SpaceShip!',
+    club_sub: 'Abre la app para unirte al club. ¿Aún no tienes SpaceShip? Descárgalo, inicia sesión y vuelve a este enlace.',
     gift_title: '¡Un regalo de SpaceShip!',
     gift_sub: 'Abre la app para recibir tu regalo. ¿Aún no tienes SpaceShip? Descárgalo, inicia sesión y vuelve a este enlace.',
     gift_open: 'Abrir SpaceShip',
@@ -203,6 +211,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — juego de naves', ios_unsigned: 'Versión sin firmar: instálala con Sideloadly o AltStore.',
   },
   fr: {
+    club_title: 'Rejoins un club SpaceShip !',
+    club_sub: "Ouvre l'app pour rejoindre le club. Pas encore SpaceShip ? Télécharge-le, connecte-toi et reviens sur ce lien.",
     gift_title: 'Un cadeau SpaceShip !',
     gift_sub: "Ouvre l'app pour recevoir ton cadeau. Pas encore SpaceShip ? Télécharge-le, connecte-toi et reviens sur ce lien.",
     gift_open: 'Ouvrir SpaceShip',
@@ -252,6 +262,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — jeu de tir spatial', ios_unsigned: 'Version non signée : installe-la avec Sideloadly ou AltStore.',
   },
   de: {
+    club_title: 'Tritt einem SpaceShip-Club bei!',
+    club_sub: 'Öffne die App, um dem Club beizutreten. Noch kein SpaceShip? Lade es herunter, melde dich an und öffne den Link erneut.',
     gift_title: 'Ein SpaceShip-Geschenk!',
     gift_sub: 'Öffne die App, um dein Geschenk zu bekommen. Noch kein SpaceShip? Lade es herunter, melde dich an und öffne den Link erneut.',
     gift_open: 'SpaceShip öffnen',
@@ -301,6 +313,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — Weltraum-Shooter', ios_unsigned: 'Unsignierte Version: mit Sideloadly oder AltStore installieren.',
   },
   ru: {
+    club_title: 'Вступай в клуб SpaceShip!',
+    club_sub: 'Открой приложение, чтобы вступить в клуб. Ещё нет SpaceShip? Скачай, войди и вернись по ссылке.',
     gift_title: 'Подарок SpaceShip!',
     gift_sub: 'Открой приложение, чтобы получить подарок. Ещё нет SpaceShip? Скачай, войди и вернись по этой ссылке.',
     gift_open: 'Открыть SpaceShip',
@@ -350,6 +364,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — космический шутер', ios_unsigned: 'Неподписанная версия: установи через Sideloadly или AltStore.',
   },
   pt: {
+    club_title: 'Entre num clube do SpaceShip!',
+    club_sub: 'Abra o app para entrar no clube. Ainda não tem o SpaceShip? Baixe, entre e volte a este link.',
     gift_title: 'Um presente do SpaceShip!',
     gift_sub: 'Abra o app para receber seu presente. Ainda não tem o SpaceShip? Baixe, entre e volte a este link.',
     gift_open: 'Abrir SpaceShip',
@@ -399,6 +415,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — jogo de nave', ios_unsigned: 'Versão não assinada: instale com Sideloadly ou AltStore.',
   },
   it: {
+    club_title: 'Entra in un club SpaceShip!',
+    club_sub: "Apri l'app per entrare nel club. Non hai SpaceShip? Scaricalo, accedi e torna a questo link.",
     gift_title: 'Un regalo SpaceShip!',
     gift_sub: "Apri l'app per ricevere il regalo. Non hai ancora SpaceShip? Scaricalo, accedi e torna a questo link.",
     gift_open: 'Apri SpaceShip',
@@ -448,6 +466,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — sparatutto spaziale', ios_unsigned: 'Versione non firmata: installala con Sideloadly o AltStore.',
   },
   tr: {
+    club_title: 'Bir SpaceShip kulübüne katıl!',
+    club_sub: 'Kulübe katılmak için uygulamayı aç. SpaceShip yok mu? İndir, giriş yap ve bu bağlantıya dön.',
     gift_title: 'Bir SpaceShip hediyesi!',
     gift_sub: 'Hediyeni almak için uygulamayı aç. Henüz SpaceShip yok mu? İndir, giriş yap ve bu bağlantıya geri dön.',
     gift_open: "SpaceShip'i aç",
@@ -497,6 +517,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — uzay nişancı oyunu', ios_unsigned: 'İmzasız sürüm: Sideloadly veya AltStore ile kur.',
   },
   zh: {
+    club_title: '加入 SpaceShip 俱乐部！',
+    club_sub: '打开应用加入俱乐部。还没有 SpaceShip？下载并登录后再打开此链接。',
     gift_title: 'SpaceShip 礼物！',
     gift_sub: '打开应用领取礼物。还没有 SpaceShip？下载并登录后再打开此链接。',
     gift_open: '打开 SpaceShip',
@@ -546,6 +568,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 太空射击游戏', ios_unsigned: '未签名版本：请用 Sideloadly 或 AltStore 安装。',
   },
   ja: {
+    club_title: 'SpaceShip のクラブに参加しよう！',
+    club_sub: 'アプリを開いてクラブに参加しよう。まだ SpaceShip がない？ダウンロードしてログインし、このリンクに戻ってね。',
     gift_title: 'SpaceShip からのプレゼント！',
     gift_sub: 'アプリを開いてプレゼントを受け取ろう。まだ SpaceShip がない？ダウンロードしてログインし、このリンクに戻ってね。',
     gift_open: 'SpaceShip を開く',
@@ -595,6 +619,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 宇宙シューティング', ios_unsigned: '署名なし版：Sideloadly か AltStore でインストールしてください。',
   },
   ko: {
+    club_title: 'SpaceShip 클럽에 참여하세요!',
+    club_sub: '앱을 열어 클럽에 참여하세요. 아직 SpaceShip이 없나요? 다운로드하고 로그인한 뒤 이 링크로 돌아오세요.',
     gift_title: 'SpaceShip 선물!',
     gift_sub: '앱을 열어 선물을 받으세요. 아직 SpaceShip이 없나요? 다운로드하고 로그인한 뒤 이 링크로 돌아오세요.',
     gift_open: 'SpaceShip 열기',
@@ -644,6 +670,8 @@ window.SITE_I18N = {
     title: 'SpaceShip — 우주 슈팅 게임', ios_unsigned: '서명되지 않은 버전: Sideloadly나 AltStore로 설치하세요.',
   },
   hi: {
+    club_title: 'SpaceShip क्लब से जुड़ें!',
+    club_sub: 'क्लब से जुड़ने के लिए ऐप खोलें। SpaceShip नहीं है? डाउनलोड करें, साइन इन करें और इस लिंक पर लौटें।',
     gift_title: 'SpaceShip उपहार!',
     gift_sub: 'उपहार पाने के लिए ऐप खोलें। अभी SpaceShip नहीं है? डाउनलोड करें, साइन इन करें और इस लिंक पर लौटें।',
     gift_open: 'SpaceShip खोलें',

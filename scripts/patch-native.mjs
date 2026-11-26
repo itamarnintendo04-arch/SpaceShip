@@ -166,6 +166,7 @@ if (domain && existsSync(pbx)) {
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="${host}" android:pathPrefix="/gift" />
+                <data android:scheme="https" android:host="${host}" android:pathPrefix="/club" />
             </intent-filter>
         </activity>`);
       xml = xml.replace(/<application([^>]*)>/, `<application$1>\n        <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />`);

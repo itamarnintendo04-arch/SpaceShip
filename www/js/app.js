@@ -110,7 +110,9 @@
     if (m.includes('coupon_used')) return t('e_coupon_used');
     if (m.includes('coupon_expired')) return t('e_coupon_expired');
     if (m.includes('not_allowed')) return t('e_not_allowed');
-    if (m.includes('too_many_parties')) return t('e_too_many_parties');
+    if (m.includes('too_many_parties') || m.includes('already_in_party')) return t('e_already_in_party');
+    if (m.includes('party_invite_only')) return t('e_party_invite_only');
+    if (m.includes('target_in_party')) return t('e_target_in_party');
     if (m.includes('self')) return t('e_self');
     if (m.includes('bad_login')) return t('e_bad_login');
     if (m.includes('bad_code') || m.includes('code_expired')) return t('e_bad_code');
@@ -737,6 +739,7 @@
     modal(`<h2>${t('profile')}</h2><div class="pf-av"><div class="avatar" style="width:80px;height:80px">${Art.avatar(user.avatar)}</div><button class="pf-pen" id="p-pen" title="${esc(t('change_icon'))}">✏️</button></div>
       <div class="look-grid pf-icons hidden" id="p-icons">${owned.map(a => `<button class="look-it ${user.avatar === a.id ? 'on' : ''}" data-pav="${a.id}"><div class="avatar">${Art.avatar(a.id)}</div></button>`).join('')}</div>
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
+      ${!user.offline && parties[0] ? `<button class="pf-club" id="p-club"><span class="club-logo">${Art.logo(parties[0].logo)}</span><span class="club-title"><b>${esc(parties[0].name)}</b><small>${rankTag(parties[0].my_role || 'member')} · ${t('members_n', { n: parties[0].count })}</small></span>${accessChip(parties[0])}</button>` : ''}
       <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">${t('handle_note')}</p>
       ${user.offline ? '' : `<div class="sec"><h3>${t('other_devices')}</h3>${user.email
@@ -758,6 +761,7 @@
       on('#p-out', signOut);
       on('#p-accs', openSettings);
       on('#p-pen', () => m.querySelector('#p-icons').classList.toggle('hidden'));
+      on('#p-club', () => { closeModal(); friendTab = 'parties'; show('friends'); });
       m.querySelectorAll('[data-pav]').forEach(b => b.onclick = () => {
         user.avatar = b.dataset.pav; save(); Sfx.init(); Sfx.coin();
         m.querySelector('.pf-av .avatar').innerHTML = Art.avatar(user.avatar);
@@ -1035,7 +1039,7 @@
   });
 
   // ---------- friends: search by @ or name, requests that need the other player's OK ----------
-  let friendTab = 'friends', requests = { incoming: [], outgoing: [] }, parties = [], searchT = null;
+  let friendTab = 'friends', requests = { incoming: [], outgoing: [] }, parties = [], clubInvites = [], searchT = null;
   async function loadFriends() {
     if (!user || user.offline) return;
     try { friends = await Net.friends(user) || []; } catch (e) { console.warn(e); }
@@ -1138,10 +1142,21 @@
   async function loadParties() {
     if (!user || user.offline) return;
     try { parties = await Net.myParties(user) || []; } catch (e) { console.warn(e); }
+    try { clubInvites = await Net.partyInvites(user) || []; } catch (e) { clubInvites = []; }
     if (current === 'friends' && friendTab === 'parties') renderParties();
     updateOnlineBadge();
   }
+  // club access: public (in search, anyone joins) / invite (closed: invited players only) / link (open: anyone with the link)
+  const ACCESS = { public: '🌐', invite: '🔒', link: '🔗' };
+  const accessOf = p => p.access || (p.is_public ? 'public' : 'link');
+  const clubLink = code => 'https://' + (window.SS_DOMAIN || 'spaceship-site.vercel.app') + '/club?code=' + encodeURIComponent(code);
+  const accessChip = p => `<span class="chip">${ACCESS[accessOf(p)]} ${t('acc_' + accessOf(p))}</span>`;
   function renderParties() {
+    $('#p-create').classList.toggle('hidden', parties.length > 0);   // one club per player
+    $('#p-invites').innerHTML = clubInvites.length ? `<div class="lbl pad">${t('club_invites')}</div>` + clubInvites.map(p => `<div class="party small invite">
+        <div class="party-head"><div class="club-logo">${Art.logo(p.logo)}</div><div class="club-title"><b>${esc(p.name)}</b>${p.from ? `<small>${t('invited_by', { h: '@' + esc(p.from.handle) })}</small>` : ''}</div>${accessChip(p)}</div>
+        <div class="row"><button class="btn small primary" data-pjoin="${p.id}" ${parties.length ? 'disabled' : ''}>${t('join')}</button><button class="btn small ghost" data-pdecline="${p.id}">${t('decline')}</button></div>
+        ${parties.length ? `<small class="muted">${t('e_already_in_party')}</small>` : ''}</div>`).join('') : '';
     $('#p-mine').innerHTML = parties.length ? parties.map(p => {
       const ms = p.members || [], my = p.my_role || (p.mine ? 'leader' : 'member'), r = rankOf(my);
       const sts = Object.fromEntries(ms.map(m => [m.id, liveStatus(m.id)]));
@@ -1150,10 +1165,10 @@
       return `<div class="party club">
         <div class="party-head"><button class="club-logo" ${r >= 2 ? `data-plogo="${p.id}" title="${esc(t('change_logo'))}"` : 'disabled'}>${Art.logo(p.logo)}${r >= 2 ? `<span class="edit-dot">✎</span>` : ''}</button>
           <div class="club-title"><b>${esc(p.name)}</b><small>${t('your_rank')}: ${rankTag(my)}</small></div>
-          <span class="chip">${p.is_public ? '🌐 ' + t('public_tag') : '🔒 ' + t('private_tag')}</span></div>
+          ${accessChip(p)}</div>
         ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
         <div class="party-meta"><span>${t('members_n', { n: p.count })} · <b class="on-n">${t('online_n', { n: on })}</b>${inRoom ? ' · ' + t('in_room_n', { n: inRoom }) : ''}</span>
-          <span class="code-chip" dir="ltr" data-pcopy="${esc(p.code)}">${esc(p.code)} ${Art.icon('copy')}</span></div>
+          ${accessOf(p) === 'invite' ? `<span class="muted small">${t('acc_invite_hint')}</span>` : `<span class="code-chip" dir="ltr" data-pcopy="${esc(p.code)}">${esc(p.code)} ${Art.icon('copy')}</span>`}</div>
         <div class="club-members">${order.map(m => { const st = sts[m.id]; return `<button class="cm ${st.k}" data-pmem="${m.id}" data-party="${p.id}">
             <div class="avatar">${Art.avatar(m.avatar)}<span class="dot ${st.k !== 'off' ? 'on' : ''} ${st.k === 'room' ? 'room' : ''}"></span></div>
             <div class="info"><b>${esc(m.name)}${m.id === user.id ? ` <span class="muted">(${t('you')})</span>` : ''}</b><small dir="ltr">@${esc(m.handle)}</small></div>
@@ -1161,6 +1176,7 @@
         <div class="row wrap">
           <button class="btn small chat-btn" data-pchat="${p.id}">💬 ${t('chat')}${unread(p) ? '<span class="badge-dot"></span>' : ''}</button>
           <button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
+          ${accessOf(p) !== 'invite' ? `<button class="btn small" data-pshare="${esc(p.code)}">🔗 ${t('share_link')}</button>` : ''}
           ${r >= 3 ? `<button class="btn small" data-pedit="${p.id}">${t('edit')}</button>` : ''}
           ${r === 4 ? `<button class="btn small" data-pwords="${p.id}">🚫 ${t('blocked_words')}</button>` : ''}
           <button class="btn small ghost" data-pleave="${p.id}">${t('leave_party')}</button></div></div>`;
@@ -1240,17 +1256,23 @@
       <h2>${esc(p.name)}</h2><div class="muted" dir="ltr">@${esc(p.handle)}</div>
       <div class="sheet-tags">${me ? '' : statusHtml(st)}<span class="chip">${t('ship_' + p.skin)}</span></div>
       <div class="pf-stats">${stat(p.levels, 'p_levels', Art.icon('star'))}${stat(p.worlds, 'p_worlds', Art.icon('secret'))}${stat(p.ships, 'p_ships', Art.icon('rocket'))}${stat(p.best, 'p_best', Art.icon('trophy'))}</div>
-      ${(p.parties || []).length ? `<div class="lbl">${t('p_parties')}</div><div class="pf-parties">${p.parties.map(x => `<span class="chip">${esc(x.name)} · ${rankTag(x.role)}</span>`).join('')}</div>` : ''}
+      ${p.club ? `<div class="lbl">${t('p_club')}</div><button class="pf-club" data-a="club"><span class="club-logo">${Art.logo(p.club.logo)}</span>
+          <span class="club-title"><b>${esc(p.club.name)}</b><small>${rankTag(p.club.role)} · ${t('members_n', { n: p.club.count })}</small></span>${accessChip(p.club)}</button>
+          ${p.club.member ? '' : p.club.can_join ? `<button class="btn primary" data-a="cjoin">${t('join_club', { x: esc(p.club.name) })}</button>` : `<small class="muted">${t(p.my_club ? 'e_already_in_party' : 'acc_' + accessOf(p.club) + '_no')}</small>`}` : ''}
+      ${!me && !p.in_club && parties.length ? `<button class="btn" data-a="cinvite">✉️ ${t('invite_club', { x: esc(parties[0].name) })}</button>` : ''}
       <div class="muted small">${t('p_joined', { d: new Date(p.joined).toLocaleDateString() })}</div>
       ${me ? '' : playButton(p.id, st)}
       ${me ? '' : p.rel === 'friend' ? `<div class="chip center">${t('friends_already')}</div>` : p.rel === 'sent' ? `<button class="btn" disabled>${t('requested')}</button>`
         : p.rel === 'incoming' ? `<button class="btn primary" data-a="accept">${t('accept')}</button>` : `<button class="btn" data-a="friend">${Art.icon('plus')} ${t('add_friend')}</button>`}
       <button class="btn ghost" data-a="close">${t('close')}</button></div>`, c => {
       c.onclick = async e => {
-        const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
+        let b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
         try {
           if (b.dataset.a === 'close') return closeModal();
           if (b.dataset.a === 'invite') { closeModal(); return inviteFriend(p.id, p); }
+          if (b.dataset.a === 'club') { if (p.club.member) { closeModal(); friendTab = 'parties'; return show('friends'); } if (p.club.can_join) b = c.querySelector('[data-a=cjoin]') || b; else return; }
+          if (b.dataset.a === 'cjoin') { const r = await Net.joinParty(user, p.club.id, null); toast(t('joined_party', { x: r.name })); Sfx.init(); Sfx.power && Sfx.power(); loadParties(); return openProfile(p.id); }
+          if (b.dataset.a === 'cinvite') { await Net.inviteToParty(user, p.id); toast(t('club_invite_sent', { h: '@' + p.handle })); Net.sendTo(p.id, 'club_invite', { handle: user.handle, club: parties[0].name }).catch(() => {}); b.disabled = true; return; }
           if (b.dataset.a === 'ask') { closeModal(); return askToJoin(p.id, p); }
           if (b.dataset.a === 'friend') { await requestFriend(p.id, p.handle); return openProfile(p.id); }
           if (b.dataset.a === 'accept') { await Net.respondFriendRequest(user, p.id, true); toast(t('friend_added', { h: at(p.handle) })); Net.sendTo(p.id, 'friend_accepted', { handle: user.handle }).catch(() => {}); loadFriends(); return openProfile(p.id); }
@@ -1364,9 +1386,9 @@
     try {
       const rows = (await Net.searchParties(user, q)).filter(p => !p.member);
       box.innerHTML = rows.length ? rows.map(p => `<div class="party small">
-          <div class="party-head"><b>${esc(p.name)}</b><span class="chip">${p.is_public ? '🌐' : '🔒'} ${t('members_n', { n: p.count })}</span></div>
+          <div class="party-head"><b>${esc(p.name)}</b><span class="chip">${ACCESS[accessOf(p)]} ${t('members_n', { n: p.count })}</span></div>
           ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ''}
-          <button class="btn small primary" data-pjoin="${p.id}" data-pcode="${esc(p.code || q)}" ${p.count >= 10 ? 'disabled' : ''}>${t('join')}</button></div>`).join('')
+          <button class="btn small primary" data-pjoin="${p.id}" data-pcode="${esc(p.code || q)}" ${p.count >= 10 || parties.length ? 'disabled' : ''}>${t('join')}</button></div>`).join('')
         : (q ? `<div class="empty small">${t('no_results')}</div>` : '');
     } catch (e) { box.innerHTML = `<div class="empty small">${esc(errText(e))}</div>`; }
   }
@@ -1377,20 +1399,21 @@
       <label>${t('party_name')}<input id="pf-name" maxlength="30" value="${esc(p ? p.name : '')}"></label>
       <label>${t('party_desc')}<textarea id="pf-desc" maxlength="200" rows="3">${esc(p ? p.description : '')}</textarea></label>
       <div class="lbl">${t('party_logo')}</div>${logoGrid(logo)}
-      <div class="seg" id="pf-vis"><button data-v="1" class="${!p || p.is_public ? 'on' : ''}">🌐 ${t('public_tag')}</button><button data-v="0" class="${p && !p.is_public ? 'on' : ''}">🔒 ${t('private_tag')}</button></div>
-      <p class="muted small" id="pf-hint">${!p || p.is_public ? t('public_party') : t('private_party')}</p>
+      <div class="lbl">${t('access_lbl')}</div>
+      <div class="seg acc-seg" id="pf-vis">${['public', 'invite', 'link'].map(a => `<button data-v="${a}" class="${(p ? accessOf(p) : 'public') === a ? 'on' : ''}">${ACCESS[a]} ${t('acc_' + a)}</button>`).join('')}</div>
+      <p class="muted small" id="pf-hint">${t('acc_' + (p ? accessOf(p) : 'public') + '_d')}</p>
       <div class="status" id="pf-st"></div>
       <button class="btn primary" id="pf-go">${p ? t('save') : t('create_party')}</button><button class="btn ghost" id="pf-x">${t('cancel')}</button>`, m => {
-      let pub = !p || p.is_public;
+      let acc = p ? accessOf(p) : 'public';
       bindLogoGrid(m, v => logo = v);
       m.querySelector('#pf-x').onclick = closeModal;
-      m.querySelector('#pf-vis').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pub = b.dataset.v === '1';
-        m.querySelectorAll('#pf-vis button').forEach(x => x.classList.toggle('on', x === b)); m.querySelector('#pf-hint').textContent = pub ? t('public_party') : t('private_party'); };
+      m.querySelector('#pf-vis').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; acc = b.dataset.v;
+        m.querySelectorAll('#pf-vis button').forEach(x => x.classList.toggle('on', x === b)); m.querySelector('#pf-hint').textContent = t('acc_' + acc + '_d'); };
       m.querySelector('#pf-go').onclick = async () => {
         const name = m.querySelector('#pf-name').value.trim(), desc = m.querySelector('#pf-desc').value.trim();
         if (!name) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = t('write_name'); return; }
         try {
-          if (p) await Net.updateParty(user, p.id, name, desc, pub, logo); else { await Net.createParty(user, name, desc, pub, logo); toast(t('party_created')); }
+          if (p) await Net.updateParty(user, p.id, name, desc, acc, logo); else { await Net.createParty(user, name, desc, acc, logo); toast(t('party_created')); }
           closeModal(); loadParties();
         } catch (e) { m.querySelector('#pf-st').className = 'status err'; m.querySelector('#pf-st').textContent = errText(e); }
       };
@@ -1399,13 +1422,15 @@
   $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
   $('#f-pane-parties').addEventListener('click', async e => {
     const mem = e.target.closest('[data-pmem]'); if (mem) return memberSheet(mem.dataset.party, mem.dataset.pmem);
-    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo]'); if (!b || b.disabled) return;
+    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo],[data-pdecline],[data-pshare]'); if (!b || b.disabled) return;
     try {
+      if (b.dataset.pshare) return share(t('club_share_text', { x: parties[0] ? parties[0].name : '' }) + '\n' + clubLink(b.dataset.pshare));
+      if (b.dataset.pdecline) { await Net.declinePartyInvite(user, b.dataset.pdecline); return loadParties(); }
       if (b.dataset.pchat) return openChat(b.dataset.pchat);
       if (b.dataset.pwords) return blockedWords(parties.find(x => x.id === b.dataset.pwords));
       if (b.dataset.plogo) return logoPicker(parties.find(x => x.id === b.dataset.plogo));
       if (b.dataset.pcopy) return copy(b.dataset.pcopy);
-      if (b.dataset.pjoin) { const p = await Net.joinParty(user, b.dataset.pjoin, b.dataset.pcode); toast(t('joined_party', { x: p.name })); $('#p-search').value = ''; $('#p-results').innerHTML = ''; }
+      if (b.dataset.pjoin) { const p = await Net.joinParty(user, b.dataset.pjoin, b.dataset.pcode); toast(t('joined_party', { x: p.name })); $('#p-search').value = ''; $('#p-results').innerHTML = ''; Sfx.init(); Sfx.power && Sfx.power(); }
       if (b.dataset.pedit) return partyForm(parties.find(x => x.id === b.dataset.pedit));
       if (b.dataset.pleave) { const p = parties.find(x => x.id === b.dataset.pleave);
         return confirmBox(t('leave_party'), t('confirm_leave_party', { x: esc(p.name) }), t('confirm_caps'), async () => { await Net.leaveParty(user, p.id); loadParties(); }); }
@@ -1779,6 +1804,7 @@
     });
   }
   const realtime = {
+    onClubInvite: p => { if (!p) return; notify('SpaceShip', t('n_club_invite', { h: '@' + p.handle, x: p.club || '' })); loadParties(); },
     onFriendAdded: p => { if (!p) return; notify('SpaceShip', t('n_friend_added', { h: '@' + p.handle })); loadFriends(); },
     onFriendRequest: p => { if (!p) return; notify('SpaceShip', t('n_friend_request', { h: '@' + p.handle })); loadFriends(); },
     onFriendAccepted: p => { if (!p) return; notify('SpaceShip', t('n_friend_accepted', { h: '@' + p.handle })); loadFriends(); },
@@ -1936,6 +1962,19 @@
     try { const r = await Net.redeemCoupon(user, code); gifts = gifts.filter(g => g.code.toUpperCase() !== String(r.code).toUpperCase()); grant(r); setTimeout(() => celebrate(r, t('link_gift_title')), 600); }
     catch (e) { toast(errText(e), 3500); }
   }
+  async function clubFromUrl(url) {
+    try {
+      const u = new URL(url), code = (u.searchParams.get('code') || u.searchParams.get('club') || '').trim().toUpperCase();
+      if (!/^[A-Z0-9]{4,12}$/.test(code)) return;
+      store.set('ss_pending_club', code); setTimeout(claimClubLink, 1500);
+    } catch (e) { /* not a club link */ }
+  }
+  async function claimClubLink() {
+    const code = store.get('ss_pending_club', null); if (!code || !user || user.offline) return;
+    store.set('ss_pending_club', null);
+    try { const r = await Net.joinParty(user, null, code); toast(t('joined_party', { x: r.name }), 3500); Sfx.init(); Sfx.power && Sfx.power(); friendTab = 'parties'; show('friends'); loadParties(); }
+    catch (e) { toast(errText(e), 4000); }
+  }
   async function openKeyFileUrl(url) {
     try {
       const r = await Cap.Filesystem.readFile({ path: url, encoding: 'utf8' }), text = String(r && r.data || '');
@@ -1946,12 +1985,14 @@
   const onOpenUrl = url => {
     if (!url) return;
     if (url.startsWith('com.spaceship.game://gift') || /^https:\/\/[^/]+\/gift\b/.test(url)) giftFromUrl(url);
+    else if (url.startsWith('com.spaceship.game://club') || /^https:\/\/[^/]+\/club\b/.test(url)) clubFromUrl(url);
     else if (/^(file|content):/i.test(url) && Cap.Filesystem) openKeyFileUrl(url);
   };
   if (Cap.App) {
     Cap.App.addListener('appUrlOpen', ev => onOpenUrl(ev && ev.url));
     if (Cap.App.getLaunchUrl) Cap.App.getLaunchUrl().then(r => onOpenUrl(r && r.url)).catch(() => {});
   }
+  if (/[?&]club=/.test(location.search)) { clubFromUrl(location.href); try { window.history.replaceState(null, '', location.pathname); } catch (e) {} }
   if (/[?&]gift=/.test(location.search)) { giftFromUrl(location.href); try { window.history.replaceState(null, '', location.pathname); } catch (e) {} }
   // a secret token typed in the login-key sign-in: its ship goes to the account that signs in
   async function claimSecretToken() {
@@ -2053,7 +2094,7 @@
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
-    claimSecretToken(); setTimeout(claimLinkGift, 1200);
+    claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400);
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();
@@ -2108,5 +2149,5 @@
       store.set('ss_user', user); const fn = renders[current]; fn && current !== 'register' && fn();
     }).catch(() => {});
   });
-  window.SSApp = { get user() { return user; }, get game() { return game; }, startGame, show };
+  window.SSApp = { get user() { return user; }, get game() { return game; }, startGame, show, openProfile };
 })();

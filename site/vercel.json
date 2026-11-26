@@ -8,6 +8,10 @@
     {
       "source": "/gift",
       "destination": "/gift.html"
+    },
+    {
+      "source": "/club",
+      "destination": "/club.html"
     }
   ],
   "headers": [
