@@ -96,6 +96,17 @@ h2 { font-size: clamp(30px, 5vw, 42px); font-weight: 900; margin: 0 0 8px; text-
 .w4 { border-color: #6d28d9; } .w4 small { background: #7c3aed; }
 
 /* downloads */
+.bonus-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 18px; }
+.bonus { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: var(--r); background: var(--card); border: 1px dashed var(--gold); }
+.bonus code { font: 700 20px/1 ui-monospace, monospace; letter-spacing: 2px; color: var(--gold); }
+.bonus .what { color: var(--muted); font-size: 14px; }
+.bonus .btn { padding: 8px 14px; font-size: 14px; }
+.bonus-empty { color: var(--muted); }
+.link-gift { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; max-width: 760px; margin: 0 auto; padding: 18px 20px; border-radius: var(--r);
+  background: linear-gradient(120deg, rgba(56, 189, 248, .14), rgba(29, 78, 216, .18)); border: 1px solid var(--cyan); }
+.link-gift > div { flex: 1 1 240px; }
+.link-gift h3 { margin: 0 0 4px; }
+.link-gift img { border-radius: 14px; }
 .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .dl { padding: 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; transition: border-color .2s, box-shadow .2s; }
 .dl.mine { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 10px 40px rgba(34, 211, 238, .18); }

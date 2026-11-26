@@ -13,7 +13,7 @@
     : /Mac OS X|Macintosh/.test(ua) ? 'mac' : /Linux|X11/.test(ua) ? 'linux' : null;
   const NAMES = { ios: 'iPhone', android: 'Android', windows: 'Windows', mac: 'Mac', linux: 'Linux' };
 
-  let cfg = null;
+  let cfg = null, bonus = null;
   const $ = (id) => document.getElementById(id);
   const mb = (n) => (n / 1048576).toFixed(n > 100 * 1048576 ? 0 : 1) + ' MB';
 
@@ -25,7 +25,7 @@
     document.querySelectorAll('[data-lang]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.lang === lang)));
     document.querySelectorAll('.dl').forEach((c) => c.setAttribute('data-mine', T('mine')));
     if (device) { $('hero-dl-t').textContent = T('dl_for', NAMES[device]); }
-    links();
+    links(); if (bonus) drawBonus();
   }
 
   function links() {
@@ -67,6 +67,29 @@
   $('yr').textContent = new Date().getFullYear();
   apply();
   fetch('/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { cfg = d || { files: {} }; links(); }).catch(() => { cfg = { files: {} }; links(); });
+
+  // join bonus codes, read straight from the game server (public, read-only)
+  const SB = 'https://unpzeskbzovolyqsqzna.supabase.co', KEY = 'sb_publishable_iuaATuSyhRd65ZjNdx3Opg_w1KxQdQc';
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmt = (n) => Number(n).toLocaleString(lang);
+  function drawBonus() {
+    const box = $('bonus-list'); if (!box) return;
+    if (!bonus) { box.innerHTML = ''; return; }
+    if (!bonus.length) { box.innerHTML = `<p class="bonus-empty">${esc(T('bonus_none'))}</p>`; return; }
+    box.innerHTML = bonus.map((c) => {
+      const what = [c.coins ? fmt(c.coins) + ' ' + T('coins') : '', c.gems ? fmt(c.gems) + ' ' + T('gems') : '', c.ship ? T('a_ship') : '', c.world ? T('a_world') : ''].filter(Boolean).join(' + ');
+      return `<div class="bonus"><code>${esc(c.code)}</code><span class="what">${esc(what)}</span><button class="btn ghost" type="button" data-copy="${esc(c.code)}">${esc(T('copy'))}</button></div>`;
+    }).join('');
+  }
+  $('bonus-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-copy]'); if (!b) return;
+    const done = () => { b.textContent = T('copied'); setTimeout(() => { b.textContent = T('copy'); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(done, done); else done();
+  });
+  fetch(SB + '/rest/v1/rpc/site_coupons', { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: '{}' })
+    .then((r) => (r.ok ? r.json() : [])).then((d) => { bonus = Array.isArray(d) ? d : []; drawBonus(); }).catch(() => { bonus = []; drawBonus(); });
+  // the "open the app" link only makes sense on a phone; elsewhere it explains where to tap it
+  if (device !== 'ios' && device !== 'android') $('lg-btn').addEventListener('click', (e) => { e.preventDefault(); alert(T('lg_phone')); });
 
   // starfield
   const cv = $('stars'), cx = cv.getContext('2d'); let W, H, stars = [];

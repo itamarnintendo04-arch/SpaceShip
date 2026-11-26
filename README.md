@@ -37,7 +37,8 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Diamond powers**: plasma cannon, double shield, super magnet, golden heart, second chance (revive once per game) and a helper drone that fires next to you.
 - **Auras** (trail, orbit, storm) and many avatars.
 - **Convert diamonds**: 1 diamond = 10 coins.
-- **Secret ships are not in the shop.** Every ship you own, secret ones included, plus your icon, is chosen in **Settings → Look**.
+- **Secret ships are not in the shop.** Every ship you own, secret ones included, is chosen in the shop's **Choose** tab. Your player icon is changed from your profile: tap it in the menu, then the ✏️ pencil.
+- **Voyager (website ship).** A crystal comet with a cosmic trail. The SpaceShip website has a button that opens the app (`com.spaceship.game://gift?code=VOYAGER`) and gives it to the signed-in player; on the web game the same works with `?gift=VOYAGER`. Any coupon code can be used in such a link.
 - **Secret ship: Cosmos.** It's not for sale. It's given to whoever owns the *whole* shop: every coin and diamond ship, every upgrade at max level, every icon and every diamond power.
 - **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship.
 - **Immortal (secret token).** Nothing can hurt it: a hexagon force field and golden light lances. You get it with a **secret token** (starts with `SST-`) typed in *Sign in with a login key*. The game remembers it, and the ship is added to the account that signs in next. Tokens live in the `secret_tokens` table, and each one gives a `ship` and/or a secret `world` (`w1` … `w20`). Add rows or untick `active`. They are never stored in this repository. SQL: `supabase/secret_tokens.sql`.
@@ -132,6 +133,7 @@ Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard an
 
 ### More
 - **14 languages**, English by default: English, עברית, العربية, Español, Français, Deutsch, Русский, Português, Italiano, Türkçe, 中文, 日本語, 한국어, हिन्दी. Hebrew and Arabic are right-to-left. Texts are in `www/js/i18n.js`.
+- **App icon**: Settings → *App icon* changes the icon of the app itself: Classic, Emerald, Ocean, Sunset, Aqua and Rose. It uses `@capacitor-community/app-icon` on iPhone and Android (iOS shows a short system notice), the window and Dock icon on desktop, and the browser tab icon on the web. The variants are made from `assets/icon-only.png` by `scripts/app-icons.mjs` and added to the native projects by `scripts/patch-native.mjs`.
 - **Portrait and landscape** modes.
 - **Loading screen** with a mini level you can play while the game connects.
 - **Original music** generated live with Web Audio, with no audio files: loading, menus, and a track for each world. Volume is in Settings.
@@ -148,6 +150,7 @@ The iOS build is **unsigned**. For a signed iPhone download, sign it yourself an
 `site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device. It is in English by default, and a globe button switches between the same 14 languages as the game. It also detects the visitor's device and highlights that download.
 
 - Android / Windows / macOS / Linux links, the version and file sizes come from the latest GitHub release automatically (`site/api/config.js`).
+- **Bonus for joining**: the site lists every coupon with `site = true` (read with the public `site_coupons()` RPC). These codes are **not** in the game's free gifts list; players type them in *Codes & gifts*. Tick `site` on a row in `coupons` to show it on the site. The section also has the *Open the app & get the ship* button (code `VOYAGER`, works on phones with the game installed). SQL: `supabase/site_bonus.sql`.
 - **iPhone**: set the Vercel environment variable **`IOS_DOWNLOAD_URL`**. The iPhone card always has a **Download IPA** button (the unsigned .ipa from the latest release, for Sideloadly / AltStore), and there is also an **IPA** quick button at the top of the page. When `IOS_DOWNLOAD_URL` is empty, the main iPhone button downloads the .ipa too. It can be a direct signed `.ipa`, an `itms-services://` link, TestFlight or the App Store. Optional: `IOS_NOTE`, a short line shown under the iPhone button. Redeploy after changing it. While it is empty, the button shows "Coming soon".
 
 Deploy: Vercel → Add New → Project → import this repo → **Root Directory `site`**, Framework **Other** → Deploy.

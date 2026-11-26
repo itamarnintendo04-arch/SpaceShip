@@ -148,6 +148,8 @@ jobs:
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios-build \
             MARKETING_VERSION=${{ needs.release.outputs.version }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS=YES \
+            ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES="AppIconEmerald AppIconOcean AppIconSunset AppIconAqua AppIconRose" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
           mkdir Payload
           cp -R ios-build/Build/Products/Release-iphoneos/App.app Payload/

@@ -1,5 +1,5 @@
 // SpaceShip desktop app (Windows / macOS / Linux)
-const { app, BrowserWindow, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, nativeImage } = require('electron');
 
 const CUTVID_AUTH = 'https://btrwboxwbinqewgvlcal.supabase.co/auth/v1/oauth/authorize';
 const OAUTH_REDIRECT = 'com.spaceship.game://oauth';
@@ -25,6 +25,14 @@ function createWindow() {
 }
 
 // "Sign in with CutVid": show CutVid's sign-in page in its own window and catch the redirect back.
+ipcMain.handle('ss-set-icon', (event, dataUrl) => {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,')) return false;
+  const img = nativeImage.createFromDataURL(dataUrl); if (img.isEmpty()) return false;
+  const win = BrowserWindow.fromWebContents(event.sender); if (win) win.setIcon(img);
+  if (process.platform === 'darwin' && app.dock) app.dock.setIcon(img);
+  return true;
+});
+
 ipcMain.handle('ss-oauth', (event, url, redirect) => new Promise((resolve, reject) => {
   if (typeof url !== 'string' || !url.startsWith(CUTVID_AUTH + '?') || redirect !== OAUTH_REDIRECT) return reject(new Error('oauth_failed'));
   const parent = BrowserWindow.fromWebContents(event.sender);

@@ -403,3 +403,8 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .look-it.secret { border-color: rgba(240,171,252,.55); background: rgba(76,29,149,.25); }
 .look-it.on { border-color: var(--cyan, #22d3ee); box-shadow: 0 0 0 2px rgba(34,211,238,.35); }
 .rw-world { color: #f0abfc; font-size: 18px; }
+
+.pf-av { position: relative; width: 80px; margin: 0 auto; }
+.pf-pen { position: absolute; bottom: -4px; inset-inline-end: -10px; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--cyan, #22d3ee); background: #0b0825; font-size: 15px; cursor: pointer; display: grid; place-items: center; }
+.pf-icons { margin: 8px 0; }
+.appicon-img { width: 56px !important; height: 56px !important; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.4); }

@@ -4,4 +4,6 @@ contextBridge.exposeInMainWorld('SS_PLATFORM', 'desktop');
 contextBridge.exposeInMainWorld('SSDesktop', {
   // Sign in with CutVid: opens CutVid's sign-in page in a window and resolves with the redirect URL.
   oauth: (url, redirect) => ipcRenderer.invoke('ss-oauth', url, redirect),
+  // Settings -> Look -> App icon: the window / taskbar / dock icon
+  setIcon: (dataUrl) => ipcRenderer.invoke('ss-set-icon', dataUrl),
 });

@@ -510,7 +510,31 @@
   }
 
   // ---------- settings ----------
-  let lookTab = 'ship';
+  // ---------- the app's own icon (home screen / taskbar / browser tab) ----------
+  const APP_ICONS = ['classic', 'emerald', 'ocean', 'sunset', 'aqua', 'rose'];
+  const nativeIconName = id => 'AppIcon' + id[0].toUpperCase() + id.slice(1);
+  async function setAppIcon(id, quiet) {
+    if (!APP_ICONS.includes(id)) id = 'classic';
+    const prev = settings.appIcon || 'classic';
+    settings.appIcon = id; saveSettings();
+    const url = 'img/appicons/' + id + '.png';
+    try {
+      if (NATIVE && Cap.AppIcon) {   // phones: the home-screen icon (iPhone shows a short system notice)
+        if (quiet) return;
+        const others = APP_ICONS.filter(x => x !== 'classic' && x !== id).map(nativeIconName);
+        if (id === 'classic') await Cap.AppIcon.reset({ suppressNotification: false, disable: APP_ICONS.filter(x => x !== 'classic').map(nativeIconName) });
+        else await Cap.AppIcon.change({ name: nativeIconName(id), suppressNotification: false, disable: others });
+      } else if (window.SSDesktop && window.SSDesktop.setIcon) {   // desktop: the window / taskbar / dock icon
+        const r = await fetch(url), blob = await r.blob();
+        const dataUrl = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(blob); });
+        window.SSDesktop.setIcon(dataUrl);
+      } else {   // browser: the tab icon
+        document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(l => { l.href = url; });
+      }
+      if (!quiet) { Sfx.init(); Sfx.power(); toast(t('app_icon_set', { x: t('ai_' + id) })); }
+    } catch (e) { console.warn('app icon', e); settings.appIcon = prev; saveSettings(); if (!quiet) toast(t('app_icon_fail')); }
+  }
+  if (settings.appIcon && settings.appIcon !== 'classic') setTimeout(() => setAppIcon(settings.appIcon, true), 300);   // desktop/browser re-apply on start
   function openSettings() {
     const accs = savedAccounts();
     modal(`<h2>${Art.icon('gear')} ${t('settings')}</h2>
@@ -523,11 +547,8 @@
       </div>
       <label class="vol ${settings.music ? '' : 'off'}">${t('music_vol')} <b id="s-vol-n">${settings.musicVol}%</b>
         <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
-      <div class="sec look"><h3>🎨 ${t('look')}</h3>
-        <div class="look-tabs"><button class="chip ${lookTab === 'ship' ? 'on' : ''}" data-look="ship">${Art.icon('rocket')} ${t('look_ship')}</button><button class="chip ${lookTab === 'icon' ? 'on' : ''}" data-look="icon">${Art.icon('star')} ${t('look_icon')}</button></div>
-        <div class="look-grid">${lookTab === 'ship'
-          ? Art.SHIPS.filter(s => user.data.ships.includes(s.id)).map(s => `<button class="look-it ${user.data.skin === s.id ? 'on' : ''} ${s.secret ? 'secret' : ''}" data-skin="${s.id}" title="${esc(t('ship_' + s.id))}"><img src="${Art.shipPreview(s.id, 90)}" alt=""><small>${esc(t('ship_' + s.id))}</small></button>`).join('')
-          : Art.AVATARS.filter(a => a.price === 0 && !a.gems || (user.data.avatars || []).includes(a.id)).map(a => `<button class="look-it ${user.avatar === a.id ? 'on' : ''}" data-av="${a.id}"><div class="avatar">${Art.avatar(a.id)}</div></button>`).join('')}</div>
+      <div class="sec look"><h3>🎨 ${t('look')}</h3><p class="muted small">${t('app_icon_note')}</p>
+        <div class="look-grid">${APP_ICONS.map(id => `<button class="look-it ${(settings.appIcon || 'classic') === id ? 'on' : ''}" data-appicon="${id}"><img src="img/appicons/${id}.png" alt="" class="appicon-img"><small>${t('ai_' + id)}</small></button>`).join('')}</div>
       </div>
       ${user.offline ? '' : `<div class="sec"><h3>${t('account')}</h3>${user.email
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
@@ -556,9 +577,7 @@
       on('#s-out', signOut);
       on('#s-key', saveLoginKey);
       m.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => switchAccount(b.dataset.switch));
-      m.querySelectorAll('[data-look]').forEach(b => b.onclick = () => { lookTab = b.dataset.look; openSettings(); });
-      m.querySelectorAll('[data-skin]').forEach(b => b.onclick = () => { user.data.skin = b.dataset.skin; save(); Sfx.init(); Sfx.power(); toast(t('look_set', { x: t('ship_' + b.dataset.skin) })); openSettings(); if (current === 'menu') renderMenu(); });
-      m.querySelectorAll('[data-av]').forEach(b => b.onclick = () => { user.avatar = b.dataset.av; save(); Sfx.init(); Sfx.coin(); openSettings(); if (current === 'menu') renderMenu(); });
+      m.querySelectorAll('[data-appicon]').forEach(b => b.onclick = async () => { await setAppIcon(b.dataset.appicon); openSettings(); });
     });
   }
   // signing out removes the account from this device: its saved login key and its local data
@@ -664,7 +683,9 @@
   }
 
   function editProfile() {
-    modal(`<h2>${t('profile')}</h2><div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(user.avatar)}</div>
+    const owned = Art.AVATARS.filter(a => (a.price === 0 && !a.gems) || (user.data.avatars || []).includes(a.id));
+    modal(`<h2>${t('profile')}</h2><div class="pf-av"><div class="avatar" style="width:80px;height:80px">${Art.avatar(user.avatar)}</div><button class="pf-pen" id="p-pen" title="${esc(t('change_icon'))}">✏️</button></div>
+      <div class="look-grid pf-icons hidden" id="p-icons">${owned.map(a => `<button class="look-it ${user.avatar === a.id ? 'on' : ''}" data-pav="${a.id}"><div class="avatar">${Art.avatar(a.id)}</div></button>`).join('')}</div>
       <b dir="ltr" style="color:var(--cyan)">@${esc(user.handle)}</b>
       <label>${t('name')}<input id="p-name" maxlength="24" value="${esc(user.name)}"></label>
       <p class="muted small">${t('handle_note')}</p>
@@ -686,6 +707,12 @@
       });
       on('#p-out', signOut);
       on('#p-accs', openSettings);
+      on('#p-pen', () => m.querySelector('#p-icons').classList.toggle('hidden'));
+      m.querySelectorAll('[data-pav]').forEach(b => b.onclick = () => {
+        user.avatar = b.dataset.pav; save(); Sfx.init(); Sfx.coin();
+        m.querySelector('.pf-av .avatar').innerHTML = Art.avatar(user.avatar);
+        m.querySelectorAll('[data-pav]').forEach(x => x.classList.toggle('on', x === b)); renderMenu();
+      });
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
       const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => cutvidModal('link');
@@ -897,6 +924,11 @@
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
+    else if (shopTab === 'mine') html = Art.SHIPS.filter(s => D.ships.includes(s.id)).map(s => {
+      const eq = D.skin === s.id;
+      return `<div class="item ${s.secret ? 'special secret' : ''} ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${s.secret ? '✦ ' : ''}${t('ship_' + s.id)}</b>${gunHtml(s)}
+        ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : `<button class="btn small" data-equip="${s.id}">${t('use')}</button>`}</div>`;
+    }).join('');
     else if (shopTab === 'ships') html = Art.SHIPS.filter(s => !s.gems && !s.secret && (!s.hidden || user.data.ships.includes(s.id))).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
@@ -1844,6 +1876,26 @@
     if (current === 'menu') $('#m-coins').innerHTML = walletHtml(D);
     if (current === 'shop') renderShop();
   }
+  // a gift link from the website: it opens the app with a code, the code is redeemed for the signed-in player
+  function giftFromUrl(url) {
+    try {
+      const u = new URL(url), code = (u.searchParams.get('code') || u.searchParams.get('gift') || '').trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return;
+      if (!url.startsWith('com.spaceship.game://gift') && !u.searchParams.get('gift')) return;
+      store.set('ss_pending_gift', code); setTimeout(claimLinkGift, 1500);
+    } catch (e) { /* not a gift link */ }
+  }
+  async function claimLinkGift() {
+    const code = store.get('ss_pending_gift', null); if (!code || !user || user.offline) return;
+    store.set('ss_pending_gift', null);
+    try { const r = await Net.redeemCoupon(user, code); gifts = gifts.filter(g => g.code.toUpperCase() !== String(r.code).toUpperCase()); grant(r); setTimeout(() => celebrate(r, t('link_gift_title')), 600); }
+    catch (e) { toast(errText(e), 3500); }
+  }
+  if (Cap.App) {
+    Cap.App.addListener('appUrlOpen', ev => { if (ev && ev.url && ev.url.startsWith('com.spaceship.game://gift')) giftFromUrl(ev.url); });
+    if (Cap.App.getLaunchUrl) Cap.App.getLaunchUrl().then(r => { if (r && r.url) giftFromUrl(r.url); }).catch(() => {});
+  }
+  if (/[?&]gift=/.test(location.search)) { giftFromUrl(location.href); try { window.history.replaceState(null, '', location.pathname); } catch (e) {} }
   // a secret token typed in the login-key sign-in: its ship goes to the account that signs in
   async function claimSecretToken() {
     const tok = store.get('ss_secret_tok', null); if (!tok || !user || user.offline) return;
@@ -1928,7 +1980,7 @@
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
-    claimSecretToken();
+    claimSecretToken(); setTimeout(claimLinkGift, 1200);
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();

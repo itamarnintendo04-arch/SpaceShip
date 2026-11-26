@@ -75,3 +75,9 @@ if (domain && existsSync(pbx)) {
   }
   console.log('ios: Apple Passwords linked to ' + domain);
 }
+
+// App icon variants (Settings -> Look -> App icon): iOS alternate icon sets and Android activity-aliases
+{
+  const { nativeIcons } = await import('./app-icons.mjs');
+  await nativeIcons();
+}

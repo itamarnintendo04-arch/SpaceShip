@@ -26,6 +26,8 @@
     { id: 'glacier',  secret: true, world: 2, shape: 'crystal', body: '#e0f2fe', accent: '#0369a1', glow: '#7dd3fc', gun: { rate: 2.05, dmg: 4.4, side: 5, style: 'snow', pierce: true }, aura: 'prism' },
     { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
     { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
+    // website ship - from the link on the SpaceShip website (it opens the app and gives this ship)
+    { id: 'voyager', secret: true, coupon: true, shape: 'crystal', fx: 'cosmic', body: '#e0f2fe', accent: '#1d4ed8', glow: '#38bdf8', gun: { rate: 2, dmg: 4, side: 4, style: 'comet', pierce: true }, aura: 'trail' },
     // secret-token ship - from a secret token typed in the login-key sign-in: nothing can hurt it
     { id: 'aegis', secret: true, coupon: true, invincible: true, shape: 'aegis', body: '#f8fafc', accent: '#ca8a04', glow: '#fde047', gun: { rate: 2.4, dmg: 5.5, side: 6, style: 'holy', pierce: true }, aura: 'aegis' },
     // coupon ship - only from a code: the wildest ship in the game
