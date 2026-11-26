@@ -40,8 +40,8 @@
     else { ios.href = fallback; ios.removeAttribute('aria-disabled'); ios.firstElementChild.textContent = T('ios_btn'); }
     $('ios-note').textContent = (cfg && cfg.iosNote) || (cfg && !cfg.ios && files.ios ? T('ios_unsigned') : '');
     // the .ipa file is always offered too when a signed link is set (for sideloading with Sideloadly / AltStore)
-    const ipa = $('dl-ipa'); ipa.classList.toggle('hidden', !(cfg && cfg.ios && files.ios));
-    if (files.ios) { ipa.href = files.ios.url; ipa.title = T('ios_unsigned'); }
+    const ipa = $('dl-ipa'), qi = $('q-ipa'), ipaUrl = (files.ios && files.ios.url) || fallback;
+    ipa.href = qi.href = ipaUrl; ipa.title = qi.title = T('ios_unsigned'); qi.classList.toggle('soon', !!cfg && !files.ios);
     if (cfg && cfg.version) $('ver-line').textContent = T('version') + ' ' + cfg.version + (cfg.published ? ' · ' + new Date(cfg.published).toLocaleDateString(lang) : '');
     if (cfg && cfg.page) $('all-rel').href = cfg.page;
     // quick download buttons under the hero, one per device

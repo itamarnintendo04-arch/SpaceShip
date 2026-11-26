@@ -7,7 +7,7 @@ window.SITE_LANGS = [
 ];
 window.SITE_I18N = {
   en: {
-    ipa_btn: 'Download the .ipa file',
+    ipa_btn: 'Download IPA',
     nav_features: 'Features', nav_worlds: 'Worlds', nav_download: 'Download', nav_faq: 'FAQ',
     free: 'Free · no ads', lead: 'Fly, shoot and win. 4 worlds with 2,000 levels, special ships, clubs with chat, and real-time play with friends.',
     dl_now: 'Download', more: "What's inside?",
@@ -38,7 +38,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — space shooter', ios_unsigned: 'Unsigned build: install it with Sideloadly or AltStore.',
   },
   he: {
-    ipa_btn: 'הורדת קובץ ה-ipa',
+    ipa_btn: 'הורדת IPA',
     nav_features: 'תכונות', nav_worlds: 'עולמות', nav_download: 'הורדה', nav_faq: 'שאלות',
     free: 'חינם · בלי פרסומות', lead: "טסים, יורים ומנצחים. 4 עולמות עם 2,000 שלבים, חלליות מיוחדות, מועדונים עם צ'אט, ומשחק בזמן אמת עם חברים.",
     dl_now: 'להורדה', more: 'מה יש במשחק?',
@@ -69,7 +69,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — משחק חלליות', ios_unsigned: 'גרסה לא חתומה: מתקינים עם Sideloadly או AltStore.',
   },
   ar: {
-    ipa_btn: 'تنزيل ملف ipa',
+    ipa_btn: 'تنزيل IPA',
     nav_features: 'المزايا', nav_worlds: 'العوالم', nav_download: 'تنزيل', nav_faq: 'الأسئلة',
     free: 'مجانية · بلا إعلانات', lead: 'طِر، أطلق النار وانتصر. 4 عوالم فيها 2,000 مرحلة، سفن مميزة، أندية مع دردشة، ولعب مباشر مع الأصدقاء.',
     dl_now: 'تنزيل', more: 'ماذا في اللعبة؟',
@@ -100,7 +100,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — لعبة إطلاق نار فضائية', ios_unsigned: 'نسخة غير موقّعة: ثبّتها عبر Sideloadly أو AltStore.',
   },
   es: {
-    ipa_btn: 'Descargar el archivo .ipa',
+    ipa_btn: 'Descargar IPA',
     nav_features: 'Funciones', nav_worlds: 'Mundos', nav_download: 'Descargar', nav_faq: 'Preguntas',
     free: 'Gratis · sin anuncios', lead: 'Vuela, dispara y gana. 4 mundos con 2.000 niveles, naves especiales, clubes con chat y partidas en tiempo real con amigos.',
     dl_now: 'Descargar', more: '¿Qué incluye?',
@@ -131,7 +131,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — juego de naves', ios_unsigned: 'Versión sin firmar: instálala con Sideloadly o AltStore.',
   },
   fr: {
-    ipa_btn: 'Télécharger le fichier .ipa',
+    ipa_btn: "Télécharger l'IPA",
     nav_features: 'Fonctionnalités', nav_worlds: 'Mondes', nav_download: 'Télécharger', nav_faq: 'FAQ',
     free: 'Gratuit · sans pub', lead: 'Vole, tire et gagne. 4 mondes et 2 000 niveaux, des vaisseaux spéciaux, des clubs avec chat et des parties en temps réel entre amis.',
     dl_now: 'Télécharger', more: "Qu'y a-t-il dedans ?",
@@ -162,7 +162,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — jeu de tir spatial', ios_unsigned: 'Version non signée : installe-la avec Sideloadly ou AltStore.',
   },
   de: {
-    ipa_btn: 'Die .ipa-Datei laden',
+    ipa_btn: 'IPA herunterladen',
     nav_features: 'Funktionen', nav_worlds: 'Welten', nav_download: 'Download', nav_faq: 'FAQ',
     free: 'Kostenlos · ohne Werbung', lead: 'Fliegen, schießen, gewinnen. 4 Welten mit 2.000 Levels, besondere Schiffe, Clubs mit Chat und Echtzeit-Spiele mit Freunden.',
     dl_now: 'Herunterladen', more: 'Was steckt drin?',
@@ -193,7 +193,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — Weltraum-Shooter', ios_unsigned: 'Unsignierte Version: mit Sideloadly oder AltStore installieren.',
   },
   ru: {
-    ipa_btn: 'Скачать файл .ipa',
+    ipa_btn: 'Скачать IPA',
     nav_features: 'Возможности', nav_worlds: 'Миры', nav_download: 'Скачать', nav_faq: 'Вопросы',
     free: 'Бесплатно · без рекламы', lead: 'Летай, стреляй и побеждай. 4 мира и 2 000 уровней, особые корабли, клубы с чатом и игра с друзьями в реальном времени.',
     dl_now: 'Скачать', more: 'Что внутри?',
@@ -224,7 +224,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — космический шутер', ios_unsigned: 'Неподписанная версия: установи через Sideloadly или AltStore.',
   },
   pt: {
-    ipa_btn: 'Baixar o arquivo .ipa',
+    ipa_btn: 'Baixar IPA',
     nav_features: 'Recursos', nav_worlds: 'Mundos', nav_download: 'Baixar', nav_faq: 'Dúvidas',
     free: 'Grátis · sem anúncios', lead: 'Voe, atire e vença. 4 mundos com 2.000 fases, naves especiais, clubes com chat e partidas em tempo real com amigos.',
     dl_now: 'Baixar', more: 'O que tem no jogo?',
@@ -255,7 +255,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — jogo de nave', ios_unsigned: 'Versão não assinada: instale com Sideloadly ou AltStore.',
   },
   it: {
-    ipa_btn: 'Scarica il file .ipa',
+    ipa_btn: 'Scarica IPA',
     nav_features: 'Caratteristiche', nav_worlds: 'Mondi', nav_download: 'Scarica', nav_faq: 'FAQ',
     free: 'Gratis · senza pubblicità', lead: 'Vola, spara e vinci. 4 mondi con 2.000 livelli, navi speciali, club con chat e partite in tempo reale con gli amici.',
     dl_now: 'Scarica', more: "Cosa c'è dentro?",
@@ -286,7 +286,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — sparatutto spaziale', ios_unsigned: 'Versione non firmata: installala con Sideloadly o AltStore.',
   },
   tr: {
-    ipa_btn: '.ipa dosyasını indir',
+    ipa_btn: 'IPA indir',
     nav_features: 'Özellikler', nav_worlds: 'Dünyalar', nav_download: 'İndir', nav_faq: 'SSS',
     free: 'Ücretsiz · reklamsız', lead: 'Uç, ateş et ve kazan. 2.000 bölümlük 4 dünya, özel gemiler, sohbetli kulüpler ve arkadaşlarla gerçek zamanlı oyun.',
     dl_now: 'İndir', more: 'Oyunda neler var?',
@@ -317,7 +317,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — uzay nişancı oyunu', ios_unsigned: 'İmzasız sürüm: Sideloadly veya AltStore ile kur.',
   },
   zh: {
-    ipa_btn: '下载 .ipa 文件',
+    ipa_btn: '下载 IPA',
     nav_features: '特色', nav_worlds: '世界', nav_download: '下载', nav_faq: '常见问题',
     free: '免费 · 无广告', lead: '飞行、射击、获胜。4 个世界共 2,000 关、特殊飞船、带聊天的俱乐部，还能和好友实时一起玩。',
     dl_now: '下载', more: '游戏里有什么？',
@@ -348,7 +348,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — 太空射击游戏', ios_unsigned: '未签名版本：请用 Sideloadly 或 AltStore 安装。',
   },
   ja: {
-    ipa_btn: '.ipa ファイルをダウンロード',
+    ipa_btn: 'IPA をダウンロード',
     nav_features: '特徴', nav_worlds: 'ワールド', nav_download: 'ダウンロード', nav_faq: 'よくある質問',
     free: '無料 · 広告なし', lead: '飛んで、撃って、勝とう。4 つのワールドに 2,000 ステージ、特別な宇宙船、チャット付きクラブ、友だちとのリアルタイム対戦。',
     dl_now: 'ダウンロード', more: 'ゲームの中身は？',
@@ -379,7 +379,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — 宇宙シューティング', ios_unsigned: '署名なし版：Sideloadly か AltStore でインストールしてください。',
   },
   ko: {
-    ipa_btn: '.ipa 파일 다운로드',
+    ipa_btn: 'IPA 다운로드',
     nav_features: '특징', nav_worlds: '월드', nav_download: '다운로드', nav_faq: 'FAQ',
     free: '무료 · 광고 없음', lead: '날고, 쏘고, 이기세요. 2,000개 스테이지의 4개 월드, 특별한 우주선, 채팅이 있는 클럽, 친구와의 실시간 플레이.',
     dl_now: '다운로드', more: '게임에 뭐가 있나요?',
@@ -410,7 +410,7 @@ window.SITE_I18N = {
     title: 'SpaceShip — 우주 슈팅 게임', ios_unsigned: '서명되지 않은 버전: Sideloadly나 AltStore로 설치하세요.',
   },
   hi: {
-    ipa_btn: '.ipa फ़ाइल डाउनलोड करें',
+    ipa_btn: 'IPA डाउनलोड करें',
     nav_features: 'खूबियाँ', nav_worlds: 'दुनियाएँ', nav_download: 'डाउनलोड', nav_faq: 'सवाल',
     free: 'मुफ़्त · बिना विज्ञापन', lead: 'उड़ो, गोली चलाओ और जीतो। 2,000 लेवल वाली 4 दुनियाएँ, खास अंतरिक्ष यान, चैट वाले क्लब और दोस्तों के साथ रियल-टाइम खेल।',
     dl_now: 'डाउनलोड', more: 'गेम में क्या है?',
