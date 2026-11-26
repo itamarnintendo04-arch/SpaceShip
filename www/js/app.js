@@ -2,7 +2,7 @@
 (function () {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const { Game, Sfx, levelCfg, WORLDS, GALAXIES } = window.SSGame;
-  const GEM_RATE = 10; // 1 diamond = 10 coins
+  let GEM_RATE = 10; // 1 diamond = 10 coins (the server's shop_settings can change it)
   // special items - bought with diamonds
   const GEM_ITEMS = [
     { id: 'plasma', icon: 'plasma', gems: 30 },
@@ -100,6 +100,11 @@
     if (m.includes('code_not_found')) return t('e_code_not_found');
     if (m.includes('party_full')) return t('e_party_full');
     if (m.includes('party_not_found')) return t('e_party_not_found');
+    if (m.includes('not_enough_coins')) return t('not_enough_coins');
+    if (m.includes('not_enough_gems')) return t('not_enough_gems');
+    if (m.includes('already_owned')) return t('owned');
+    if (m.includes('maxed')) return t('maxed');
+    if (m.includes('not_for_sale')) return t('e_not_for_sale');
     if (m.includes('coupon_not_found')) return t('e_coupon_not_found');
     if (m.includes('coupon_used_up')) return t('e_coupon_used_up');
     if (m.includes('coupon_used')) return t('e_coupon_used');
@@ -743,14 +748,59 @@
   // ---------- shop ----------
   let shopTab = 'ships';
   $('#shop-tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (!t) return; shopTab = t.dataset.tab; $$('#shop-tabs .tab').forEach(x => x.classList.toggle('on', x === t)); renderShop(); });
+  // ---------- the shop runs from the server (tables shop_ships, shop_items, shop_settings) ----------
+  // prices, ships (look + weapon), upgrades, powers and avatars come from the server; the last copy is kept for offline play
+  function applyCatalog(cat) {
+    if (!cat || !Array.isArray(cat.ships)) return;
+    if (cat.gem_rate) GEM_RATE = +cat.gem_rate || GEM_RATE;
+    const order = {};
+    cat.ships.forEach(r => {
+      order[r.id] = r.sort;
+      let s = Art.SHIPS.find(x => x.id === r.id);
+      if (!s) { s = { id: r.id }; Art.SHIPS.push(s); }
+      Object.assign(s, { shape: r.shape, body: r.body, accent: r.accent, glow: r.glow, aura: r.aura || undefined, fx: r.fx || undefined,
+        gun: { rate: +r.gun.rate, dmg: +r.gun.dmg, side: +r.gun.side, style: r.gun.style, pierce: !!r.gun.pierce },
+        price: r.gems > 0 ? undefined : +r.price, gems: r.gems > 0 ? +r.gems : undefined,
+        secret: !!r.secret || undefined, world: r.world || undefined, coupon: !!r.coupon || undefined, hidden: !r.active || undefined });
+      if (r.name && Object.keys(r.name).length) I18N.add('ship_' + r.id, r.name);
+      if (r.description && Object.keys(r.description).length) I18N.add('shipd_' + r.id, r.description);
+      if (!I18N.has('ship_' + r.id)) I18N.add('ship_' + r.id, { en: r.id[0].toUpperCase() + r.id.slice(1) });
+    });
+    Art.SHIPS.sort((a, b) => (order[a.id] ?? 1e6) - (order[b.id] ?? 1e6));
+    (cat.items || []).forEach(r => {
+      const g = r.gems && r.gems.length ? r.gems.map(Number) : null;
+      if (r.kind === 'upgrade') { const u = UPGRADES.find(x => x.id === r.id); if (u) Object.assign(u, { costs: r.costs.map(Number), gems: g || undefined, hidden: !r.active || undefined }); }
+      else if (r.kind === 'power') { const it = GEM_ITEMS.find(x => x.id === r.id); if (it) Object.assign(it, { gems: g ? g[0] : 0, hidden: !r.active || undefined }); }
+      else if (r.kind === 'avatar') { const a = Art.AVATARS.find(x => x.id === r.id); if (a) Object.assign(a, { price: g ? 0 : +r.costs[0] || 0, gems: g ? g[0] : undefined, hidden: !r.active || undefined }); }
+    });
+  }
+  applyCatalog(store.get('ss_shop', null));
+  async function loadCatalog() {
+    try { const cat = await Net.shopCatalog(); if (cat && cat.ships) { applyCatalog(cat); store.set('ss_shop', cat); if (current === 'shop') renderShop(); } }
+    catch (e) { console.warn('shop catalog', e); }
+  }
+  setTimeout(loadCatalog, 600);
+  // a purchase made on the server: it checks the price and the balance, and the result replaces the local numbers
+  async function serverBuy(btn, kind, item, okMsg, conv) {
+    const D = user.data; btn.disabled = true;
+    try {
+      await Net.save(user, D, D.best).catch(() => {});   // coins earned a moment ago reach the server first
+      const r = conv ? await Net.shopConvert(user, conv) : await Net.shopBuy(user, kind, item);
+      ['coins', 'gems', 'ships', 'up', 'items', 'avatars'].forEach(k => { if (r[k] != null) D[k] = r[k]; });
+      if (kind === 'ship' && r.skin) D.skin = r.skin;
+      if (kind === 'avatar' && r.avatar) user.avatar = r.avatar;
+      Sfx.init(); Sfx.coin(); toast(okMsg); save(); renderShop(); checkSecretShip();
+    } catch (e) { btn.disabled = false; toast(errText(e)); }
+  }
+
   // ---------- secret ship: owning the whole shop unlocks Cosmos ----------
   const SECRET_SHIP = 'cosmos';
   function shopProgress(D) {
     const parts = [
-      ...Art.SHIPS.filter(s => !s.secret && (s.price > 0 || s.gems)).map(s => D.ships.includes(s.id)),
-      ...UPGRADES.map(u => ((D.up[u.id] || u.base) - u.base) >= u.costs.length),
-      ...Art.AVATARS.filter(a => a.price > 0 || a.gems).map(a => (D.avatars || []).includes(a.id)),
-      ...GEM_ITEMS.map(it => (D.items || []).includes(it.id)),
+      ...Art.SHIPS.filter(s => !s.secret && !s.hidden && (s.price > 0 || s.gems)).map(s => D.ships.includes(s.id)),
+      ...UPGRADES.filter(u => !u.hidden).map(u => ((D.up[u.id] || u.base) - u.base) >= u.costs.length),
+      ...Art.AVATARS.filter(a => !a.hidden && (a.price > 0 || a.gems)).map(a => (D.avatars || []).includes(a.id)),
+      ...GEM_ITEMS.filter(it => !it.hidden).map(it => (D.items || []).includes(it.id)),
     ];
     return { have: parts.filter(Boolean).length, total: parts.length };
   }
@@ -807,35 +857,35 @@
           <button class="icon-btn" data-cv="1" ${g ? '' : 'disabled'}>+</button><button class="chip" data-cv="max" ${g ? '' : 'disabled'}>${t('max')}</button></div>
         <div class="conv-out" id="cv-out">${g ? `${t('you_get')} ${coinHtml(GEM_RATE)}` : t('no_gems')}</div>
         <button class="btn gold" id="cv-go" ${g ? '' : 'disabled'}>${t('convert')}</button></div>`;
-      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems && !s.secret).map(s => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_ships')}</div>` + Art.SHIPS.filter(s => s.gems && !s.secret && !s.hidden).map(s => {
         const own = D.ships.includes(s.id), eq = D.skin === s.id;
         return `<div class="item special ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b><small>${t('shipd_' + s.id)}</small>${gunHtml(s)}
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gem" data-gship="${s.id}" ${g < s.gems ? 'disabled' : ''}>${gemHtml(s.gems)}</button>`}</div>`;
       }).join('');
-      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_powers')}</div>` + GEM_ITEMS.map(it => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_powers')}</div>` + GEM_ITEMS.filter(it => !it.hidden).map(it => {
         const own = D.items.includes(it.id);
         return `<div class="item special"><div class="pic">${Art.icon(it.icon)}</div><b>${t('it_' + it.id)}</b><small>${t(it.dkey || 'it_' + it.id + '_d')}</small>
           ${own ? `<button class="btn small" disabled>${t('owned')}</button>` : `<button class="btn small gem" data-gitem="${it.id}" ${g < it.gems ? 'disabled' : ''}>${gemHtml(it.gems)}</button>`}</div>`;
       }).join('');
-      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_icons')}</div>` + Art.AVATARS.filter(a => a.gems).map(a => {
+      html += `<div class="sh-sec">${Art.icon('gem')} ${t('special_icons')}</div>` + Art.AVATARS.filter(a => a.gems && !a.hidden).map(a => {
         const own = D.avatars.includes(a.id), eq = user.avatar === a.id;
         return `<div class="item special ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
           ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gem" data-gav="${a.id}" ${g < a.gems ? 'disabled' : ''}>${gemHtml(a.gems)}</button>`}</div>`;
       }).join('');
     }
     else if (shopTab === 'ships') html = `<div class="sh-sec">✦ ${t('secret_ships')}</div>` + secretCard(D) + Art.SHIPS.filter(s => s.world).map(s => worldCard(D, s)).join('') + Art.SHIPS.filter(s => s.coupon && D.ships.includes(s.id)).map(s => worldCard(D, s)).join('')
-      + `<div class="sh-sec">${Art.icon('coin')} ${t('ships')}</div>` + Art.SHIPS.filter(s => !s.gems && !s.secret).map(s => {
+      + `<div class="sh-sec">${Art.icon('coin')} ${t('ships')}</div>` + Art.SHIPS.filter(s => !s.gems && !s.secret && (!s.hidden || user.data.ships.includes(s.id))).map(s => {
       const own = D.ships.includes(s.id), eq = D.skin === s.id;
       return `<div class="item ${eq ? 'eq' : ''}"><img src="${Art.shipPreview(s.id, 160)}" alt=""><b>${t('ship_' + s.id)}</b>${gunHtml(s)}
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-equip="${s.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-ship="${s.id}" ${D.coins < s.price ? 'disabled' : ''}>${coinHtml(s.price)}</button>`}</div>`;
     }).join('');
-    else if (shopTab === 'up') html = UPGRADES.map(u => {
+    else if (shopTab === 'up') html = UPGRADES.filter(u => !u.hidden).map(u => {
       const lvl = D.up[u.id] || u.base, i = lvl - u.base, max = i >= u.costs.length, cost = u.costs[i], gcost = u.gems ? u.gems[i] : 0;
       return `<div class="item"><div class="pic">${Art.icon(u.icon)}</div><b>${t('up_' + u.id)}</b><small>${t('up_' + u.id + '_d')}</small>
         <div class="pips">${u.costs.map((_, j) => `<i class="${j < i ? 'on' : ''}"></i>`).join('')}</div>
         ${max ? `<button class="btn small" disabled>${t('maxed')}</button>` : `<button class="btn small gold ${gcost ? 'dual' : ''}" data-up="${u.id}" ${D.coins < cost || (D.gems || 0) < gcost ? 'disabled' : ''}>${coinHtml(cost)}${gcost ? ` + ${gemHtml(gcost)}` : ''}</button>`}</div>`;
     }).join('');
-    else html = Art.AVATARS.filter(a => !a.gems).map(a => {
+    else html = Art.AVATARS.filter(a => !a.gems && (!a.hidden || a.price === 0)).map(a => {
       const own = a.price === 0 || D.avatars.includes(a.id), eq = user.avatar === a.id;
       return `<div class="item ${eq ? 'eq' : ''}"><div class="pic avatar">${Art.avatar(a.id)}</div>
         ${eq ? `<button class="btn small" disabled>${t('in_use')}</button>` : own ? `<button class="btn small" data-av-eq="${a.id}">${t('use')}</button>` : `<button class="btn small gold" data-buy-av="${a.id}" ${D.coins < a.price ? 'disabled' : ''}>${coinHtml(a.price)}</button>`}</div>`;
@@ -856,8 +906,17 @@
     if (b.id === 'cv-go') {
       const g = D.gems || 0, v = Math.max(1, Math.min(g, Math.floor(+$('#cv-n').value || 1)));
       if (!g) return;
+      if (!user.offline) return serverBuy(b, null, null, t('converted', { g: v, c: (v * GEM_RATE).toLocaleString() }), v);
       D.gems -= v; D.coins += v * GEM_RATE; Sfx.init(); Sfx.coin(); toast(t('converted', { g: v, c: (v * GEM_RATE).toLocaleString() }));
       save(); renderShop(); return;
+    }
+    if (!user.offline) {   // online: the server checks the price and the balance
+      if (b.dataset.gship) return serverBuy(b, 'ship', b.dataset.gship, t('special_ship_t', { x: t('ship_' + b.dataset.gship) }));
+      if (b.dataset.buyShip) return serverBuy(b, 'ship', b.dataset.buyShip, t('bought', { x: t('ship_' + b.dataset.buyShip) }));
+      if (b.dataset.up) return serverBuy(b, 'upgrade', b.dataset.up, t('upgraded', { x: t('up_' + b.dataset.up) }));
+      if (b.dataset.gitem) return serverBuy(b, 'power', b.dataset.gitem, t('item_yours', { x: t('it_' + b.dataset.gitem) }));
+      if (b.dataset.gav) return serverBuy(b, 'avatar', b.dataset.gav, t('special_icon'));
+      if (b.dataset.buyAv) return serverBuy(b, 'avatar', b.dataset.buyAv, t('new_icon'));
     }
     if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(t('item_yours', { x: t('it_' + it.id) })); save(); renderShop(); return checkSecretShip(); }

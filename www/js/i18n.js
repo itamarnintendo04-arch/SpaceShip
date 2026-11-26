@@ -435,6 +435,7 @@
     ev_gems: ["+{n} per win", "+{n} על כל ניצחון", "+{n} لكل فوز", "+{n} por victoria", "+{n} par victoire", "+{n} pro Sieg", "+{n} за победу", "+{n} por vitória", "+{n} per vittoria", "Galibiyet başına +{n}", "每胜 +{n}", "勝利ごとに +{n}", "승리당 +{n}", "हर जीत पर +{n}"],
     ev_bonus: ["Event bonus", "בונוס אירוע", "مكافأة الحدث", "Bono del evento", "Bonus d'événement", "Event-Bonus", "Бонус события", "Bônus do evento", "Bonus evento", "Etkinlik bonusu", "活动奖励", "イベントボーナス", "이벤트 보너스", "इवेंट बोनस"],
     // ---- coupons & gifts ----
+    e_not_for_sale: ["This isn't for sale right now", "זה לא למכירה כרגע", "هذا غير معروض للبيع الآن", "Esto no está a la venta ahora", "Ce n'est pas en vente pour l'instant", "Das ist gerade nicht zu kaufen", "Сейчас это не продаётся", "Isso não está à venda agora", "Questo non è in vendita ora", "Bu şu an satışta değil", "这个暂时不出售", "これは今は販売していません", "지금은 판매하지 않아요", "यह अभी बिक्री के लिए नहीं है"],
     world_gift: ["Gift for reaching {w}", "מתנה על ההגעה ל{w}", "هدية للوصول إلى {w}", "Regalo por llegar a {w}", "Cadeau pour avoir atteint {w}", "Geschenk für das Erreichen von {w}", "Подарок за мир «{w}»", "Presente por chegar a {w}", "Regalo per aver raggiunto {w}", "{w} dünyasına ulaştığın için hediye", "到达{w}的礼物", "{w}到達のプレゼント", "{w} 도달 선물", "{w} तक पहुँचने का उपहार"],
     world_gift_wait: ["A gift is waiting for you in Codes & gifts", "מחכה לך מתנה בקופונים ומתנות", "هدية بانتظارك في الرموز والهدايا", "Te espera un regalo en Códigos y regalos", "Un cadeau t'attend dans Codes et cadeaux", "Ein Geschenk wartet in Codes & Geschenke", "В «Коды и подарки» тебя ждёт подарок", "Um presente te espera em Códigos e presentes", "Ti aspetta un regalo in Codici e regali", "Kodlar ve hediyeler'de seni bir hediye bekliyor", "“兑换码和礼物”里有礼物等你", "コードとギフトにプレゼントが届いています", "코드와 선물에 선물이 기다리고 있어요", "कोड और उपहार में आपके लिए उपहार इंतज़ार कर रहा है"],
     coupon_win_title: ["Code redeemed!", "הקוד מומש!", "تم استبدال الرمز!", "¡Código canjeado!", "Code utilisé !", "Code eingelöst!", "Код активирован!", "Código resgatado!", "Codice riscattato!", "Kod kullanıldı!", "兑换成功！", "コードを使いました！", "코드 사용 완료!", "कोड भुनाया गया!"],
@@ -582,6 +583,9 @@
       if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
       return s;
     },
+    // adds a text at run time (e.g. a ship added on the server): map = { en: '...', he: '...' }, missing languages fall back to English
+    add(key, map) { if (!map || typeof map !== 'object') return; const en = map.en || Object.values(map)[0]; if (!en) return; S[key] = LANGS.map(l => map[l.id] || en); },
+    has(key) { return !!S[key]; },
     // fills elements marked with data-t (text) and data-tp (placeholder)
     apply(root) {
       (root || document).querySelectorAll('[data-t]').forEach(e => { e.textContent = I18N.t(e.dataset.t); });

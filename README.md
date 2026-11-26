@@ -41,6 +41,22 @@ Secret worlds hide in world 1. Each one opens through a special task: a golden c
 - **Chaos (coupon-only).** A wild secret ship you can only get with a code (`CHAOS`): a spinning saw of lightning with a crackling aura that fires rainbow lightning bolts. It's the strongest ship. It appears in the shop's secret row only once you own it.
 - **World ships.** Every world has its own secret ship, given for finishing that world (winning its level 500): **Meteorite** (Asteroid Belt, spinning rocks), **Glacier** (Frozen Nebula, snowflakes), **Inferno** (Lava Galaxy, magma), **Eclipse** (Void Core, black suns). The shop's *Secret ships* row shows each one locked, with progress (levels finished / 500). Until then the shop shows it as a mystery card with progress (e.g. 49 / 50). It's the strongest ship, with a galaxy aura and rainbow star shots.
 
+### Shop on the server
+The whole shop comes from Supabase, so you can change it with no new build (the game reads it when it starts):
+- **`shop_ships`**: every ship. You can set:
+  - `price` (coins) or `gems` (diamonds)
+  - `sort` (order in the shop)
+  - `active`: untick to hide it from the shop. Players who own it keep it.
+  - the look: `shape`, `body` / `accent` / `glow` colours, `aura`, `fx`
+  - the weapon: `rate`, `dmg`, `side`, `style`, `pierce`
+  - `secret` (not for sale: world ships, Cosmos, coupon ships), `world`, `coupon`
+
+  **Add a row to make a new ship** from the existing parts. Give it a `name` like `{"en": "Zebra", "he": "זברה"}` and an optional `description`.
+- **`shop_items`**: upgrades (`costs` and optional `gems` per level), diamond powers and avatars (`costs[1]` coins or `gems[1]` diamonds), each with `active` and `sort`.
+- **`shop_settings`**: `gem_rate`, the coins for 1 diamond when converting.
+
+**Every purchase goes through the server** (`shop_buy`, `shop_convert`). It checks the price and the player's balance, refuses secret ships, already-owned items and maxed upgrades, and saves the result. Players in offline mode keep the shop built into the game. SQL: `supabase/shop.sql`.
+
 ### Coupon codes and free gifts
 Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.
 
@@ -139,6 +155,7 @@ Accounts, friends, clubs, chat, coupons and multiplayer run on Supabase. Tables 
 - `supabase/schema.sql`: profiles, handles, friend codes, progress, leaderboard, email codes
 - `supabase/party_ranks.sql`, `supabase/party_chat.sql`: clubs, ranks, logos, chat, blocked words
 - `supabase/auth_users_sync.sql`: every player is also listed in **Authentication → Users** (same id; email only if they have one; display name `@handle · name`; no password), kept in sync automatically
+- `supabase/shop.sql`: the shop (ships, upgrades, powers, avatars, prices) and server-side purchases
 - `supabase/coupons.sql`: coupon codes and free gifts
 - `supabase/events.sql`: live events
 - `supabase/app_updates.sql`: update prompts for big events (`app_config`, `game_events.min_version`) and the `app_info()` call the game makes at start
