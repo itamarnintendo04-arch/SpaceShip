@@ -124,7 +124,7 @@ if (existsSync(plist)) {
 // Apple Passwords (iCloud Keychain) for the login key inside the iPhone app: the app must be linked to the
 // website with an Associated Domain. Set IOS_ASSOCIATED_DOMAIN (e.g. spaceship-game.vercel.app) in the build to turn it on;
 // the website then serves /.well-known/apple-app-site-association with your APPLE_TEAM_ID.
-const domain = (process.env.IOS_ASSOCIATED_DOMAIN || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+const domain = (process.env.IOS_ASSOCIATED_DOMAIN || 'spaceship-site.vercel.app').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 const ent = 'ios/App/App/App.entitlements', pbx = 'ios/App/App.xcodeproj/project.pbxproj';
 if (domain && existsSync(pbx)) {
   writeFileSync(ent, `<?xml version="1.0" encoding="UTF-8"?>
@@ -133,7 +133,7 @@ if (domain && existsSync(pbx)) {
 <dict>
 \t<key>com.apple.developer.associated-domains</key>
 \t<array>
-\t\t<string>webcredentials:${domain}</string>
+\t\t<string>webcredentials:${domain}</string>\n\t\t<string>applinks:${domain}</string>
 \t</array>
 </dict>
 </plist>
@@ -150,4 +150,34 @@ if (domain && existsSync(pbx)) {
 {
   const { nativeIcons } = await import('./app-icons.mjs');
   await nativeIcons();
+}
+
+// Android: the website is linked to the app (site serves /.well-known/assetlinks.json with this APK's signing key):
+//  - App Links: https://<site>/gift?code=... opens the app directly
+//  - asset_statements: Google Password Manager shares the SpaceShip login between the website and the app
+{
+  const host = domain;
+  const strings = 'android/app/src/main/res/values/strings.xml';
+  if (host && existsSync(manifest)) {
+    let xml = readFileSync(manifest, 'utf8');
+    if (!xml.includes(`android:host="${host}"`)) {
+      xml = xml.replace('</activity>', `    <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${host}" android:pathPrefix="/gift" />
+            </intent-filter>
+        </activity>`);
+      xml = xml.replace(/<application([^>]*)>/, `<application$1>\n        <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />`);
+      writeFileSync(manifest, xml);
+    }
+    if (existsSync(strings)) {
+      let sx = readFileSync(strings, 'utf8');
+      if (!sx.includes('asset_statements')) {
+        sx = sx.replace('</resources>', `    <string name="asset_statements" translatable="false">[{\\"include\\": \\"https://${host}/.well-known/assetlinks.json\\"}]</string>\n</resources>`);
+        writeFileSync(strings, sx);
+      }
+    }
+    console.log('android: linked to ' + host + ' (App Links + passwords)');
+  }
 }

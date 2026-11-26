@@ -7,6 +7,9 @@ window.SITE_LANGS = [
 ];
 window.SITE_I18N = {
   en: {
+    gift_title: 'A SpaceShip gift!',
+    gift_sub: "Open the app to get your gift. Don't have SpaceShip yet? Download it, sign in, and come back to this link.",
+    gift_open: 'Open SpaceShip',
     dl_thanks: 'Your download has started!',
     dl_thanks_sub: 'Here is your bonus for joining: a code and a new ship. In the game open Codes & gifts and type the code.',
     bonus_title: 'Bonus for joining',
@@ -53,6 +56,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — space shooter', ios_unsigned: 'Unsigned build: install it with Sideloadly or AltStore.',
   },
   he: {
+    gift_title: 'מתנה מ-SpaceShip!',
+    gift_sub: 'פתחו את האפליקציה כדי לקבל את המתנה. אין לכם עדיין SpaceShip? הורידו, התחברו וחזרו לקישור הזה.',
+    gift_open: 'פתיחת SpaceShip',
     dl_thanks: 'ההורדה התחילה!',
     dl_thanks_sub: 'הנה בונוס ההצטרפות שלך: קוד וחללית חדשה. במשחק פתחו את קודים ומתנות והקלידו את הקוד.',
     bonus_title: 'בונוס הצטרפות',
@@ -99,6 +105,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — משחק חלליות', ios_unsigned: 'גרסה לא חתומה: מתקינים עם Sideloadly או AltStore.',
   },
   ar: {
+    gift_title: 'هدية من SpaceShip!',
+    gift_sub: 'افتح التطبيق لتحصل على هديتك. ليس لديك SpaceShip بعد؟ نزّله وسجّل الدخول ثم عد إلى هذا الرابط.',
+    gift_open: 'افتح SpaceShip',
     dl_thanks: 'بدأ التنزيل!',
     dl_thanks_sub: 'إليك مكافأة الانضمام: رمز وسفينة جديدة. افتح في اللعبة الرموز والهدايا واكتب الرمز.',
     bonus_title: 'مكافأة الانضمام',
@@ -145,6 +154,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — لعبة إطلاق نار فضائية', ios_unsigned: 'نسخة غير موقّعة: ثبّتها عبر Sideloadly أو AltStore.',
   },
   es: {
+    gift_title: '¡Un regalo de SpaceShip!',
+    gift_sub: 'Abre la app para recibir tu regalo. ¿Aún no tienes SpaceShip? Descárgalo, inicia sesión y vuelve a este enlace.',
+    gift_open: 'Abrir SpaceShip',
     dl_thanks: '¡Tu descarga ha comenzado!',
     dl_thanks_sub: 'Aquí tienes tu bono de bienvenida: un código y una nave nueva. En el juego abre Códigos y regalos y escribe el código.',
     bonus_title: 'Bono de bienvenida',
@@ -191,6 +203,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — juego de naves', ios_unsigned: 'Versión sin firmar: instálala con Sideloadly o AltStore.',
   },
   fr: {
+    gift_title: 'Un cadeau SpaceShip !',
+    gift_sub: "Ouvre l'app pour recevoir ton cadeau. Pas encore SpaceShip ? Télécharge-le, connecte-toi et reviens sur ce lien.",
+    gift_open: 'Ouvrir SpaceShip',
     dl_thanks: 'Ton téléchargement a commencé !',
     dl_thanks_sub: 'Voici ton bonus de bienvenue : un code et un nouveau vaisseau. Dans le jeu, ouvre Codes et cadeaux et tape le code.',
     bonus_title: 'Bonus de bienvenue',
@@ -237,6 +252,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — jeu de tir spatial', ios_unsigned: 'Version non signée : installe-la avec Sideloadly ou AltStore.',
   },
   de: {
+    gift_title: 'Ein SpaceShip-Geschenk!',
+    gift_sub: 'Öffne die App, um dein Geschenk zu bekommen. Noch kein SpaceShip? Lade es herunter, melde dich an und öffne den Link erneut.',
+    gift_open: 'SpaceShip öffnen',
     dl_thanks: 'Dein Download hat begonnen!',
     dl_thanks_sub: 'Hier ist dein Willkommensbonus: ein Code und ein neues Schiff. Öffne im Spiel Codes & Geschenke und gib den Code ein.',
     bonus_title: 'Willkommensbonus',
@@ -283,6 +301,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — Weltraum-Shooter', ios_unsigned: 'Unsignierte Version: mit Sideloadly oder AltStore installieren.',
   },
   ru: {
+    gift_title: 'Подарок SpaceShip!',
+    gift_sub: 'Открой приложение, чтобы получить подарок. Ещё нет SpaceShip? Скачай, войди и вернись по этой ссылке.',
+    gift_open: 'Открыть SpaceShip',
     dl_thanks: 'Загрузка началась!',
     dl_thanks_sub: 'Вот твой бонус за вступление: код и новый корабль. В игре открой «Коды и подарки» и введи код.',
     bonus_title: 'Бонус за вступление',
@@ -329,6 +350,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — космический шутер', ios_unsigned: 'Неподписанная версия: установи через Sideloadly или AltStore.',
   },
   pt: {
+    gift_title: 'Um presente do SpaceShip!',
+    gift_sub: 'Abra o app para receber seu presente. Ainda não tem o SpaceShip? Baixe, entre e volte a este link.',
+    gift_open: 'Abrir SpaceShip',
     dl_thanks: 'Seu download começou!',
     dl_thanks_sub: 'Aqui está seu bônus de boas-vindas: um código e uma nave nova. No jogo abra Códigos e presentes e digite o código.',
     bonus_title: 'Bônus de boas-vindas',
@@ -375,6 +399,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — jogo de nave', ios_unsigned: 'Versão não assinada: instale com Sideloadly ou AltStore.',
   },
   it: {
+    gift_title: 'Un regalo SpaceShip!',
+    gift_sub: "Apri l'app per ricevere il regalo. Non hai ancora SpaceShip? Scaricalo, accedi e torna a questo link.",
+    gift_open: 'Apri SpaceShip',
     dl_thanks: 'Il download è iniziato!',
     dl_thanks_sub: 'Ecco il tuo bonus di benvenuto: un codice e una nave nuova. Nel gioco apri Codici e regali e scrivi il codice.',
     bonus_title: 'Bonus di benvenuto',
@@ -421,6 +448,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — sparatutto spaziale', ios_unsigned: 'Versione non firmata: installala con Sideloadly o AltStore.',
   },
   tr: {
+    gift_title: 'Bir SpaceShip hediyesi!',
+    gift_sub: 'Hediyeni almak için uygulamayı aç. Henüz SpaceShip yok mu? İndir, giriş yap ve bu bağlantıya geri dön.',
+    gift_open: "SpaceShip'i aç",
     dl_thanks: 'İndirme başladı!',
     dl_thanks_sub: "İşte katılım bonusun: bir kod ve yeni bir gemi. Oyunda Kodlar ve hediyeler'i açıp kodu yaz.",
     bonus_title: 'Katılım bonusu',
@@ -467,6 +497,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — uzay nişancı oyunu', ios_unsigned: 'İmzasız sürüm: Sideloadly veya AltStore ile kur.',
   },
   zh: {
+    gift_title: 'SpaceShip 礼物！',
+    gift_sub: '打开应用领取礼物。还没有 SpaceShip？下载并登录后再打开此链接。',
+    gift_open: '打开 SpaceShip',
     dl_thanks: '下载已开始！',
     dl_thanks_sub: '这是你的加入奖励：一个兑换码和一艘新飞船。在游戏中打开“兑换码与礼物”并输入。',
     bonus_title: '加入奖励',
@@ -513,6 +546,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — 太空射击游戏', ios_unsigned: '未签名版本：请用 Sideloadly 或 AltStore 安装。',
   },
   ja: {
+    gift_title: 'SpaceShip からのプレゼント！',
+    gift_sub: 'アプリを開いてプレゼントを受け取ろう。まだ SpaceShip がない？ダウンロードしてログインし、このリンクに戻ってね。',
+    gift_open: 'SpaceShip を開く',
     dl_thanks: 'ダウンロードが始まりました！',
     dl_thanks_sub: '参加ボーナスです：コードと新しい宇宙船。ゲームの「コードとギフト」で入力してください。',
     bonus_title: '参加ボーナス',
@@ -559,6 +595,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — 宇宙シューティング', ios_unsigned: '署名なし版：Sideloadly か AltStore でインストールしてください。',
   },
   ko: {
+    gift_title: 'SpaceShip 선물!',
+    gift_sub: '앱을 열어 선물을 받으세요. 아직 SpaceShip이 없나요? 다운로드하고 로그인한 뒤 이 링크로 돌아오세요.',
+    gift_open: 'SpaceShip 열기',
     dl_thanks: '다운로드가 시작됐어요!',
     dl_thanks_sub: '가입 보너스예요: 코드와 새 우주선. 게임에서 코드 및 선물을 열고 입력하세요.',
     bonus_title: '가입 보너스',
@@ -605,6 +644,9 @@ window.SITE_I18N = {
     title: 'SpaceShip — 우주 슈팅 게임', ios_unsigned: '서명되지 않은 버전: Sideloadly나 AltStore로 설치하세요.',
   },
   hi: {
+    gift_title: 'SpaceShip उपहार!',
+    gift_sub: 'उपहार पाने के लिए ऐप खोलें। अभी SpaceShip नहीं है? डाउनलोड करें, साइन इन करें और इस लिंक पर लौटें।',
+    gift_open: 'SpaceShip खोलें',
     dl_thanks: 'डाउनलोड शुरू हो गया!',
     dl_thanks_sub: 'यह रहा आपका जुड़ने का बोनस: एक कोड और नया यान। गेम में कोड और उपहार खोलकर कोड लिखें।',
     bonus_title: 'जुड़ने का बोनस',

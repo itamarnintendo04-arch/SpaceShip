@@ -1931,7 +1931,7 @@
     try {
       const u = new URL(url), code = (u.searchParams.get('code') || u.searchParams.get('gift') || '').trim().toUpperCase();
       if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return;
-      if (!url.startsWith('com.spaceship.game://gift') && !u.searchParams.get('gift')) return;
+      if (!url.startsWith('com.spaceship.game://gift') && !u.searchParams.get('gift') && !(u.protocol === 'https:' && /^\/gift\b/.test(u.pathname))) return;
       store.set('ss_pending_gift', code); setTimeout(claimLinkGift, 1500);
     } catch (e) { /* not a gift link */ }
   }
@@ -1950,7 +1950,7 @@
   }
   const onOpenUrl = url => {
     if (!url) return;
-    if (url.startsWith('com.spaceship.game://gift')) giftFromUrl(url);
+    if (url.startsWith('com.spaceship.game://gift') || /^https:\/\/[^/]+\/gift\b/.test(url)) giftFromUrl(url);
     else if (/^(file|content):/i.test(url) && Cap.Filesystem) openKeyFileUrl(url);
   };
   if (Cap.App) {

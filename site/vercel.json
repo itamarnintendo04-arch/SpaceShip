@@ -1,5 +1,33 @@
 {
   "cleanUrls": true,
-  "rewrites": [{ "source": "/.well-known/apple-app-site-association", "destination": "/api/aasa" }],
-  "headers": [{ "source": "/img/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] }]
+  "rewrites": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "destination": "/api/aasa"
+    },
+    {
+      "source": "/gift",
+      "destination": "/gift.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/img/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
 }

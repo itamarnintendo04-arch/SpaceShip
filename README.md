@@ -152,6 +152,12 @@ The iOS build is **unsigned**. For a signed iPhone download, sign it yourself an
 
 ## Website
 
+**App ↔ website link** (`spaceship-site.vercel.app`, the default; the repo variable `IOS_ASSOCIATED_DOMAIN` can change it):
+- `app_config.site_url` points the app's *Update* button at the site.
+- **Android**: `/.well-known/assetlinks.json` (package `com.spaceship.game` + the APK signing key from `android-debug.keystore`) verifies **App Links** (`https://<site>/gift?code=…` opens the app) and lets Google Password Manager share the login between the site and the app (`asset_statements`).
+- **iPhone**: the app has the `webcredentials:` and `applinks:` Associated Domains, and the site serves `/.well-known/apple-app-site-association`. It turns on once the Vercel variable **`APPLE_TEAM_ID`** is set and the app is signed by that team with the *Associated Domains* capability.
+- **`/gift?code=CODE`**: a shareable gift link. With the app installed it opens the app and redeems the code; otherwise the page offers to open or download SpaceShip.
+
 `site/` is a static download page with a small Vercel function. It shows features, the worlds, screenshots and a download button for every device. It is in English by default, and a globe button switches between the same 14 languages as the game. It also detects the visitor's device and highlights that download.
 
 - Android / Windows / macOS / Linux links, the version and file sizes come from the latest GitHub release automatically (`site/api/config.js`).

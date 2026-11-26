@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpaceShip gift</title>
+<meta name="theme-color" content="#05021a">
+<link rel="icon" href="/img/icon-256.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .gift-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; text-align: center; }
+  .gift-card { width: min(460px, 100%); padding: 28px 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--cyan); }
+  .gift-card img { border-radius: 22px; }
+  .gift-card code { display: inline-block; margin: 10px 0 18px; font: 700 22px/1 ui-monospace, monospace; letter-spacing: 2px; color: var(--gold); }
+  .gift-card .btn { width: 100%; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main class="gift-page">
+  <div class="gift-card">
+    <img src="/img/icon-256.png" alt="" width="84" height="84">
+    <h1 id="t">A SpaceShip gift!</h1>
+    <p class="sub" id="s">Open the app to get your gift. Don't have SpaceShip yet? Download it, sign in, and come back to this link.</p>
+    <code id="c"></code>
+    <a class="btn primary" id="open" href="#">Open SpaceShip</a>
+    <a class="btn ghost" href="/#download" id="dl">Download SpaceShip</a>
+  </div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), code = (q.get('code') || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
+  var L = window.SITE_I18N || {}, lang = 'en';
+  try { var v = localStorage.getItem('ss_site_lang'); if (v && L[v]) lang = v; else { var n = (navigator.language || 'en').slice(0, 2); if (L[n]) lang = n; } } catch (e) {}
+  var T = function (k, d) { return (L[lang] && L[lang][k]) || (L.en && L.en[k]) || d; };
+  var rtl = (window.SITE_LANGS || []).some(function (l) { return l.id === lang && l.rtl; });
+  document.documentElement.lang = lang; document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  document.getElementById('t').textContent = T('gift_title', 'A SpaceShip gift!');
+  document.getElementById('s').textContent = T('gift_sub', document.getElementById('s').textContent);
+  document.getElementById('open').textContent = T('gift_open', 'Open SpaceShip');
+  document.getElementById('dl').textContent = T('dl_now', 'Download');
+  document.getElementById('c').textContent = code;
+  var app = 'com.spaceship.game://gift?code=' + encodeURIComponent(code);
+  var open = document.getElementById('open'); open.href = app;
+  var phone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  // on a phone try the app straight away; if it isn't installed the page just stays here
+  if (code && phone) setTimeout(function () { location.href = app; }, 400);
+  // the web version of the game takes the same gift
+  if (!phone) { open.href = '/#download'; }
+})();
+</script>
+</body>
+</html>
