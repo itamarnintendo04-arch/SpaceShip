@@ -61,6 +61,7 @@ The whole shop comes from Supabase, so you can change it with no new build (the 
 **Every purchase goes through the server** (`shop_buy`, `shop_convert`). It checks the price and the player's balance, refuses secret ships, already-owned items and maxed upgrades, and saves the result. Players in offline mode keep the shop built into the game. SQL: `supabase/shop.sql`.
 
 ### Coupon codes and free gifts
+- **Give a coupon to one player** (`coupon_grants`): add a row with the coupon `code` and the player's `handle` (with or without @). It works **even when the coupon is disabled or expired**: it shows in that player's *Codes & gifts* and only they can redeem it, once. Optional `note` and `expires_at` (a deadline for this grant). SQL: `supabase/coupon_grants.sql`.
 Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.
 
 Codes live in the Supabase table **`coupons`**. Add or edit a row in *Supabase → Table Editor → coupons* and it works in the game right away, with no new build:
