@@ -641,7 +641,9 @@
       form.onsubmit = async e => {
         e.preventDefault();
         // a secret token (SST-...) instead of a login key: remember it, and its ship is added to the account you sign in with
-        const tok = /^\s*(SST-[A-Za-z0-9-]{8,64})\s*$/i.exec(inp.value);
+        // forgiving: spaces, invisible marks and any kind of dash copied along with the token are ignored
+        const raw = inp.value.normalize('NFKC').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\s]/g, '').replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D_]/g, '-');
+        const tok = /^(SST-?[A-Za-z0-9-]{8,64})$/i.exec(raw);
         if (tok) {
           go.disabled = true;
           try {

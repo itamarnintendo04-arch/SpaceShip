@@ -71,3 +71,9 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function public.shop_catalog() from public;
 grant execute on function public.shop_catalog() to anon, authenticated;
+
+-- tokens match by their letters and digits only, so dashes, spaces or odd characters copied with them don't matter
+create or replace function public.ss_token_norm(p text) returns text language sql immutable set search_path = '' as $$
+  select regexp_replace(upper(coalesce(p, '')), '[^A-Z0-9]', '', 'g');
+$$;
+-- check_secret_token / claim_secret_token compare ss_token_norm(token) = ss_token_norm(p_token) (see migration secret_tokens_forgiving_match)
