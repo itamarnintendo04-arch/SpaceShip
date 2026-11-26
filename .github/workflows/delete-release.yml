@@ -1,0 +1,23 @@
+name: Delete releases
+
+# Deletes the GitHub releases (and their tags) listed in .github/release-cleanup.txt, e.g. a build made by mistake.
+# Runs only when that file changes; it does not build anything.
+on:
+  push:
+    paths: ['.github/release-cleanup.txt']
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Delete the listed releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -oE '^release-[0-9]+' .github/release-cleanup.txt | sort -u | while read -r R; do
+            gh release delete "$R" -R "$GITHUB_REPOSITORY" --cleanup-tag -y && echo "deleted $R" || echo "$R: not found"
+          done

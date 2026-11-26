@@ -10,7 +10,7 @@ on:
   push:
     branches: ['**']
     tags: ['v*']
-    paths-ignore: ['site/**', 'supabase/**', '**.md']
+    paths-ignore: ['site/**', 'supabase/**', '**.md', '.github/release-cleanup.txt', '.github/workflows/delete-release.yml']
   workflow_dispatch:
 
 permissions:
