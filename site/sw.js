@@ -5,7 +5,7 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (er) { d = { title: 'SpaceShip', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'SpaceShip', {
-    body: d.body || '', icon: '/img/icon-256.png', badge: '/img/icon-256.png', tag: d.tag || undefined, renotify: !!d.tag,
+    body: d.body || '', icon: '/img/alerts-192.png', badge: '/img/alerts-192.png', tag: d.tag || undefined, renotify: !!d.tag,
     data: { url: d.url || '/open' }, vibrate: [80, 40, 80],
   }));
 });
