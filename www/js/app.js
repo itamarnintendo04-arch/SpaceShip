@@ -560,6 +560,7 @@
         <button class="chip" id="s-lang">${langLabel()}</button>
         <button class="chip" id="s-sound">${settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted')}</button>
         <button class="chip" id="s-orient">${settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port')}</button>
+        ${user.offline ? '' : `<button class="chip" id="s-fnotif">${settings.friendNotif !== false ? '👥 ' + t('fnotif_on') : '👥 ' + t('fnotif_off')}</button>`}
         <button class="chip" id="s-anims">${settings.anims !== false ? '🎬 ' + t('anims_on') : '🎬 ' + t('anims_off')}</button>
         <button class="chip" id="s-music">${settings.music ? '🎵 ' + t('music_on') : '🔇 ' + t('music_off')}</button>
         ${user.offline ? '' : `<button class="chip" id="s-notif">${settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off')}</button>`}
@@ -588,6 +589,7 @@
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#s-x', closeModal);
       on('#s-lang', () => { closeModal(); pickLanguage(); });
+      on('#s-fnotif', () => { settings.friendNotif = settings.friendNotif === false; saveSettings(); openSettings(); });
       on('#s-anims', () => { settings.anims = settings.anims === false; settings.intro = settings.anims; saveSettings(); openSettings(); });
       on('#s-watch', () => { closeModal(); Sfx.init(); Cutscene.intro(user.data.skin, t); });
       on('#s-music', () => { settings.music = !settings.music; saveSettings(); Music.setEnabled(settings.music); Music.unlock(); openSettings(); });
@@ -1178,6 +1180,7 @@
             <div class="info"><b>${esc(m.name)}${m.id === user.id ? ` <span class="muted">(${t('you')})</span>` : ''}</b><small dir="ltr">@${esc(m.handle)}</small></div>
             <div class="cm-side">${rankTag(m.role)}${statusHtml(st)}</div></button>`; }).join('')}</div>
         <div class="row wrap">
+          <button class="btn small" data-pmute="${p.id}" title="${esc(t(isMuted(p.id) ? 'party_unmute' : 'party_mute'))}">${isMuted(p.id) ? '🔕 ' + t('party_muted') : '🔔 ' + t('party_updates')}</button>
           <button class="btn small chat-btn" data-pchat="${p.id}">💬 ${t('chat')}${unread(p) ? '<span class="badge-dot"></span>' : ''}</button>
           <button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
           ${accessOf(p) !== 'invite' ? `<button class="btn small" data-pshare="${esc(p.code)}">🔗 ${t('share_link')}</button>` : ''}
@@ -1266,6 +1269,7 @@
       ${!me && !p.in_club && parties.length ? `<button class="btn" data-a="cinvite">✉️ ${t('invite_club', { x: esc(parties[0].name) })}</button>` : ''}
       <div class="muted small">${t('p_joined', { d: new Date(p.joined).toLocaleDateString() })}</div>
       ${me ? '' : playButton(p.id, st)}
+      ${!me && p.rel === 'friend' ? `<button class="btn gold" data-a="poke">⏰ ${t('poke_btn')}</button>` : ''}
       ${me ? '' : p.rel === 'friend' ? `<div class="chip center">${t('friends_already')}</div>` : p.rel === 'sent' ? `<button class="btn" disabled>${t('requested')}</button>`
         : p.rel === 'incoming' ? `<button class="btn primary" data-a="accept">${t('accept')}</button>` : `<button class="btn" data-a="friend">${Art.icon('plus')} ${t('add_friend')}</button>`}
       <button class="btn ghost" data-a="close">${t('close')}</button></div>`, c => {
@@ -1279,6 +1283,7 @@
           if (b.dataset.a === 'cinvite') { await Net.inviteToParty(user, p.id); toast(t('club_invite_sent', { h: '@' + p.handle })); Net.sendTo(p.id, 'club_invite', { handle: user.handle, club: parties[0].name }).catch(() => {}); b.disabled = true; return; }
           if (b.dataset.a === 'ask') { closeModal(); return askToJoin(p.id, p); }
           if (b.dataset.a === 'friend') { await requestFriend(p.id, p.handle); return openProfile(p.id); }
+          if (b.dataset.a === 'poke') { b.disabled = true; return pokeFriend(p.id); }
           if (b.dataset.a === 'accept') { await Net.respondFriendRequest(user, p.id, true); toast(t('friend_added', { h: at(p.handle) })); Net.sendTo(p.id, 'friend_accepted', { handle: user.handle }).catch(() => {}); loadFriends(); return openProfile(p.id); }
         } catch (er) { toast(errText(er)); }
       };
@@ -1374,12 +1379,16 @@
     return `<div class="msg ${mine ? 'me' : ''}">${mine ? '' : `<div class="avatar">${Art.avatar(m.from ? m.from.avatar : 'alien')}</div>`}
       <div class="bubble">${mine ? '' : `<b>${esc(m.from ? m.from.name : t('deleted_player'))}</b>`}<span dir="auto">${esc(m.body)}</span><small>${time}</small></div></div>`;
   }
+  // party updates (chat messages, calls to play) can be muted per party; stored on this device
+  const muteKey = () => 'ss_mute_' + user.id;
+  const isMuted = pid => !!(pid && store.get(muteKey(), {})[pid]);
+  const setMuted = (pid, on) => { const s = store.get(muteKey(), {}); if (on) s[pid] = 1; else delete s[pid]; store.set(muteKey(), s); };
   function onPartyMsg(p) {
     if (!p || !p.party) return;
     if (chat && chat.pid === p.party && $('#ch-list')) { loadChat(); return; }
     const party = parties.find(x => x.id === p.party);
     if (party) party.last_msg = (party.last_msg || 0) + 1e9; // unread until the chat is opened
-    notify(p.name || 'SpaceShip', t('n_party_msg', { h: '@' + (p.h || '') }));
+    if (!isMuted(p.party)) notify(p.name || 'SpaceShip', t('n_party_msg', { h: '@' + (p.h || '') }));
     if (current === 'friends' && friendTab === 'parties') renderParties();
     updateOnlineBadge();
   }
@@ -1426,8 +1435,9 @@
   $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
   $('#f-pane-parties').addEventListener('click', async e => {
     const mem = e.target.closest('[data-pmem]'); if (mem) return memberSheet(mem.dataset.party, mem.dataset.pmem);
-    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo],[data-pdecline],[data-pshare]'); if (!b || b.disabled) return;
+    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo],[data-pdecline],[data-pshare],[data-pmute]'); if (!b || b.disabled) return;
     try {
+      if (b.dataset.pmute) { const on = !isMuted(b.dataset.pmute); setMuted(b.dataset.pmute, on); toast(t(on ? 'party_muted_t' : 'party_unmuted_t')); return renderParties(); }
       if (b.dataset.pshare) return share(t('club_share_text', { x: parties[0] ? parties[0].name : '' }) + '\n' + clubLink(b.dataset.pshare));
       if (b.dataset.pdecline) { await Net.declinePartyInvite(user, b.dataset.pdecline); return loadParties(); }
       if (b.dataset.pchat) return openChat(b.dataset.pchat);
@@ -1442,7 +1452,7 @@
         const p = parties.find(x => x.id === b.dataset.pplay);
         if (!room || room.role !== 'host') openRoom(roomCode(), 'host');
         for (const m of p.members || []) if (m.id !== user.id && Net.isOnline(m.id) && !roomOf(m.id))
-          Net.sendInvite(m.id, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar }, party: p.name }).catch(() => {});
+          Net.sendInvite(m.id, { code: room.code, from: { handle: user.handle, name: user.name, avatar: user.avatar }, party: p.name, pid: p.id, bonus: 1 }).catch(() => {});
         toast(t('invite_sent', { h: p.name }));
         return;
       }
@@ -1629,14 +1639,38 @@
     if (p && p.ok && p.code) openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest');
     else toast(t('join_declined'));
   }
+  // a friend's poke: "Wake up! Let's play!" (Settings: Friend notifications on/off)
+  function onPoke(p) {
+    if (!p || !p.from || settings.friendNotif === false) return;
+    notify(t('poke_title'), t('poke_body', { h: '@' + p.from.handle }));
+    if (game) return;
+    Sfx.init(); Sfx.power();
+    modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>⏰ ${t('poke_title')}</h2>
+      <p>${t('poke_body', { h: `<b dir="ltr">@${esc(p.from.handle)}</b>` })}</p>
+      <button class="btn primary big" id="pk-yes">${Art.icon('play')} ${t('play_with')}</button><button class="btn ghost" id="pk-no">${t('not_now')}</button>`, m => {
+      m.querySelector('#pk-no').onclick = closeModal;
+      m.querySelector('#pk-yes').onclick = () => { closeModal(); inviteFriend(p.from.id, p.from); };
+    });
+  }
+  const pokedAt = {};
+  async function pokeFriend(id) {
+    if (pokedAt[id] && Date.now() - pokedAt[id] < 60000) return toast(t('poke_wait'));
+    pokedAt[id] = Date.now();
+    try { await Net.sendTo(id, 'poke', { from: { id: user.id, handle: user.handle, name: user.name, avatar: user.avatar } }); toast(t('poke_sent')); }
+    catch (e) { toast(t('poke_offline')); }
+  }
   function onInvite(p) {
     if (game || !p || !p.code) return;
-    notify(t('game_invite'), t('n_invite', { h: '@' + p.from.handle }));
+    const call = !!(p.pid && p.bonus);   // the party calls everyone to play, with a bonus for joining
+    if (call && isMuted(p.pid)) return;
+    notify(call ? p.party : t('game_invite'), call ? t('n_party_call', { h: '@' + p.from.handle }) + ' 🎁' : t('n_invite', { h: '@' + p.from.handle }));
     Sfx.init(); Sfx.power();
     modal(`<div class="avatar" style="width:80px;height:80px;margin:0 auto">${Art.avatar(p.from.avatar)}</div><h2>${t('game_invite')}</h2>
       <p><b>${esc(p.from.name)}</b> <span dir="ltr" style="color:var(--cyan)">@${esc(p.from.handle)}</span> ${t('invites_you')}${p.party ? ` · <b>${esc(p.party)}</b>` : ''}</p>
+      ${call ? `<div class="call-bonus">🎁 ${t('call_bonus')}</div>` : ''}
       <button class="btn primary big" id="i-yes">${t('join')}</button><button class="btn ghost" id="i-no">${t('not_now')}</button>`, m => {
-      m.querySelector('#i-yes').onclick = () => { closeModal(); openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest'); };
+      m.querySelector('#i-yes').onclick = () => { closeModal(); openRoom(String(p.code).toUpperCase().slice(0, 5), 'guest');
+        if (call) Net.claimCallBonus(user).then(r => { grant(r); toast(t('call_bonus_got'), 3500); }).catch(() => {}); };
       m.querySelector('#i-no').onclick = closeModal;
     });
   }
@@ -2114,7 +2148,7 @@
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
-    Net.startPresence(user, { onInvite, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
+    Net.startPresence(user, { onInvite, onPoke, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
     claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400);
   }

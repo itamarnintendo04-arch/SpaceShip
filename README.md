@@ -115,6 +115,8 @@ Every build writes its version (`1.1.<build number>`, the same number as the Git
   - ⭐ **Co-leader**: changes the name, description and logo, demotes a senior to member, and can kick anyone except the leader.
   - 🔷 **Senior**: can change the club logo.
   - **Member**: the regular rank.
+- **Party updates** (🔔 / 🔕 on each club, saved on the device): notifications for new chat messages and when a member calls the club to play (*Play together*). Joining from a call gives **250 coins + 3 diamonds, once a day** (server: `claim_call_bonus`, `supabase/party_call_bonus.sql`).
+- **"Wake up! Let's play!"**: a button on a friend's profile that sends them a notification (once a minute at most). Players who don't want these turn off *Friend notifications* in Settings.
 - **Club chat** in real time. Words the leader blocks show as `#` per letter, in old messages too.
 - The member list always shows who is **online**, who is **in a room** and who is offline. Tapping a member lets you play together (even if you are not friends), ask to join their room, add them as a friend or open their **profile**.
 

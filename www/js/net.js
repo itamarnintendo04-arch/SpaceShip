@@ -57,6 +57,7 @@
     myParties: u => rpc('my_parties', { p_id: u.id, p_secret: u.secret }),
     createParty: (u, name, desc, access, logo) => rpc('create_party', { p_id: u.id, p_secret: u.secret, p_name: name, p_desc: desc, p_public: access === 'public', p_logo: logo || 'l1', p_access: access }),
     updateParty: (u, id, name, desc, access, logo) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: access === 'public', p_logo: logo || null, p_access: access }),
+    claimCallBonus: u => rpc('claim_call_bonus', { p_id: u.id, p_secret: u.secret }),
     inviteToParty: (u, target) => rpc('invite_to_party', { p_id: u.id, p_secret: u.secret, p_target: target }),
     partyInvites: u => rpc('my_party_invites', { p_id: u.id, p_secret: u.secret }),
     declinePartyInvite: (u, party) => rpc('decline_party_invite', { p_id: u.id, p_secret: u.secret, p_party: party }),
@@ -145,7 +146,7 @@
     cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
-    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg, onClubInvite }) {
+    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg, onClubInvite, onPoke }) {
       if (!sb || lobby) return;
       lobby = sb.channel('ss-lobby', { config: { presence: { key: user.id } } });
       lobby.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== user.id && onJoin) onJoin(key, newPresences && newPresences[0]); });
@@ -165,6 +166,7 @@
       inbox.on('broadcast', { event: 'join_reply' }, ({ payload }) => onJoinReply && onJoinReply(payload));
       inbox.on('broadcast', { event: 'party_msg' }, ({ payload }) => onPartyMsg && onPartyMsg(payload));
       inbox.on('broadcast', { event: 'club_invite' }, ({ payload }) => onClubInvite && onClubInvite(payload));
+      inbox.on('broadcast', { event: 'poke' }, ({ payload }) => onPoke && onPoke(payload));
       inbox.subscribe();
     },
     stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; lobbySubscribed = false; },
