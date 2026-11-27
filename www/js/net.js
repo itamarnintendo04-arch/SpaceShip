@@ -164,7 +164,7 @@
     cutvidCall: body => fn('cutvid-auth', body),
 
     // Presence in a global lobby + a personal inbox channel for invites
-    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg, onClubInvite, onPoke }) {
+    startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg, onClubInvite, onPoke, onPlaying }) {
       if (!sb || lobby) return;
       lobby = sb.channel('ss-lobby', { config: { presence: { key: user.id } } });
       lobby.on('presence', { event: 'join' }, ({ key, newPresences }) => { if (key !== user.id && onJoin) onJoin(key, newPresences && newPresences[0]); });
@@ -185,6 +185,8 @@
       inbox.on('broadcast', { event: 'party_msg' }, ({ payload }) => onPartyMsg && onPartyMsg(payload));
       inbox.on('broadcast', { event: 'club_invite' }, ({ payload }) => onClubInvite && onClubInvite(payload));
       inbox.on('broadcast', { event: 'poke' }, ({ payload }) => onPoke && onPoke(payload));
+      // the same account started a game on another device
+      inbox.on('broadcast', { event: 'playing' }, ({ payload }) => onPlaying && onPlaying(payload));
       inbox.subscribe();
     },
     stopPresence() { if (lobby) sb.removeChannel(lobby); if (inbox) sb.removeChannel(inbox); lobby = inbox = null; lobbySubscribed = false; },

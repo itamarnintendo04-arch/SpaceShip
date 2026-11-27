@@ -1429,7 +1429,7 @@
           const d = ds.find(x => x.id === b.dataset.dren), row = b.closest('.dev-row');
           row.innerHTML = `<input class="dev-name" maxlength="40" value="${esc(d.name)}"><button class="btn small primary">${t('save')}</button>`;
           const inp = row.querySelector('input'); inp.focus(); inp.select();
-          const go = async () => { const v = inp.value.trim(); if (!v) return; try { await Net.deviceRename(user, d.id, v); toast(t('device_renamed')); } catch (e) { toast(errText(e)); } draw(); };
+          const go = async () => { const v = inp.value.trim(); if (!v) return; try { await Net.deviceRename(user, d.id, v); if (d.id === DEVICE) myDeviceName = v; toast(t('device_renamed')); } catch (e) { toast(errText(e)); } draw(); };
           row.querySelector('button').onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
         });
         list.querySelectorAll('[data-drm]').forEach(b => b.onclick = async () => { try { await Net.deviceRemove(user, b.dataset.drm); } catch (e) { toast(errText(e)); } draw(); });
@@ -1740,6 +1740,27 @@
     const r = await Net.pushSend(user, 'poke', { target: id, skip: live ? [id] : [] });
     toast(live || (r && r.sent) ? t('poke_sent') : t('poke_offline'));
   }
+  // ---------- one account, many devices, one game at a time ----------
+  // signed in on several devices is fine; starting a game here stops the game on the account's other devices
+  let myDeviceName = '';
+  async function claimPlay() {
+    if (!user || user.offline) return;
+    if (!myDeviceName) { try { const mine = (await Net.myDevices(user)).find(x => x.id === DEVICE); myDeviceName = mine ? mine.name : (await deviceInfo()).name; } catch (e) { myDeviceName = (await deviceInfo().catch(() => ({ name: '' }))).name; } }
+    Net.sendTo(user.id, 'playing', { device: DEVICE, name: myDeviceName, at: Date.now() }).catch(() => {});
+  }
+  function onPlaying(p) {
+    if (!p || p.device === DEVICE) return;
+    if (!game || game.over) return;
+    const last = { mode: game.mode, level: game.level, world: game.galN, secret: game.secret };
+    if (game.coop) leaveRoom(true);
+    stopGame(); show('menu', false); history = [];
+    Sfx.init(); Sfx.hit && Sfx.hit();
+    modal(`<div style="font-size:44px">🎮</div><h2>${t('moved_title')}</h2><p class="muted">${t('moved_body', { x: `<b>${esc(p.name || '?')}</b>` })}</p>
+      <button class="btn primary big" id="mv-here">${Art.icon('play')} ${t('play_here')}</button><button class="btn ghost" id="mv-x">${t('close')}</button>`, m => {
+      m.querySelector('#mv-x').onclick = closeModal;
+      m.querySelector('#mv-here').onclick = () => { closeModal(); startGame(Object.assign({ _cs: 1 }, last.mode === 'endless' ? { mode: 'endless' } : last)); };
+    });
+  }
   function onInvite(p) {
     if (game || !p || !p.code) return;
     const call = !!(p.pid && p.bonus);   // the party calls everyone to play, with a bonus for joining
@@ -1791,6 +1812,7 @@
     hint(); setTimeout(hint, 600);
     const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
     const start = () => {
+      claimPlay(o);
       game = new Game($('#game'), {
         mode: o.mode, level: o.level, world: o.world || 1, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
         me: meInfo(), roster: o.roster, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
@@ -2241,7 +2263,7 @@
     if (!user || user.offline) return;
     presenceSince = Date.now();
     setTimeout(askNotifications, 1500);
-    Net.startPresence(user, { onInvite, onPoke, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
+    Net.startPresence(user, { onInvite, onPoke, onPlaying, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
     claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400); setTimeout(syncPushPrefs, 2000); setTimeout(registerDevice, 2500);
   }
