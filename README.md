@@ -167,6 +167,8 @@ The iOS build is **unsigned**. For a signed iPhone download, sign it yourself an
 
 ## Website
 
+**Google (free):** the site has a search title and description, share cards (Open Graph, `img/og.jpg`), `VideoGame` structured data, `robots.txt` and `sitemap.xml`; helper pages (`/notify`, `/open`, `/gift`, `/club`) are kept out of search. To ask Google to index it: Google Search Console → *Add property* → *URL prefix* `https://spaceship-site.vercel.app/` → verify with the *HTML tag* (paste it in `site/index.html` where the comment says) → *Sitemaps* → `sitemap.xml`.
+
 **App ↔ website link** (`spaceship-site.vercel.app`, the default; the repo variable `IOS_ASSOCIATED_DOMAIN` can change it):
 - `app_config.site_url` points the app's *Update* button at the site.
 - **Android**: `/.well-known/assetlinks.json` (package `com.spaceship.game` + the APK signing key from `android-debug.keystore`) verifies **App Links** (`https://<site>/gift?code=…` opens the app) and lets Google Password Manager share the login between the site and the app (`asset_statements`).

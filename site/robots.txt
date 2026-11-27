@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /notify
+Disallow: /open
+Disallow: /gift
+Disallow: /club
+
+Sitemap: https://spaceship-site.vercel.app/sitemap.xml
