@@ -181,6 +181,10 @@
       this.secret = opts.secret || null; // {w, k}
       this.cfg = levelCfg(this.mode === 'endless' ? 1 : this.level, this.galN);
       if (this.secret) { this.level = 8 + this.secret.w * 4 + this.secret.k * 2; this.cfg = secretCfg(this.secret.w, this.secret.k); }
+      // Boss arena: a strong mothership right away (paid entry, a big prize for winning)
+      this.arena = this.mode === 'arena';
+      if (this.arena) { this.level = Math.max(10, opts.level || 10); this.cfg = levelCfg(this.level, this.galN); this.cfg.boss = true; this.cfg.goal = 0; this.cfg.enemy = 0; }
+      this.revives = 0;
       this.found = []; this.crystals = 0; this.comet = null; this.goldKills = 0; this.hits = 0;
       const normal = this.mode === 'level' && !this.secret && !opts.mini && this.galN === 1; // secret worlds hide in world 1
       // the secret worlds that can be found in this level
@@ -223,7 +227,7 @@
         x: W / 2, y: 0, lives: (this.secret ? 1 : 3) + (st.life || 0), shield: st.shield || 0, plasma: !!st.plasma,
         weapon: st.weapon || 1, magnet: st.magnet || 0, inv: 2, alive: true, fireCd: 0, rapid: 0, triple: 0, tx: W / 2, ty: 0,
         rate: st.rate || 0, power: st.power || 0, luck: st.luck || 0, revive: !!st.revive && !(this.o && this.o.mini), drone: !!st.drone, dn: 0,
-        sides: +st.sides || 0, dbl: !!st.dbl,
+        sides: +st.sides || 0, dbl: !!st.dbl, stars: Math.max(0, Math.min(3, +st.stars || 0)),
       };
     }
     spreadPlayers() {
@@ -344,7 +348,7 @@
       const cfg = this.cfg;
 
       // spawning
-      const levelDone = this.mode === 'level' && this.kills >= cfg.goal;
+      const levelDone = (this.mode === 'level' || this.arena) && this.kills >= cfg.goal;
       if (levelDone && cfg.boss && !this.bossSpawned) this.spawnBoss();
       if (!levelDone || this.mode === 'endless') {
         this.spawnT -= dt;
@@ -438,7 +442,11 @@
       this.pickups = this.pickups.filter(k => !k.dead && k.y < this.H + 30);
 
       // game over check
-      if (!this.over && this.players.every(p => !p.alive)) this.finish(false);
+      if (!this.over && this.players.every(p => !p.alive)) {
+        // the paid revive: the game waits while the player chooses (solo games only)
+        if (!this.coop && !this.o.mini && this.o.onRevive && !this.askedRevive) { this.askedRevive = true; this.paused = true; this.o.onRevive(this); }
+        else if (!this.paused) this.finish(false);
+      }
       if (this.over) { this.endT -= dt; if (this.endT <= 0 && !this.ended) { this.ended = true; this.o.onEnd(this.result); } }
 
       // co-op sync (host)
@@ -538,7 +546,8 @@
       const base = p.dbl ? Math.max(2, p.weapon) : 1;
       const lvl = Math.min(6, base + (p.triple > 0 ? 2 : 0)), owner = this.players.indexOf(p);
       const g = gunOf(p.skin), pierce = p.plasma || !!g.pierce;
-      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg: dmg * g.dmg, owner, pierce, hits: pierce ? new Set() : null });
+      const sb = 1 + 0.06 * (p.stars || 0);   // ship stars: +6% damage each
+      const add = (dx, ang, dmg = 1) => this.bullets.push({ x: p.x + dx, y: p.y - 22, vx: Math.sin(ang) * 820, vy: -Math.cos(ang) * 820, dmg: dmg * g.dmg * sb, owner, pierce, hits: pierce ? new Set() : null });
       // side shots only with the Side cannons upgrade: one pair fanning out from the wings per upgrade level
       const sides = Math.min(4, p.sides || 0);
       for (let i = 0; i < sides; i++) { const ang = 0.32 + i * 0.16; add(-16 - i * 3, -ang, 0.8); add(16 + i * 3, ang, 0.8); }
@@ -566,7 +575,7 @@
     }
     spawnBoss() {
       this.bossSpawned = true;
-      const max = 60 + Math.min(this.level, 160) * 22;
+      const max = (60 + Math.min(this.level, 160) * 22) * (this.arena ? 3 : 1);
       this.boss = { x: W / 2, y: -80, hp: max, max, t: 0, flash: 0, shotT: 2 };
       this.float(W / 2, this.H * 0.4, '!!! ' + t('mothership') + ' !!!', '#f43f5e', 2.5);
     }
@@ -606,11 +615,21 @@
         const tt = w.trig.type;
         if ((tt === 'boss' && this.livesLost === 0) || (tt === 'nohit' && this.hits === 0) || (tt === 'fast' && this.t <= w.trig.n)) this.discover(w.id, W / 2, this.H * 0.35);
       }
-      const bonus = win && this.mode === 'level' ? 20 + Math.min(this.level, 150) * 10 : Math.floor(this.score / 200);
+      const bonus = win && (this.mode === 'level' || this.arena) ? 20 + Math.min(this.level, 150) * 10 : Math.floor(this.score / 200);
       this.result = { win, stars, coins: this.coins + bonus, bonus, collected: this.coins, score: this.score, level: this.o.level || 1, world: this.galN, mode: this.mode, secret: this.secret, found: this.found.slice() };
       if (win) { Sfx.win(); this.float(W / 2, this.H * 0.45, t('f_level_done'), '#4ade80', 2); }
       if (this.coop) { this.sendState(); this.coop.room.send('end', this.result); }
     }
+
+    // the paid revive was bought: everyone is back with one heart, enemy shots cleared
+    revive() {
+      this.revives++; this.askedRevive = false;
+      for (const p of this.players) { p.alive = true; p.lives = 1; p.inv = 3; this.spark(p.x, p.y, 30, 1); }
+      this.bullets = this.bullets.filter(b => !b.enemy);
+      this.float(W / 2, this.H * 0.45, t('f_revive'), '#4ade80', 1.4);
+      this.paused = false; this.last = performance.now();
+    }
+    noRevive() { this.paused = false; this.last = performance.now(); this.finish(false); }
 
     // a player left the room in the middle of a game
     dropPlayer(id) { const p = this.players.find(q => q.id === id && !q.local); if (p) { p.alive = false; p.lives = 0; p.gone = true; } }
@@ -784,6 +803,7 @@
         x.rotate(clamp((p.tx - p.x) * 0.01, -0.3, 0.3) * (p.local ? 1 : 0));
         Art.drawShip(x, p.skin, 22, t, 1);
         x.restore();
+        if (p.stars) Art.drawStars(x, p.x, p.y, 30, p.stars, t);   // ship stars circle the ship
         if (p.drone && p.alive) { // a small helper drone floating beside the ship
           const dx = p.x + 30, dy = p.y - 4 + Math.sin(t * 5) * 3;
           x.fillStyle = '#94a3b8'; x.strokeStyle = '#e2e8f0'; x.lineWidth = 1.5; x.beginPath(); x.arc(dx, dy, 7, 0, 7); x.fill(); x.stroke();

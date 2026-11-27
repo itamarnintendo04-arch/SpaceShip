@@ -3,6 +3,8 @@
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const { Game, Sfx, levelCfg, WORLDS, GALAXIES } = window.SSGame;
   let CUSTOM_PRICE = { coins: 1000, gems: 100, max: 20 };   // Workshop: building a ship (shop_settings on the server)
+  let EXTRAS = { wheel_gems: 5, star_coins: [2000, 5000, 10000], star_gems: [10, 25, 50], pack_gems: 15, revive_coins: [50, 100, 200], revive_gems: [2, 4, 8],
+    arena_fee: 300, arena_coins: 1500, arena_gems: 5, club_levels: [5000, 20000, 60000, 150000, 400000] };   // wheel, stars, stickers, revive, arena, club (server prices)
   let GEM_RATE = 10; // 1 diamond = 10 coins (the server's shop_settings can change it)
   // special items - bought with diamonds
   const GEM_ITEMS = [
@@ -107,6 +109,9 @@
     if (m.includes('maxed')) return t('maxed');
     if (m.includes('not_for_sale')) return t('e_not_for_sale');
     if (m.includes('custom_limit')) return t('ws_limit');
+    if (m.includes('wheel_used')) return t('wheel_tomorrow');
+    if (m.includes('all_owned')) return t('rare_all');
+    if (m.includes('bad_amount')) return t('e_bad_amount');
     if (m.includes('coupon_not_found')) return t('e_coupon_not_found');
     if (m.includes('coupon_used_up')) return t('e_coupon_used_up');
     if (m.includes('coupon_used')) return t('e_coupon_used');
@@ -473,6 +478,7 @@
   function renderMenu() {
     $('#m-me').innerHTML = `<div class="avatar">${Art.avatar(user.avatar)}</div><div><b>${esc(user.name)}</b><small>@${esc(user.handle)}</small></div>`;
     $('#m-coins').innerHTML = walletHtml(user.data);
+    updateWheelDot();
     loadGifts(); loadEvents();
     checkWorldShips();
     $('#t-orient').innerHTML = settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port');
@@ -875,6 +881,7 @@
   function applyCatalog(cat) {
     if (!cat || !Array.isArray(cat.ships)) return;
     if (cat.gem_rate) GEM_RATE = +cat.gem_rate || GEM_RATE;
+    if (cat.extras) Object.keys(EXTRAS).forEach(k => { if (cat.extras[k] != null) EXTRAS[k] = Array.isArray(cat.extras[k]) ? cat.extras[k].map(Number) : +cat.extras[k]; });
     if (cat.custom) CUSTOM_PRICE = { coins: +cat.custom.coins, gems: +cat.custom.gems, max: +cat.custom.max };
     const order = {};
     cat.ships.forEach(r => {
@@ -1162,6 +1169,7 @@
     if (!user || user.offline) return;
     try { parties = await Net.myParties(user) || []; } catch (e) { console.warn(e); }
     try { clubInvites = await Net.partyInvites(user) || []; } catch (e) { clubInvites = []; }
+    await loadClubLevel();
     if (current === 'friends' && friendTab === 'parties') renderParties();
     updateOnlineBadge();
   }
@@ -1194,6 +1202,7 @@
             <div class="cm-side">${rankTag(m.role)}${statusHtml(st)}</div></button>`; }).join('')}</div>
         <div class="row wrap">
           <button class="btn small" data-pmute="${p.id}" title="${esc(t(isMuted(p.id) ? 'party_unmute' : 'party_mute'))}">${isMuted(p.id) ? '🔕 ' + t('party_muted') : '🔔 ' + t('party_updates')}</button>
+          <button class="btn small gold" data-ptreasury="${p.id}">💰 ${t('treasury')} · ${t('club_level', { n: clubLevel })}</button>
           <button class="btn small chat-btn" data-pchat="${p.id}">💬 ${t('chat')}${unread(p) ? '<span class="badge-dot"></span>' : ''}</button>
           <button class="btn small primary" data-pplay="${p.id}" ${on ? '' : 'disabled'}>${t('play_together')}</button>
           ${accessOf(p) !== 'invite' ? `<button class="btn small" data-pshare="${esc(p.code)}">🔗 ${t('share_link')}</button>` : ''}
@@ -1518,11 +1527,12 @@
   $('#p-create').addEventListener('click', () => { if (!user.offline) partyForm(null); });
   $('#f-pane-parties').addEventListener('click', async e => {
     const mem = e.target.closest('[data-pmem]'); if (mem) return memberSheet(mem.dataset.party, mem.dataset.pmem);
-    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo],[data-pdecline],[data-pshare],[data-pmute]'); if (!b || b.disabled) return;
+    const b = e.target.closest('[data-pjoin],[data-pleave],[data-pedit],[data-pplay],[data-pcopy],[data-pchat],[data-pwords],[data-plogo],[data-pdecline],[data-pshare],[data-pmute],[data-ptreasury]'); if (!b || b.disabled) return;
     try {
       if (b.dataset.pmute) { const on = !isMuted(b.dataset.pmute); setMuted(b.dataset.pmute, on); syncPushPrefs(); toast(t(on ? 'party_muted_t' : 'party_unmuted_t')); return renderParties(); }
       if (b.dataset.pshare) return share(t('club_share_text', { x: parties[0] ? parties[0].name : '' }) + '\n' + clubLink(b.dataset.pshare));
       if (b.dataset.pdecline) { await Net.declinePartyInvite(user, b.dataset.pdecline); return loadParties(); }
+      if (b.dataset.ptreasury) return treasuryBox(b.dataset.ptreasury);
       if (b.dataset.pchat) return openChat(b.dataset.pchat);
       if (b.dataset.pwords) return blockedWords(parties.find(x => x.id === b.dataset.pwords));
       if (b.dataset.plogo) return logoPicker(parties.find(x => x.id === b.dataset.plogo));
@@ -1561,7 +1571,7 @@
     return { weapon: D.up.weapon, shield: D.up.shield + (has('shield2') ? 2 : 0), magnet: D.up.magnet + (has('supermag') ? 5 : 0),
       life: D.up.life + (has('goldheart') ? 1 : 0), plasma: has('plasma'),
       rate: D.up.rate || 0, power: D.up.power || 0, luck: D.up.luck || 0, revive: has('revive'), drone: has('drone'),
-      sides: D.up.sides || 0, dbl: !!(D.levels && D.levels[5]) };   // dbl: two shots ahead once the first boss (level 5) is beaten
+      sides: D.up.sides || 0, dbl: !!(D.levels && D.levels[5]), stars: ((D.stars || {})[D.skin]) || 0 };   // dbl: two shots ahead once the first boss (level 5) is beaten
   };
   const meInfo = () => ({ id: user.id, handle: user.handle, name: user.name, avatar: user.avatar, skin: user.data.skin, stats: myStats() });
   const roomCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
@@ -1825,7 +1835,7 @@
         mode: o.mode, level: o.level, world: o.world || 1, secret: o.secret || null, orientation: settings.orientation, H: o.H, safeTop: safeTop + 4,
         me: meInfo(), roster: o.roster, coop: o.coop, hd: DESKTOP, local2: !!o.local2,
         p2: o.local2 ? { id: 'p2', handle: 'player2', name: t('player2'), skin: user.data.skin === 'viper' ? 'falcon' : 'viper', stats: myStats() } : null,
-        onEnd: r => onGameEnd(r), onPauseKey: () => pause(),
+        onEnd: r => onGameEnd(r), onPauseKey: () => pause(), onRevive: g => askRevive(g),
       });
       if (o.coop && o.coop.role === 'host') { room.send('start', { mode: o.mode, level: o.level, world: o.world || 1, secret: o.secret || null, H: game.H, roster: o.roster }); }
       $('#g-pause').innerHTML = Art.icon(o.coop ? 'x' : 'pause');
@@ -1843,9 +1853,9 @@
       return;
     }
     game.paused = true;
-    modal(`<h2>${t('paused')}</h2><button class="btn primary big" id="p-res">${t('resume')}</button><button class="btn" id="p-restart">${t('restart')}</button><button class="btn ghost" id="p-quit">${t('to_menu')}</button>`, m => {
+    modal(`<h2>${t('paused')}</h2><button class="btn primary big" id="p-res">${t('resume')}</button>${game.arena ? '' : `<button class="btn" id="p-restart">${t('restart')}</button>`}<button class="btn ghost" id="p-quit">${t('to_menu')}</button>`, m => {
       m.querySelector('#p-res').onclick = () => { closeModal(); game.paused = false; game.last = performance.now(); };
-      m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, world: g.galN, secret: g.secret, local2: g.local2, _cs: 1 }); };
+      if (m.querySelector('#p-restart')) m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, world: g.galN, secret: g.secret, local2: g.local2, _cs: 1 }); };
       m.querySelector('#p-quit').onclick = () => { closeModal(); stopGame(); show(game ? 'menu' : 'levels', false); };
     });
   }
@@ -1870,6 +1880,12 @@
     // the luck upgrade adds 10% per level to the coins of every game
     const luck = Math.round(r.coins * 0.1 * (D.up.luck || 0));
     r = Object.assign({}, r, { coins: r.coins + luck, bonus: r.bonus + luck });
+    // the club treasury level: +2% coins per level for every member
+    const clubCoins = Math.round(r.coins * 0.02 * clubLevel);
+    r = Object.assign({}, r, { coins: r.coins + clubCoins, bonus: r.bonus + clubCoins });
+    // Boss arena: the prize for beating the mothership
+    const arenaWin = r.mode === 'arena' && r.win;
+    if (arenaWin) { D.coins += EXTRAS.arena_coins; D.gems = (D.gems || 0) + EXTRAS.arena_gems; }
     // live events from the server: coin multiplier and extra diamonds for a won level
     const boost = eventBoost(), evCoins = Math.round(r.coins * (boost.mult - 1)), evGems = r.win && r.mode === 'level' ? boost.gems : 0;
     r = Object.assign({}, r, { coins: r.coins + evCoins, bonus: r.bonus + evCoins });
@@ -1901,7 +1917,7 @@
     // in a room the next level is chosen for the host right away (levels are played in order)
     const roomNext = coop && room && room.role === 'host' && r.win && r.mode === 'level' ? nextPick(room.pick) : null;
     if (roomNext && (roomNext.secret || unlockedLevel(D, roomNext.level, roomNext.world || 1))) { room.pick = roomNext; room.setMeta({ pick: roomNext }); }
-    const title = r.mode === 'endless' ? (newBest ? t('new_best') : t('game_over')) : r.win ? t('victory') : t('ship_hit');
+    const title = r.mode === 'endless' ? (newBest ? t('new_best') : t('game_over')) : r.win ? (r.mode === 'arena' ? t('arena_won') : t('victory')) : t('ship_hit');
     const stars = r.mode === 'level' && r.win ? `<div class="big-stars">${[1, 2, 3].map(i => Art.icon(i <= r.stars ? 'star' : 'starOff')).join('')}</div>` : '';
     const hasNext = sec ? r.win && sec.k < 3 : r.mode === 'level' && r.win && (r.level < LEVELS || wld < GALS);
     const worldsHtml = newWorlds.map(id => { const w = WORLDS.find(x => x.id === id); return `<div class="found">${Art.icon('secret')} ${t('found_world')} <b>${t(w.id + '_name')}</b><br><small>${t('waits_levels')}</small></div>`; }).join('');
@@ -1917,6 +1933,8 @@
       ${gotSecret ? `<div class="found secret-found"><img src="${Art.shipPreview(gotSecret, 120)}" alt=""><div><b>${t('secret_ship_title')}</b><br>${t('secret_world_done', { w: t('gal_' + wld), x: `<b>${t('ship_' + gotSecret)}</b>` })}</div></div>` : ''}
       ${dblNow ? `<div class="found">${Art.icon('gun')} ${t('dbl_unlocked')}</div>` : ''}
       ${gemsWon ? `<div class="reward gems">+${gemsWon} ${Art.icon('gem')}</div>` : ''}${worldsHtml}
+      ${arenaWin ? `<div class="found arena-won">🏆 ${t('arena_prize')}: +${costHtml(EXTRAS.arena_coins, EXTRAS.arena_gems)}</div>` : r.mode === 'arena' ? `<div class="muted">☠️ ${t('arena_lost')}</div>` : ''}
+      ${clubCoins ? `<div class="ev-won">💰 ${t('club_bonus_got', { n: clubCoins })}</div>` : ''}
       <div class="muted">${t('score')} <b style="color:#fff">${r.score.toLocaleString()}</b></div>
       <div class="reward">+${r.coins} ${Art.icon('coin')}</div>
       ${evCoins || evGems ? `<div class="ev-won">${Art.icon('gift')} ${t('ev_bonus')}: ${evCoins ? `+${evCoins} ${Art.icon('coin')}` : ''} ${evGems ? `+${evGems} ${Art.icon('gem')}` : ''}</div>` : ''}
@@ -1924,7 +1942,7 @@
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#e-next', () => startGame(sec ? { mode: 'level', level: 1, secret: { w: sec.w, k: sec.k + 1 } }
         : r.level < LEVELS ? { mode: 'level', level: r.level + 1, world: wld, local2 } : { mode: 'level', level: 1, world: wld + 1, local2 }));
-      on('#e-retry', () => startGame({ mode: r.mode, level: r.level, world: wld, local2, secret: sec }));
+      on('#e-retry', () => r.mode === 'arena' ? arenaBox() : startGame({ mode: r.mode, level: r.level, world: wld, local2, secret: sec }));
       on('#e-shop', () => { closeModal(); history = ['menu']; show('shop', false); });
       on('#e-menu', () => { closeModal(); if (coop) leaveRoom(); history = []; show('menu', false); });
       on('#e-rnext', () => { closeModal(); startRoomGame(room.pick); });
@@ -2253,14 +2271,21 @@
   function chooseShip() {
     const D = user.data;
     const draw = () => Art.SHIPS.filter(s => (D.ships || []).includes(s.id)).map(s =>
-      `<button class="look-it ${s.secret ? 'secret' : ''} ${D.skin === s.id ? 'on' : ''}" data-pick="${s.id}"><img src="${Art.shipPreview(s.id, 120)}" alt=""><small>${s.secret ? '✦ ' : ''}${esc(t('ship_' + s.id))}</small></button>`).join('');
+      `<button class="look-it ${s.secret ? 'secret' : ''} ${D.skin === s.id ? 'on' : ''}" data-pick="${s.id}"><img src="${Art.shipPreview(s.id, 120)}" alt=""><small>${s.secret ? '✦ ' : ''}${esc(t('ship_' + s.id))}</small>${starsOfShip(s.id) ? `<i class="mini-stars">${'★'.repeat(starsOfShip(s.id))}</i>` : ''}</button>`).join('');
     modal(`<h2>🚀 ${t('choose_tab')}</h2><p class="muted small">${t('choose_note')}</p><div class="look-grid choose-grid" id="ch-grid">${draw()}</div>
+      <div id="ch-star">${starPanel(D.skin)}</div>
       <button class="btn ghost" id="ch-x">${t('close')}</button>`, m => {
       m.querySelector('#ch-x').onclick = closeModal;
+      const bindStar = () => { const b = m.querySelector('#st-up'); if (b) b.onclick = async () => {
+        const r = await payServer(b, () => Net.shipStar(user, D.skin)); if (!r) return;
+        Sfx.init(); Sfx.power && Sfx.power(); toast(t('stars_got', { x: t('ship_' + D.skin), n: starsOfShip(D.skin) }));
+        m.querySelector('#ch-grid').innerHTML = draw(); m.querySelector('#ch-star').innerHTML = starPanel(D.skin); icons(m); bindStar(); }; };
+      bindStar();
       m.querySelector('#ch-grid').onclick = e => {
         const b = e.target.closest('[data-pick]'); if (!b || D.skin === b.dataset.pick) return;
         D.skin = b.dataset.pick; save(); Sfx.init(); Sfx.power && Sfx.power(); renderMenu();
         m.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', x === b)); toast(t('ship_' + D.skin));
+        m.querySelector('#ch-star').innerHTML = starPanel(D.skin); icons(m); bindStar();
       };
     });
   }
@@ -2301,8 +2326,10 @@
     modal(`<h2>${Art.icon('wrench')} ${t('workshop')}</h2><p class="muted small">${t('ws_intro')}</p>
       <div class="ws-list">${list}<button class="ws-card ws-new" id="ws-new" ${mine().length >= CUSTOM_PRICE.max ? 'disabled' : ''}><span class="ws-plus">+</span><b>${t('ws_new')}</b>
         <span class="ws-price">${coinHtml(CUSTOM_PRICE.coins)} + ${gemHtml(CUSTOM_PRICE.gems)}</span>${can ? '' : `<small class="muted">${t('ws_need', { c: CUSTOM_PRICE.coins.toLocaleString(), g: CUSTOM_PRICE.gems })}</small>`}</button></div>
+      <button class="btn" id="ws-rare">✨ ${t('rare_title')} <span class="muted">${ownedRare().length}/${Art.RARE_STICKERS.length}</span></button>
       <button class="btn ghost" id="ws-x">${t('close')}</button>`, m => {
       m.querySelector('#ws-x').onclick = closeModal;
+      m.querySelector('#ws-rare').onclick = stickerShop;
       m.querySelector('#ws-new').onclick = () => editor(null);
       m.querySelector('.ws-list').addEventListener('click', e => {
         const b = e.target.closest('button'); if (!b) return;
@@ -2335,6 +2362,9 @@
       if (tab === 'gun') return `<div class="row wrap">${chips(Art.CUSTOM_GUNS, spec.gun, 'gun', v => t('ws_gun_' + v))}</div><p class="muted small">${t('ws_gun_note')}</p>`;
       const st = spec.stickers[sel];
       return `<div class="ws-stk">${Art.STICKER_KINDS.map(k => `<button class="look-it" data-add="${k}" ${spec.stickers.length >= 10 ? 'disabled' : ''}>${stIcon(k)}</button>`).join('')}</div>
+        <div class="lbl">✨ ${t('rare_title')}</div><div class="ws-stk rare-row">${Art.RARE_STICKERS.map(k => ownedRare().includes(k)
+          ? `<button class="look-it rare-on" data-add="${k}" ${spec.stickers.length >= 10 ? 'disabled' : ''}>${stIcon(k)}</button>`
+          : `<button class="look-it locked" disabled title="${esc(t('rare_locked'))}">🔒</button>`).join('')}</div>
         <label class="ws-check"><input type="checkbox" id="ws-mirror" ${spec.mirror ? 'checked' : ''}> ${t('ws_mirror')}</label>
         ${spec.stickers.length ? `<div class="row wrap ws-mine">${spec.stickers.map((s, i) => `<button class="chip ${i === sel ? 'on' : ''}" data-sel="${i}">${i + 1}. ${s.k === 'text' ? esc(s.t || 'Aa') : t('ws_st_' + s.k)}</button>`).join('')}</div>` : ''}
         ${st ? `<div class="ws-edit">
@@ -2412,6 +2442,189 @@
     });
   }
   $('#m-workshop').addEventListener('click', () => { Sfx.init(); workshop(); });
+
+  // ---------- more ways to use coins and diamonds (prices: shop_catalog().extras on the server) ----------
+  // a server answer replaces the local numbers it carries
+  function applyServer(r) { const D = user.data; ['coins', 'gems', 'stickers', 'stars', 'wheel_day', 'ships', 'skin'].forEach(k => { if (r && r[k] != null) D[k] = r[k]; }); save(); if (current === 'menu') renderMenu(); }
+  async function payServer(btn, fn) {
+    if (!user || user.offline) { toast(t('ws_online')); return null; }
+    if (btn) btn.disabled = true;
+    try { await Net.save(user, user.data, user.data.best).catch(() => {}); const r = await fn(); applyServer(r); return r; }
+    catch (e) { toast(errText(e)); if (btn) btn.disabled = false; return null; }
+  }
+  const costHtml = (c, g) => [c ? coinHtml(c) : '', g ? gemHtml(g) : ''].filter(Boolean).join(' + ');
+
+  // ----- Daily wheel: a free spin every day, more spins for diamonds -----
+  const WHEEL = [{ c: 50, col: '#1e3a8a' }, { c: 100, col: '#6d28d9' }, { c: 250, col: '#be185d' }, { c: 500, col: '#b45309' }, { g: 1, col: '#0e7490' }, { g: 3, col: '#047857' }, { g: 10, col: '#7c2d12' }, { s: 1, col: '#4c1d95' }];
+  function utcDay() { return new Date().toISOString().slice(0, 10); }
+  function wheelFree() { return !!(user && !user.offline && user.data && user.data.wheel_day !== utcDay()); }
+  function drawWheel(cv, rot) {
+    const x = cv.getContext('2d'), R = cv.width / 2, n = WHEEL.length, a = Math.PI * 2 / n;
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cv.width, cv.height); x.translate(R, R); x.rotate(rot);
+    WHEEL.forEach((s, i) => {
+      x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, R - 6, -Math.PI / 2 + i * a - a / 2, -Math.PI / 2 + i * a + a / 2); x.closePath();
+      x.fillStyle = s.col; x.fill(); x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 2; x.stroke();
+      x.save(); x.rotate(i * a); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.font = `900 ${R * 0.13}px system-ui, sans-serif`;
+      const ty = -R * 0.62;
+      if (s.s) { x.fillStyle = '#fde047'; x.fillText('★?', 0, ty); }
+      else {
+        x.fillText(String(s.c || s.g), 0, ty);
+        if (s.c) { x.fillStyle = '#facc15'; x.beginPath(); x.arc(0, ty + R * 0.16, R * 0.05, 0, 7); x.fill(); }
+        else { x.fillStyle = '#67e8f9'; x.beginPath(); x.moveTo(0, ty + R * 0.1); x.lineTo(R * 0.05, ty + R * 0.16); x.lineTo(0, ty + R * 0.23); x.lineTo(-R * 0.05, ty + R * 0.16); x.closePath(); x.fill(); }
+      }
+      x.restore();
+    });
+    x.beginPath(); x.arc(0, 0, R * 0.12, 0, 7); x.fillStyle = '#fde047'; x.fill(); x.strokeStyle = '#a16207'; x.lineWidth = 3; x.stroke();
+    x.setTransform(1, 0, 0, 1, 0, 0); x.translate(R, 0);   // the pointer at the top
+    x.beginPath(); x.moveTo(-R * 0.08, 2); x.lineTo(R * 0.08, 2); x.lineTo(0, R * 0.16); x.closePath(); x.fillStyle = '#f8fafc'; x.fill(); x.strokeStyle = '#0f172a'; x.lineWidth = 2; x.stroke();
+  }
+  function prizeText(p) {
+    if (!p) return '';
+    if (p.sticker) return t('rare_got', { x: t('ws_st_' + p.sticker) });
+    return '+' + (p.coins ? coinHtml(p.coins) : gemHtml(p.gems));
+  }
+  function wheelBox() {
+    if (!user || user.offline) return toast(t('ws_online'));
+    let rot = 0, busy = false;
+    const btnHtml = () => wheelFree() ? `<button class="btn gold big" id="wh-go">🎡 ${t('wheel_free')}</button>`
+      : `<button class="btn primary big dual" id="wh-go" ${(user.data.gems || 0) < EXTRAS.wheel_gems ? 'disabled' : ''}>${t('wheel_again')} · ${gemHtml(EXTRAS.wheel_gems)}</button><p class="muted small">${t('wheel_tomorrow')}</p>`;
+    modal(`<h2>🎡 ${t('wheel')}</h2><p class="muted small">${t('wheel_sub')}</p><canvas id="wh-cv" class="wh-cv" width="560" height="560"></canvas>
+      <div id="wh-out" class="wh-out"></div><div id="wh-btn">${btnHtml()}</div><button class="btn ghost" id="wh-x">${t('close')}</button>`, m => {
+      const cv = m.querySelector('#wh-cv'); drawWheel(cv, rot);
+      m.querySelector('#wh-x').onclick = () => { if (!busy) closeModal(); };
+      const bind = () => { const b = m.querySelector('#wh-go'); if (b) b.onclick = spin; };
+      async function spin(e) {
+        if (busy) return; busy = true; const b = e.currentTarget; b.disabled = true; m.querySelector('#wh-out').innerHTML = '';
+        const paid = !wheelFree();
+        try {
+          await Net.save(user, user.data, user.data.best).catch(() => {});
+          const r = await Net.wheelSpin(user, paid);
+          Sfx.init(); const n = WHEEL.length, a = Math.PI * 2 / n;
+          const from = rot, to = Math.ceil(rot / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2 * 5 - r.slot * a + (Math.random() - 0.5) * a * 0.6;
+          const t0 = performance.now(), dur = 3600; let lastTick = 0;
+          await new Promise(res => { const step = now => { const k = Math.min(1, (now - t0) / dur), e2 = 1 - Math.pow(1 - k, 4); rot = from + (to - from) * e2; drawWheel(cv, rot);
+            const tick = Math.floor(rot / a); if (tick !== lastTick) { lastTick = tick; Sfx.coin && settings.sound && k < 0.9 && Sfx.coin(); }
+            if (k < 1 && document.body.contains(cv)) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); });
+          applyServer(r); Sfx.power && Sfx.power();
+          m.querySelector('#wh-out').innerHTML = `<div class="reward">${prizeText(r.prize)}</div>`;
+        } catch (err) { toast(errText(err)); }
+        busy = false; m.querySelector('#wh-btn').innerHTML = btnHtml(); icons(m); bind(); updateWheelDot();
+      }
+      bind();
+    });
+  }
+  function updateWheelDot() { const d = $('#m-wheel-dot'); if (d) d.classList.toggle('hidden', !wheelFree()); }
+  $('#m-wheel').addEventListener('click', () => { Sfx.init(); wheelBox(); });
+
+  // ----- Ship stars: up to 3 per ship (+6% damage each, gold stars circle the ship) -----
+  const starsOfShip = id => Math.min(3, ((user.data.stars || {})[id]) || 0);
+  const starRow = n => [1, 2, 3].map(i => `<span class="st ${i <= n ? 'on' : ''}">★</span>`).join('');
+  function starPanel(id) {
+    const n = starsOfShip(id), D = user.data;
+    if (n >= 3) return `<div class="star-panel"><b>${esc(t('ship_' + id))}</b><div class="stars-big">${starRow(3)}</div><span class="muted small">${t('stars_max')}</span></div>`;
+    const c = EXTRAS.star_coins[n], g = EXTRAS.star_gems[n], ok = D.coins >= c && (D.gems || 0) >= g;
+    return `<div class="star-panel"><b>${esc(t('ship_' + id))}</b><div class="stars-big">${starRow(n)}</div><span class="muted small">${t('stars_sub')}</span>
+      <button class="btn gold dual" id="st-up" ${ok && !user.offline ? '' : 'disabled'}>★ ${t('stars_up')} · ${costHtml(c, g)}</button></div>`;
+  }
+
+  // ----- Rare stickers for the Workshop: a pack gives one you don't have yet -----
+  const ownedRare = () => user.data.stickers || [];
+  function stickerShop() {
+    const D = user.data, all = Art.RARE_STICKERS, own = ownedRare(), left = all.filter(k => !own.includes(k));
+    modal(`<h2>✨ ${t('rare_title')}</h2><p class="muted small">${t('rare_sub')}</p>
+      <div class="rare-grid">${all.map(k => `<div class="rare ${own.includes(k) ? 'on' : ''}"><img src="${rareImg(k)}" alt=""><small>${own.includes(k) ? esc(t('ws_st_' + k)) : '🔒'}</small></div>`).join('')}</div>
+      <div id="rs-out"></div>
+      ${left.length ? `<button class="btn gold big dual" id="rs-go" ${(D.gems || 0) < EXTRAS.pack_gems ? 'disabled' : ''}>🎁 ${t('rare_open')} · ${gemHtml(EXTRAS.pack_gems)}</button>` : `<p class="muted">${t('rare_all')}</p>`}
+      <button class="btn ghost" id="rs-x">${t('ws_back')}</button>`, m => {
+      m.querySelector('#rs-x').onclick = () => workshop();
+      const go = m.querySelector('#rs-go');
+      if (go) go.onclick = async () => {
+        const r = await payServer(go, () => Net.stickerPack(user)); if (!r) return;
+        Sfx.init(); Sfx.power && Sfx.power(); stickerShop();
+        $('#rs-out').innerHTML = `<div class="rare-new"><img src="${rareImg(r.sticker)}" alt=""><b>${t('rare_got', { x: t('ws_st_' + r.sticker) })}</b></div>`;
+      };
+    });
+  }
+  function rareImg(k) {
+    const c = document.createElement('canvas'); c.width = c.height = 80; const x = c.getContext('2d'); x.translate(40, 40);
+    Art.addCustom('__st', { shape: 'arrow', stickers: [{ k, x: 0, y: 0, s: 34, r: 0, c: '#fde047' }] });
+    Art.drawDesign(x, Art.SHIPS.find(q => q.id === '__st').design, 100); return c.toDataURL();
+  }
+
+  // ----- Club treasury: members give coins, the club levels up, everyone earns more -----
+  let clubLevel = store.get('ss_club_lv', 0);
+  async function loadClubLevel() {
+    if (!user || user.offline || !parties[0]) { clubLevel = 0; store.set('ss_club_lv', 0); return; }
+    try { const r = await Net.clubTreasury(user, parties[0].id); clubLevel = r.level || 0; store.set('ss_club_lv', clubLevel); } catch (e) {}
+  }
+  async function treasuryBox(party) {
+    const p = parties.find(x => x.id === party); if (!p) return;
+    modal(`<div class="empty">${t('loading')}</div>`);
+    let r; try { r = await Net.clubTreasury(user, party); } catch (e) { closeModal(); return toast(errText(e)); }
+    clubLevel = r.level || 0; store.set('ss_club_lv', clubLevel);
+    const max = (r.levels || []).length, prev = r.level ? r.levels[r.level - 1] : 0;
+    const pct = r.next ? Math.round((r.treasury - prev) / (r.next - prev) * 100) : 100;
+    modal(`<h2>💰 ${t('treasury')}</h2><div class="muted">${esc(p.name)}</div>
+      <div class="tr-level"><span class="tr-badge">${t('club_level', { n: r.level })}</span><span class="muted small">${t('club_bonus', { n: r.level * 2 })}</span></div>
+      <div class="sec-bar"><i style="width:${pct}%"></i></div>
+      <div class="muted small" dir="ltr">${coinHtml(r.treasury)}${r.next ? ' / ' + Number(r.next).toLocaleString() : ' · ' + t('club_max')}</div>
+      <p class="muted small">${t('treasury_sub', { m: max, n: max * 2 })}</p>
+      <div class="lbl">${t('donate')}</div>
+      <div class="row wrap center">${[100, 500, 1000, 5000].map(v => `<button class="chip" data-amt="${v}" ${user.data.coins < v ? 'disabled' : ''}>${coinHtml(v)}</button>`).join('')}</div>
+      <div class="row center"><input class="input" id="tr-n" type="number" min="10" step="10" value="${Math.min(500, Math.max(10, Math.floor(user.data.coins / 10) * 10))}" style="max-width:140px"><button class="btn gold" id="tr-go">${t('donate')}</button></div>
+      <div class="muted small">${t('donated_you', { n: Number(r.mine).toLocaleString() })}</div>
+      ${r.top && r.top.length ? `<div class="lbl">${t('top_donors')}</div><div class="list tr-top">${r.top.map((d, i) => `<div class="person"><b class="tr-rank">${i + 1}</b><div class="avatar">${Art.avatar(d.avatar)}</div><div class="info"><b>${esc(d.name)}</b><small dir="ltr">@${esc(d.handle)}</small></div><span class="wal">${coinHtml(d.total)}</span></div>`).join('')}</div>` : ''}
+      <button class="btn ghost" id="tr-x">${t('close')}</button>`, m => {
+      m.querySelector('#tr-x').onclick = () => { closeModal(); renderParties(); };
+      m.querySelectorAll('[data-amt]').forEach(b => b.onclick = () => { m.querySelector('#tr-n').value = b.dataset.amt; });
+      m.querySelector('#tr-go').onclick = async e => {
+        const v = Math.floor(+m.querySelector('#tr-n').value || 0); if (v < 10) return toast(t('e_bad_amount'));
+        const res = await payServer(e.currentTarget, () => Net.clubDonate(user, party, v)); if (!res) return;
+        Sfx.init(); Sfx.coin(); toast(t('donated', { n: v.toLocaleString() })); treasuryBox(party);
+      };
+    });
+  }
+
+  // ----- Paid revive: when the ship falls, keep going for coins or diamonds -----
+  function askRevive(g) {
+    const n = g.revives, D = user.data;
+    if (n >= EXTRAS.revive_coins.length) return g.noRevive();
+    const c = EXTRAS.revive_coins[n], gm = EXTRAS.revive_gems[n];
+    let left = 8, timer = null;
+    const end = yes => { clearInterval(timer); closeModal(); yes ? g.revive() : g.noRevive(); };
+    modal(`<div class="rv"><div class="rv-ring"><span id="rv-n">${left}</span></div><h2>${t('revive_q')}</h2><p class="muted small">${t('revive_sub')}</p>
+      <button class="btn gold big" id="rv-c" ${D.coins < c ? 'disabled' : ''}>${coinHtml(c)}</button>
+      <button class="btn primary big" id="rv-g" ${(D.gems || 0) < gm ? 'disabled' : ''}>${gemHtml(gm)}</button>
+      <button class="btn ghost" id="rv-no">${t('revive_no')}</button></div>`, m => {
+      timer = setInterval(() => { left--; const e = m.querySelector('#rv-n'); if (e) e.textContent = left; if (left <= 0) end(false); }, 1000);
+      m.querySelector('#rv-c').onclick = () => { if (D.coins < c) return; D.coins -= c; save(); Sfx.init(); Sfx.coin(); end(true); };
+      m.querySelector('#rv-g').onclick = () => { if ((D.gems || 0) < gm) return; D.gems -= gm; save(); Sfx.init(); Sfx.power && Sfx.power(); end(true); };
+      m.querySelector('#rv-no').onclick = () => end(false);
+    });
+  }
+
+  // ----- Boss arena: pay to fight a mothership three times as strong, win a big prize -----
+  function arenaSetup() {
+    const D = user.data; let w = 1; for (let g = GALS; g >= 1; g--) if (galOpen(D, g)) { w = g; break; }
+    return { world: w, level: Math.max(10, Math.min(160, topLevel(D, w) + 5)) };
+  }
+  function arenaBox() {
+    const D = user.data, a = arenaSetup(), fee = EXTRAS.arena_fee;
+    modal(`<div class="arena"><div class="arena-ic">☠️</div><h2>${t('arena')}</h2><p class="muted">${t('arena_sub')}</p>
+      <div class="arena-info"><span>${t('arena_boss', { n: a.level })}</span><span>${galIcons[a.world - 1]} ${t('gal_' + a.world)}</span></div>
+      <div class="arena-prize">🏆 ${t('arena_prize')}: ${costHtml(EXTRAS.arena_coins, EXTRAS.arena_gems)}</div>
+      <button class="btn gold big dual" id="ar-go" ${D.coins < fee ? 'disabled' : ''}>⚔️ ${t('arena_enter')} · ${coinHtml(fee)}</button>
+      ${D.coins < fee ? `<p class="muted small">${t('not_enough_coins')}</p>` : ''}
+      <button class="btn ghost" id="ar-x">${t('close')}</button></div>`, m => {
+      m.querySelector('#ar-x').onclick = closeModal;
+      m.querySelector('#ar-go').onclick = () => {
+        if (D.coins < fee) return toast(t('not_enough_coins'));
+        D.coins -= fee; save(); Sfx.init(); Sfx.coin(); closeModal();
+        startGame({ mode: 'arena', level: a.level, world: a.world, _cs: 1 });
+      };
+    });
+  }
+  $('#m-arena').addEventListener('click', () => { Sfx.init(); arenaBox(); });
 
   // ---------- boot ----------
   async function afterLogin() {

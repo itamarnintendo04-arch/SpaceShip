@@ -257,6 +257,15 @@
     ctx.restore();
   }
 
+  // ship stars (1-3): small gold stars turning around the ship
+  function drawStars(ctx, cx, cy, r, n, t) {
+    ctx.save(); ctx.fillStyle = '#fde047'; ctx.shadowColor = '#facc15'; ctx.shadowBlur = 6;
+    for (let i = 0; i < n; i++) {
+      const a = t * 1.6 + i * Math.PI * 2 / n, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.45 + 4;
+      ctx.beginPath(); for (let j = 0; j < 10; j++) { const rr = j % 2 ? 1.9 : 4.4, b = j * Math.PI / 5; ctx[j ? 'lineTo' : 'moveTo'](x + Math.sin(b) * rr, y - Math.cos(b) * rr); } ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
   // ---- Workshop: ships players build (id "c-..."), stored on the server as a small look description ----
   // stickers use a -10..10 box; "s" is the sticker's size in ship units (-50..50)
   const STAR = (() => { let d = ''; for (let i = 0; i < 10; i++) { const r = i % 2 ? 4.2 : 10, a = i * Math.PI / 5; d += (i ? 'L' : 'M') + (Math.sin(a) * r).toFixed(2) + ' ' + (-Math.cos(a) * r).toFixed(2) + ' '; } return d + 'Z'; })();
@@ -273,8 +282,18 @@
     skull: [{ path: 'M -8 -1 A 8 8 0 1 1 8 -1 L 5 4 L 5 8 L -5 8 L -5 4 Z' }, { circle: [-3.3, -1.5, 2.4], dark: true }, { circle: [3.3, -1.5, 2.4], dark: true }],
     wing: [{ path: 'M -2 3 L 10 -8 L 8 3 L -2 8 Z' }],
     text: [],
+    // rare stickers: from sticker packs and the daily wheel
+    crown: [{ path: 'M -9 6 L -10 -6 L -4 -1 L 0 -9 L 4 -1 L 10 -6 L 9 6 Z' }, { rect: [-9, 6, 18, 3, 1] }],
+    planet: [{ circle: [0, 0, 6.5] }, { path: 'M -11 3 C -6 -1 6 -5 11 -3 C 12 -2 10 -1 8 0 C 4 2 -6 5 -10 5 C -12 5 -12 4 -11 3 Z', light: true }],
+    rocket: [{ path: 'M0 -10 C 4 -6 4 0 3 5 L -3 5 C -4 0 -4 -6 0 -10 Z' }, { path: 'M -3 1 L -7 7 L -3 5 Z M 3 1 L 7 7 L 3 5 Z' }, { circle: [0, -3, 1.8], dark: true }, { path: 'M -2 6 L 0 10 L 2 6 Z', light: true }],
+    gem: [{ path: 'M -9 -3 L -5 -8 L 5 -8 L 9 -3 L 0 9 Z' }, { path: 'M -9 -3 L 9 -3 L 0 9 Z', light: true }],
+    ufo: [{ path: 'M -10 2 C -10 -2 10 -2 10 2 C 10 5 -10 5 -10 2 Z' }, { path: 'M -5 0 C -5 -7 5 -7 5 0 Z', light: true }],
+    moon: [{ path: 'M 3 -9 A 9 9 0 1 0 9 4 A 7 7 0 1 1 3 -9 Z' }],
+    paw: [{ circle: [0, 3, 5] }, { circle: [-6, -3, 2.4] }, { circle: [-2, -7, 2.4] }, { circle: [2.5, -7, 2.4] }, { circle: [6.5, -3, 2.4] }],
+    anchor: [{ circle: [0, -7, 2.5], ring: true }, { rect: [-1.2, -5, 2.4, 14, 1] }, { rect: [-5, -3, 10, 2, 1] }, { path: 'M -8 3 C -7 9 7 9 8 3 L 6 4 C 5 7 -5 7 -6 4 Z' }],
   };
-  const STICKER_KINDS = Object.keys(STICKERS);
+  const RARE_STICKERS = ['crown', 'planet', 'rocket', 'gem', 'ufo', 'moon', 'paw', 'anchor'];
+  const STICKER_KINDS = Object.keys(STICKERS).filter(k => !RARE_STICKERS.includes(k));
   const CUSTOM_SHAPES = ['arrow', 'delta', 'saucer', 'twin', 'stealth', 'dragon', 'titan', 'crystal', 'phoenix'];
   const CUSTOM_AURAS = ['pulse', 'sparks', 'spin', 'cloak', 'embers', 'shine', 'trail', 'orbit', 'storm', 'prism'];
   const CUSTOM_FX = ['rainbow', 'aurora', 'ghost', 'cosmic'];
@@ -285,8 +304,8 @@
     if (st.k === 'text') return st.t ? [{ text: String(st.t).slice(0, 4), size: +st.s || 12, font: 'bold', fill: st.c, stroke: 'rgba(0,0,0,.45)', width: 1.5, x, y: +st.y || 0, rotate: r }] : [];
     return (STICKERS[st.k] || []).map(L => {
       const o = Object.assign({}, L, { x, y: +st.y || 0, rotate: r, scale: sc, flip: flip && st.k === 'wing' });
-      if (L.ring) { delete o.ring; o.stroke = st.c; o.width = 3; } else o.fill = L.dark ? 'rgba(10,8,25,.85)' : st.c;
-      delete o.dark; return o;
+      if (L.ring) { delete o.ring; o.stroke = st.c; o.width = 3; } else o.fill = L.dark ? 'rgba(10,8,25,.85)' : L.light ? 'rgba(255,255,255,.55)' : st.c;
+      delete o.dark; delete o.light; return o;
     });
   }
   function customDesign(spec) {
@@ -415,5 +434,5 @@
   function icon(name, cls = '') { return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`; }
   function avatar(id, cls = '') { const a = AVATARS.find(x => x.id === id) || AVATARS[0]; return `<svg class="av ${cls}" viewBox="0 0 24 24">${a.svg}</svg>`; }
 
-  window.Art = { SHIPS, AVATARS, LOGOS, drawShip, shipPreview, icon, avatar, logo, addCustom, drawDesign, STICKER_KINDS, CUSTOM_SHAPES, CUSTOM_AURAS, CUSTOM_FX, CUSTOM_GUNS, onUnknown: null };
+  window.Art = { SHIPS, AVATARS, LOGOS, drawShip, shipPreview, icon, avatar, logo, addCustom, drawDesign, STICKER_KINDS, RARE_STICKERS, drawStars, CUSTOM_SHAPES, CUSTOM_AURAS, CUSTOM_FX, CUSTOM_GUNS, onUnknown: null };
 })();

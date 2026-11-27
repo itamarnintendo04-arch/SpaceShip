@@ -69,6 +69,15 @@ Building one costs **1,000 coins + 100 diamonds**, paid on the server; repaintin
 - Ships are kept in `custom_ships` (`supabase/custom_ships.sql`). Their look is a small description checked against fixed lists on the server, never code.
 - Built ships all hit as hard (rate 1.7, damage 3.2, 3 side shots). Friends see your ship in rooms and on your profile.
 
+### More ways to use coins and diamonds
+Prices are in `shop_settings` on the server (`supabase/coin_sinks.sql`) and reach the game through `shop_catalog().extras`.
+- **Daily wheel** (main menu): one free spin a day (UTC), more spins for 5 diamonds. Prizes: 50-500 coins, 1-10 diamonds or a rare sticker. The server picks the prize (`wheel_spin`).
+- **Ship stars** (Choose screen): up to 3 stars per ship, 2,000/5,000/10,000 coins + 10/25/50 diamonds. Each star adds 6% shot damage and a gold star circling the ship (`ship_star`).
+- **Rare stickers** (Workshop): 8 special stickers (crown, planet, rocket, gem, UFO, moon, paw, anchor). A pack for 15 diamonds gives one you don't have yet (`sticker_pack`). The server keeps only rare stickers the player owns.
+- **Club treasury** (club card): members donate coins. The club levels up at 5,000 / 20,000 / 60,000 / 150,000 / 400,000 coins, and every member gets +2% coins per level in every game (`club_donate`, `club_treasury`).
+- **Revive**: when the ship falls in a solo game, continue right there with one heart for 50/100/200 coins or 2/4/8 diamonds (up to 3 times per game, 8 seconds to choose).
+- **Boss arena** (main menu): 300 coins to enter a fight with a mothership three times stronger than usual. Winning gives 1,500 coins + 5 diamonds.
+
 ### Coupon codes and free gifts
 - **Give a coupon to one player** (`coupon_grants`): add a row with the coupon `code` and the player's `handle` (with or without @). It works **even when the coupon is disabled or expired**: it shows in that player's *Codes & gifts* and only they can redeem it, once. Optional `note` and `expires_at` (a deadline for this grant). SQL: `supabase/coupon_grants.sql`.
 Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.

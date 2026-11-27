@@ -475,3 +475,41 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .ws-edit .row { flex-wrap: wrap; }
 .ws-check { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 14px; font-weight: 700; }
 .ws-mine { margin: 4px 0; }
+
+/* daily wheel */
+.wh-cv { display: block; width: min(280px, 72vw); height: auto; aspect-ratio: 1; margin: 6px auto; filter: drop-shadow(0 8px 24px rgba(124,58,237,.45)); }
+.wh-out { min-height: 40px; display: flex; justify-content: center; align-items: center; }
+.wh-out .reward { display: inline-flex; gap: 6px; align-items: center; }
+/* ship stars */
+.star-panel { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0 4px; padding: 10px; border-radius: 16px; background: rgba(250,204,21,.07); border: 1.5px solid rgba(250,204,21,.3); }
+.stars-big { font-size: 26px; letter-spacing: 4px; }
+.stars-big .st { color: rgba(255,255,255,.18); } .stars-big .st.on { color: #fde047; text-shadow: 0 0 10px #facc15; }
+.look-it { position: relative; }
+.mini-stars { position: absolute; top: 3px; inset-inline-end: 5px; font-style: normal; font-size: 10px; color: #fde047; }
+/* rare stickers */
+.rare-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0; }
+.rare { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 14px; background: rgba(5,2,26,.5); border: 1.5px solid rgba(255,255,255,.1); opacity: .45; }
+.rare.on { opacity: 1; border-color: rgba(250,204,21,.55); background: rgba(250,204,21,.08); }
+.rare img { width: 48px; height: 48px; } .rare small { font-size: 11px; font-weight: 700; }
+.rare-new { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 6px 0; animation: pop .5s ease; }
+.rare-new img { width: 90px; height: 90px; filter: drop-shadow(0 0 12px #facc15); }
+.ws-stk .look-it.locked { opacity: .4; }
+.ws-stk .look-it.rare-on { border-color: rgba(250,204,21,.5); }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* club treasury */
+.tr-level { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0 6px; }
+.tr-badge { font-weight: 900; font-size: 20px; color: #fde047; padding: 4px 16px; border-radius: 999px; background: rgba(250,204,21,.12); border: 1.5px solid rgba(250,204,21,.45); }
+.tr-top .person { gap: 8px; } .tr-rank { width: 22px; text-align: center; color: #fde047; }
+.tr-top .wal { display: inline-flex; gap: 4px; align-items: center; font-weight: 700; } .tr-top .wal .ic { width: 16px; height: 16px; }
+/* revive */
+.rv { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rv-ring { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; font-weight: 900; border: 4px solid #4ade80; box-shadow: 0 0 18px rgba(74,222,128,.5); animation: pulse 1s infinite; }
+.rv .btn { width: 100%; max-width: 260px; }
+@keyframes pulse { 50% { transform: scale(1.08); } }
+/* boss arena */
+.arena { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.arena-ic { font-size: 52px; filter: drop-shadow(0 0 14px #f43f5e); }
+.arena-info { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; font-weight: 700; color: #fda4af; }
+.arena-prize { display: inline-flex; gap: 6px; align-items: center; font-weight: 900; font-size: 18px; color: #fde047; }
+.arena-prize .ic, .arena-won .ic { width: 18px; height: 18px; }
+.arena-won { color: #fde047; display: flex; gap: 6px; align-items: center; justify-content: center; }
