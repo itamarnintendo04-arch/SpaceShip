@@ -1,3 +1,4 @@
 # Releases to delete (one per line). Changing this file runs .github/workflows/delete-release.yml.
 release-49
 release-50
+release-67
