@@ -594,9 +594,9 @@
       on('#s-lang', () => { closeModal(); pickLanguage(); });
       on('#s-fnotif', () => { settings.friendNotif = settings.friendNotif === false; saveSettings(); syncPushPrefs(); openSettings(); });
       on('#s-push', () => { closeModal(); openSiteNotify(); });
-      on('#s-push-test', async () => { const r = await Net.pushSend(user, 'test', { device: DEVICE }); toast(r && r.sent ? t('push_test_sent') : t('push_none'), 3500); });
+      on('#s-push-test', async () => { const r = await Net.pushSend(user, 'test', IOS_KIND ? {} : { device: DEVICE }); toast(r && r.sent ? t('push_test_sent') : t('push_none'), 3500); });
       const ps = m.querySelector('#s-push-st');
-      if (ps) Net.pushStatus(user, DEVICE).then(r => { ps.textContent = r && r.this_device ? t('push_this_on') : t('push_this_off'); }).catch(() => { ps.textContent = ''; });
+      if (ps) Net.pushStatus(user, DEVICE, IOS_KIND).then(r => { ps.textContent = r && r.this_device ? t('push_this_on') : t('push_this_off'); }).catch(() => { ps.textContent = ''; });
       on('#s-anims', () => { settings.anims = settings.anims === false; settings.intro = settings.anims; saveSettings(); openSettings(); });
       on('#s-devices', devicesBox);
       on('#s-support', () => { closeModal(); openSupport(); });
@@ -1442,6 +1442,8 @@
     let name = d.name; try { const mine = (await Net.myDevices(user)).find(x => x.id === DEVICE); if (mine) name = mine.name; } catch (e) {}
     openExternal('https://' + SITE_HOST() + '/support?h=' + encodeURIComponent(user && !user.offline ? user.handle : '') + '&d=' + encodeURIComponent(name || '') + '&lang=' + I18N.lang);
   }
+  // on iPhone the notifications arrive through the "SpaceShip Alerts" Home Screen app, a separate browser on the same phone
+  const IOS_KIND = NATIVE && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios' ? (/iPad/.test(navigator.userAgent) ? 'iPad' : 'iPhone') : null;
   function openExternal(u) { if (NATIVE) window.open(u, '_system'); else window.open(u, '_blank'); }
   async function openSiteNotify() {
     if (!user || user.offline) return;

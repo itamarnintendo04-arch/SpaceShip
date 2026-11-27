@@ -59,7 +59,7 @@
     updateParty: (u, id, name, desc, access, logo) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: access === 'public', p_logo: logo || null, p_access: access }),
     // notifications from the website (Web Push): the game asks the site, the site sends them
     pushLinkToken: (u, device) => rpc('push_link_token', { p_id: u.id, p_secret: u.secret, p_device: device || null }),
-    pushStatus: (u, device) => rpc('push_status', { p_id: u.id, p_secret: u.secret, p_device: device || null }),
+    pushStatus: (u, device, os) => rpc('push_status', { p_id: u.id, p_secret: u.secret, p_device: device || null, p_os: os || null }),
     pushSetPrefs: (u, friends, muted) => rpc('push_set_prefs', { p_id: u.id, p_secret: u.secret, p_friends: friends, p_muted: muted }),
     pushOff: u => rpc('push_unsubscribe_all', { p_id: u.id, p_secret: u.secret }),
     async pushSend(u, kind, o = {}) {

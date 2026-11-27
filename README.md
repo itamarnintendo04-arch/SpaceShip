@@ -29,8 +29,8 @@ Enemy ships sway side to side and shoot back. Every 5th level is a boss (a mothe
 Secret worlds hide in world 1. Each one opens through a special task: a golden comet, beating a boss without getting hit, crystals, golden meteors, coins, a no-hit level, a speed run. There are **no hints**: players have to discover them. Secret worlds also have **steel meteors**: shots bounce off them, so you have to dodge them. Clearing a secret level for the first time gives **diamonds**.
 
 ### Shop
-- **Coin ships**, from Falcon up to Comet (7,500), Nebula (10,000), Titan (15,000) and Vortex (20,000).
-- **Diamond ships**: Phoenix, Ghost, Crystal, Superstar, Void (80), Aurora (100) and Supernova (150), the strongest.
+- **Coin ships** (24), from Falcon up to Vortex (20,000), Nightfall (26,000), Solaris (35,000) and Quasar (50,000).
+- **Diamond ships** (13): Phoenix, Mirage (30), Ghost, Crystal, Ember (50), Superstar, Frostbite (70), Void (80), Aurora (100), Nebulon (120), Supernova (150), Singularity (180) and Celestial (250), the strongest. New ships can be added as rows in `shop_ships` with no app update (`supabase/shop_more.sql`).
 - Every ship has its own weapon and animation: faster fire, more damage, its own shot style, and more side shots once you have the Side cannons upgrade. The pricier the ship, the stronger it is. Stats are shown in the shop.
 - **Upgrades**: cannon, shields, magnet, lives, fire rate, power-up time, lucky coins (+10% per level) and **side cannons** (4 levels: 2,000 🪙 + 10 💎, 4,000 + 20, 8,000 + 35, 12,000 + 50; one more pair of side shots per level).
 - **Firing**: every ship fires one shot straight ahead. Beating the **first boss** (level 5) unlocks the **double shot**, and after that the cannon upgrades add more shots ahead. Ships don't fire to the sides on their own. Each level of the *Side cannons* upgrade adds a pair of side shots (up to 8).
@@ -140,6 +140,7 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
 
 ### Devices and support
 - **My devices** (Settings): every device a player signed in on, with a name they can change (✏️) and remove (🗑️); the default name is the phone's own name / model (`@capacitor/device`) or the browser and system. 🔔 marks devices with notifications on. Table `devices`.
+- New support requests are **emailed to the owner** (`app_config.support_email`, through the same Gmail as the email codes; edge function `support-mail`).
 - **Help & support** (Settings, and *Support* in the website footer) opens `https://<site>/support`: topic, @name, email for the answer, device name and message, in English with a language button. Requests land in `support_tickets`; **`support_view`** (Table Editor / SQL) shows each request with the player's account, email and **all their devices**, to help recover an account. Mark `status` answered / closed and write `notes`. SQL: `supabase/devices_support.sql`.
 
 ### Desktop extras
