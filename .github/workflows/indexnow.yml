@@ -1,0 +1,18 @@
+# Tells Bing, Yandex, Seznam, Naver and Yep (IndexNow) that the website changed,
+# so they re-read it without waiting. Runs when anything in site/ changes.
+name: Notify search engines
+on:
+  push:
+    paths: ['site/**']
+  workflow_dispatch:
+jobs:
+  indexnow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the Vercel deploy
+        run: sleep 120
+      - name: Send the pages to IndexNow
+        run: |
+          curl -sS -w '\nHTTP %{http_code}\n' -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            -d '{"host":"spaceship-site.vercel.app","key":"cd7c19a0f8ec4015b3ba8cee2f9c300c","keyLocation":"https://spaceship-site.vercel.app/cd7c19a0f8ec4015b3ba8cee2f9c300c.txt","urlList":["https://spaceship-site.vercel.app/","https://spaceship-site.vercel.app/support"]}'
