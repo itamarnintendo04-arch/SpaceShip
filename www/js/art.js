@@ -55,7 +55,7 @@
       if (!L || typeof L !== 'object') continue;
       ctx.save();
       ctx.translate((+L.x || 0) * k, (+L.y || 0) * k); if (L.rotate) ctx.rotate(+L.rotate * Math.PI / 180);
-      const sc = (+L.scale || 1) * k; ctx.scale(sc, sc); ctx.globalAlpha = L.alpha != null ? Math.max(0, Math.min(1, +L.alpha)) : 1;
+      const sc = (+L.scale || 1) * k; ctx.scale(L.flip ? -sc : sc, sc); ctx.globalAlpha = L.alpha != null ? Math.max(0, Math.min(1, +L.alpha)) : 1;
       let shape = null;
       if (typeof L.path === 'string' && L.path.length < 4000) {
         if (!designCache.has(L.path)) { try { designCache.set(L.path, new Path2D(L.path)); } catch (e) { designCache.set(L.path, null); } }
@@ -75,7 +75,8 @@
     ctx.restore();
   }
   function drawShip(ctx, id, s, t, thrust = 1) {
-    let k = SHIPS.find(x => x.id === id) || SHIPS[0];
+    let k = SHIPS.find(x => x.id === id);
+    if (!k) { if (typeof id === 'string' && id.startsWith('c-') && Art.onUnknown) Art.onUnknown(id); k = SHIPS[0]; }
     t = t || 0;
     ctx.save();
     if (k.fx === 'ghost') ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
@@ -256,6 +257,58 @@
     ctx.restore();
   }
 
+  // ---- Workshop: ships players build (id "c-..."), stored on the server as a small look description ----
+  // stickers use a -10..10 box; "s" is the sticker's size in ship units (-50..50)
+  const STAR = (() => { let d = ''; for (let i = 0; i < 10; i++) { const r = i % 2 ? 4.2 : 10, a = i * Math.PI / 5; d += (i ? 'L' : 'M') + (Math.sin(a) * r).toFixed(2) + ' ' + (-Math.cos(a) * r).toFixed(2) + ' '; } return d + 'Z'; })();
+  const STICKERS = {
+    star: [{ path: STAR }],
+    heart: [{ path: 'M0 9 C -12 0 -10 -9 -5 -9 C -2 -9 0 -6 0 -5 C 0 -6 2 -9 5 -9 C 10 -9 12 0 0 9 Z' }],
+    bolt: [{ path: 'M2 -10 L -6 2 L -1 2 L -3 10 L 6 -3 L 1 -3 Z' }],
+    dot: [{ circle: [0, 0, 10] }],
+    ring: [{ circle: [0, 0, 8], ring: true }],
+    stripe: [{ rect: [-10, -2.5, 20, 5, 2.5] }],
+    play: [{ path: 'M -6 -8 L 8 0 L -6 8 Z' }],
+    diamond: [{ path: 'M0 -10 L 7 0 L 0 10 L -7 0 Z' }],
+    flame: [{ path: 'M0 -10 C 6 -3 8 2 5 7 C 3 10 -3 10 -5 7 C -8 2 -4 -2 0 -10 Z' }],
+    skull: [{ path: 'M -8 -1 A 8 8 0 1 1 8 -1 L 5 4 L 5 8 L -5 8 L -5 4 Z' }, { circle: [-3.3, -1.5, 2.4], dark: true }, { circle: [3.3, -1.5, 2.4], dark: true }],
+    wing: [{ path: 'M -2 3 L 10 -8 L 8 3 L -2 8 Z' }],
+    text: [],
+  };
+  const STICKER_KINDS = Object.keys(STICKERS);
+  const CUSTOM_SHAPES = ['arrow', 'delta', 'saucer', 'twin', 'stealth', 'dragon', 'titan', 'crystal', 'phoenix'];
+  const CUSTOM_AURAS = ['pulse', 'sparks', 'spin', 'cloak', 'embers', 'shine', 'trail', 'orbit', 'storm', 'prism'];
+  const CUSTOM_FX = ['rainbow', 'aurora', 'ghost', 'cosmic'];
+  const CUSTOM_GUNS = ['line', 'needle', 'flame', 'ring', 'twin', 'laser', 'fireball', 'star', 'comet', 'beam', 'shard', 'wisp'];
+  const CUSTOM_GUN = { rate: 1.7, dmg: 3.2, side: 3 };   // every built ship shoots as hard; only the look of the shot changes
+  function stickerLayers(st, flip) {
+    const sc = (+st.s || 12) / 20, x = (flip ? -1 : 1) * (+st.x || 0), r = (flip ? -1 : 1) * (+st.r || 0);
+    if (st.k === 'text') return st.t ? [{ text: String(st.t).slice(0, 4), size: +st.s || 12, font: 'bold', fill: st.c, stroke: 'rgba(0,0,0,.45)', width: 1.5, x, y: +st.y || 0, rotate: r }] : [];
+    return (STICKERS[st.k] || []).map(L => {
+      const o = Object.assign({}, L, { x, y: +st.y || 0, rotate: r, scale: sc, flip: flip && st.k === 'wing' });
+      if (L.ring) { delete o.ring; o.stroke = st.c; o.width = 3; } else o.fill = L.dark ? 'rgba(10,8,25,.85)' : st.c;
+      delete o.dark; return o;
+    });
+  }
+  function customDesign(spec) {
+    const out = [];
+    for (const st of (spec.stickers || []).slice(0, 10)) {
+      out.push(...stickerLayers(st, false));
+      if (spec.mirror && Math.abs(+st.x || 0) > 2) out.push(...stickerLayers(st, true));
+    }
+    return out;
+  }
+  // add or refresh a built ship in SHIPS (also used for the live preview in the Workshop)
+  function addCustom(id, spec, name) {
+    spec = spec || {};
+    let s = SHIPS.find(x => x.id === id);
+    if (!s) { s = { id }; SHIPS.push(s); }
+    Object.assign(s, { custom: true, secret: true, shape: CUSTOM_SHAPES.includes(spec.shape) ? spec.shape : 'arrow',
+      body: spec.body || '#d7e3ff', accent: spec.accent || '#3b82f6', glow: spec.glow || '#60a5fa',
+      aura: CUSTOM_AURAS.includes(spec.aura) ? spec.aura : undefined, fx: CUSTOM_FX.includes(spec.fx) ? spec.fx : undefined,
+      gun: Object.assign({ style: CUSTOM_GUNS.includes(spec.gun) ? spec.gun : 'laser' }, CUSTOM_GUN), design: customDesign(spec), spec, name: name || s.name });
+    return s;
+  }
+
   function shipPreview(id, px = 96) {
     const c = document.createElement('canvas'); c.width = c.height = px;
     const x = c.getContext('2d'); x.translate(px / 2, px / 2 - px * 0.05); drawShip(x, id, px * 0.34, 0.3, 0.6);
@@ -275,6 +328,7 @@
     wings: '<path d="M12 4v16" stroke="#fde047" stroke-width="2.2" stroke-linecap="round"/><path d="M12 9L4 5M12 9l8-4M12 14l-9-1M12 14l9-1" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="4" cy="5" r="1.6" fill="#fb923c"/><circle cx="20" cy="5" r="1.6" fill="#fb923c"/><circle cx="3" cy="13" r="1.6" fill="#fb923c"/><circle cx="21" cy="13" r="1.6" fill="#fb923c"/>',
     gift: '<path d="M3.5 10h17v4h-17z" fill="#f43f5e"/><path d="M5 14h14v7H5z" fill="#e11d48"/><path d="M10.5 10h3v11h-3z" fill="#fde047"/><path d="M12 10c-1.5-3-5.5-5-6.5-3s3 3 6.5 3zM12 10c1.5-3 5.5-5 6.5-3s-3 3-6.5 3z" fill="none" stroke="#fde047" stroke-width="1.8" stroke-linejoin="round"/>',
     trophy: '<path d="M7 3h10v5a5 5 0 01-10 0z" fill="#facc15"/><path d="M7 5H3.5c0 3 1.5 5 4 5.3M17 5h3.5c0 3-1.5 5-4 5.3" fill="none" stroke="#facc15" stroke-width="1.8"/><path d="M10.5 13h3v4h-3zM7.5 18h9v3h-9z" fill="#eab308"/>',
+    wrench: '<path d="M21 6.5a5.5 5.5 0 01-7.6 5.1L6.2 18.8a2 2 0 11-2.9-2.9l7.2-7.2A5.5 5.5 0 0117.5 1l-3.3 3.3.9 2.6 2.6.9L21 4.5c0 .7 0 1.3 0 2z" fill="currentColor"/>',
     gear: '<path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8.4 2.1l-1.9-.4a6.8 6.8 0 00-.8-1.9l1.1-1.6-1.5-1.5-1.6 1.1a6.8 6.8 0 00-1.9-.8l-.4-1.9h-2.2l-.4 1.9a6.8 6.8 0 00-1.9.8L7.3 5.2 5.8 6.7l1.1 1.6a6.8 6.8 0 00-.8 1.9l-1.9.4v2.2l1.9.4c.2.7.4 1.3.8 1.9l-1.1 1.6 1.5 1.5 1.6-1.1c.6.4 1.2.6 1.9.8l.4 1.9h2.2l.4-1.9c.7-.2 1.3-.4 1.9-.8l1.6 1.1 1.5-1.5-1.1-1.6c.4-.6.6-1.2.8-1.9l1.9-.4z" fill="currentColor"/>',
     rotate: '<rect x="6" y="2.5" width="12" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18.5" r="1" fill="currentColor"/>',
     rotateL: '<rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18.5" cy="12" r="1" fill="currentColor"/>',
@@ -361,5 +415,5 @@
   function icon(name, cls = '') { return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`; }
   function avatar(id, cls = '') { const a = AVATARS.find(x => x.id === id) || AVATARS[0]; return `<svg class="av ${cls}" viewBox="0 0 24 24">${a.svg}</svg>`; }
 
-  window.Art = { SHIPS, AVATARS, LOGOS, drawShip, shipPreview, icon, avatar, logo };
+  window.Art = { SHIPS, AVATARS, LOGOS, drawShip, shipPreview, icon, avatar, logo, addCustom, drawDesign, STICKER_KINDS, CUSTOM_SHAPES, CUSTOM_AURAS, CUSTOM_FX, CUSTOM_GUNS, onUnknown: null };
 })();

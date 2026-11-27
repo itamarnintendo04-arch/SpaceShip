@@ -2,6 +2,7 @@
 (function () {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const { Game, Sfx, levelCfg, WORLDS, GALAXIES } = window.SSGame;
+  let CUSTOM_PRICE = { coins: 1000, gems: 100, max: 20 };   // Workshop: building a ship (shop_settings on the server)
   let GEM_RATE = 10; // 1 diamond = 10 coins (the server's shop_settings can change it)
   // special items - bought with diamonds
   const GEM_ITEMS = [
@@ -105,6 +106,7 @@
     if (m.includes('already_owned')) return t('owned');
     if (m.includes('maxed')) return t('maxed');
     if (m.includes('not_for_sale')) return t('e_not_for_sale');
+    if (m.includes('custom_limit')) return t('ws_limit');
     if (m.includes('coupon_not_found')) return t('e_coupon_not_found');
     if (m.includes('coupon_used_up')) return t('e_coupon_used_up');
     if (m.includes('coupon_used')) return t('e_coupon_used');
@@ -873,6 +875,7 @@
   function applyCatalog(cat) {
     if (!cat || !Array.isArray(cat.ships)) return;
     if (cat.gem_rate) GEM_RATE = +cat.gem_rate || GEM_RATE;
+    if (cat.custom) CUSTOM_PRICE = { coins: +cat.custom.coins, gems: +cat.custom.gems, max: +cat.custom.max };
     const order = {};
     cat.ships.forEach(r => {
       order[r.id] = r.sort;
@@ -1266,6 +1269,7 @@
     if (!user || user.offline) return;
     modal(`<div class="empty">${t('loading')}</div>`);
     let p; try { p = await Net.playerProfile(user, id); } catch (e) { closeModal(); return toast(errText(e)); }
+    await ensureCustom([p.skin]);
     const me = p.rel === 'me', st = liveStatus(p.id);
     const stat = (n, k, ic) => `<div class="pf-stat">${ic}<b>${Number(n || 0).toLocaleString()}</b><small>${t(k)}</small></div>`;
     modal(`<div class="sheet profile">
@@ -2262,6 +2266,153 @@
   }
   $('#m-choose').addEventListener('click', chooseShip);
 
+  // ---------- Workshop: build your own ship (1,000 coins + 100 diamonds on the server; repainting is free) ----------
+  const customCache = store.get('ss_custom', {});   // id -> { name, spec }: built ships seen so far (yours and friends')
+  Object.entries(customCache).forEach(([id, r]) => { Art.addCustom(id, r.spec, r.name); I18N.add('ship_' + id, { en: r.name }); });
+  function registerCustom(rows) {
+    (rows || []).forEach(r => { if (!r || !r.id) return; Art.addCustom(r.id, r.spec, r.name); I18N.add('ship_' + r.id, { en: r.name }); customCache[r.id] = { name: r.name, spec: r.spec }; });
+    store.set('ss_custom', customCache);
+  }
+  // ships other players built are fetched the first time they are drawn
+  const customWanted = new Set(); let customT = null;
+  function ensureCustom(ids) {
+    const need = ids.filter(id => id && id.startsWith('c-') && !customCache[id]);
+    if (!need.length) return Promise.resolve();
+    return Net.customGet(need).then(registerCustom).catch(() => {});
+  }
+  Art.onUnknown = id => {
+    if (customWanted.has(id)) return; customWanted.add(id);
+    clearTimeout(customT); customT = setTimeout(() => { const ids = [...customWanted].filter(x => !customCache[x]); if (ids.length) ensureCustom(ids).then(() => { if (current === 'menu') renderMenu(); }); }, 250);
+  };
+  async function loadMyCustom() {
+    if (!user || user.offline) return;
+    try { const r = await Net.customMine(user); CUSTOM_PRICE = { coins: +r.coins, gems: +r.gems, max: +r.max }; registerCustom(r.ships); if (current === 'menu') renderMenu(); } catch (e) { console.warn('workshop', e); }
+  }
+  const randHex = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+  const newSpec = () => ({ shape: 'arrow', body: '#e0f2fe', accent: '#7c3aed', glow: '#22d3ee', aura: 'pulse', fx: null, gun: 'laser', mirror: true, stickers: [{ k: 'star', x: 0, y: 18, s: 14, r: 0, c: '#fde047' }] });
+
+  function workshop() {
+    if (!user || user.offline) return toast(t('ws_online'));
+    const D = user.data;
+    const mine = () => Art.SHIPS.filter(s => s.custom && (D.ships || []).includes(s.id));
+    const can = D.coins >= CUSTOM_PRICE.coins && (D.gems || 0) >= CUSTOM_PRICE.gems;
+    const list = mine().map(s => `<div class="ws-card ${D.skin === s.id ? 'on' : ''}"><img src="${Art.shipPreview(s.id, 120)}" alt=""><b>${esc(s.name || '')}</b>
+        <div class="row center"><button class="btn small" data-ws-edit="${s.id}">${Art.icon('wrench')}${t('ws_edit')}</button>${D.skin === s.id ? `<button class="btn small" disabled>${t('in_use')}</button>` : `<button class="btn small primary" data-ws-use="${s.id}">${t('use')}</button>`}</div></div>`).join('');
+    modal(`<h2>${Art.icon('wrench')} ${t('workshop')}</h2><p class="muted small">${t('ws_intro')}</p>
+      <div class="ws-list">${list}<button class="ws-card ws-new" id="ws-new" ${mine().length >= CUSTOM_PRICE.max ? 'disabled' : ''}><span class="ws-plus">+</span><b>${t('ws_new')}</b>
+        <span class="ws-price">${coinHtml(CUSTOM_PRICE.coins)} + ${gemHtml(CUSTOM_PRICE.gems)}</span>${can ? '' : `<small class="muted">${t('ws_need', { c: CUSTOM_PRICE.coins.toLocaleString(), g: CUSTOM_PRICE.gems })}</small>`}</button></div>
+      <button class="btn ghost" id="ws-x">${t('close')}</button>`, m => {
+      m.querySelector('#ws-x').onclick = closeModal;
+      m.querySelector('#ws-new').onclick = () => editor(null);
+      m.querySelector('.ws-list').addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.wsEdit) editor(b.dataset.wsEdit);
+        if (b.dataset.wsUse) { D.skin = b.dataset.wsUse; save(); renderMenu(); Sfx.init(); Sfx.power && Sfx.power(); workshop(); }
+      });
+    });
+  }
+
+  // the editor: a live preview, tap the ship to place the chosen sticker
+  function editor(id) {
+    const D = user.data, orig = id && Art.SHIPS.find(s => s.id === id);
+    const spec = JSON.parse(JSON.stringify(orig ? orig.spec : newSpec()));
+    let name = orig ? orig.name : t('ws_default_name'), sel = spec.stickers.length ? 0 : -1, tab = 'shape', raf = 0;
+    const PREV = '__ws';
+    const chips = (arr, cur, attr, label) => arr.map(v => `<button class="chip ${cur === v ? 'on' : ''}" data-${attr}="${v ?? ''}">${label(v)}</button>`).join('');
+    const shapeImgs = {}; Art.CUSTOM_SHAPES.forEach(sh => { Art.addCustom(PREV, Object.assign({}, spec, { shape: sh, stickers: [], aura: null, fx: null })); shapeImgs[sh] = Art.shipPreview(PREV, 64); });
+    const stIcon = k => k === 'text' ? '<b>Aa</b>' : `<img src="${stickerImg(k)}" alt="">`;
+    function stickerImg(k) {
+      const c = document.createElement('canvas'); c.width = c.height = 40; const x = c.getContext('2d'); x.translate(20, 20);
+      Art.addCustom('__st', { shape: 'arrow', stickers: [{ k, x: 0, y: 0, s: 34, r: 0, c: '#ffffff' }] }); const s = Art.SHIPS.find(q => q.id === '__st');
+      Art.drawDesign(x, s.design, 50); return c.toDataURL();
+    }
+    const paneHtml = () => {
+      if (tab === 'shape') return `<div class="ws-shapes">${Art.CUSTOM_SHAPES.map(sh => `<button class="look-it ${spec.shape === sh ? 'on' : ''}" data-shape="${sh}"><img src="${shapeImgs[sh]}" alt=""></button>`).join('')}</div>`;
+      if (tab === 'colors') return `<div class="ws-colors">${['body', 'accent', 'glow'].map(k => `<label class="ws-col"><input type="color" data-col="${k}" value="${spec[k]}"><span>${t('ws_' + k)}</span></label>`).join('')}
+        <button class="chip" id="ws-rand">🎲 ${t('ws_random')}</button></div>`;
+      if (tab === 'fx') return `<div class="lbl">${t('ws_effect')}</div><div class="row wrap">${chips([null, ...Art.CUSTOM_FX], spec.fx, 'fx', v => v ? t('ws_fx_' + v) : t('ws_none'))}</div>
+        <div class="lbl">${t('ws_aura')}</div><div class="row wrap">${chips([null, ...Art.CUSTOM_AURAS], spec.aura, 'aura', v => v ? t('ws_au_' + v) : t('ws_none'))}</div>`;
+      if (tab === 'gun') return `<div class="row wrap">${chips(Art.CUSTOM_GUNS, spec.gun, 'gun', v => t('ws_gun_' + v))}</div><p class="muted small">${t('ws_gun_note')}</p>`;
+      const st = spec.stickers[sel];
+      return `<div class="ws-stk">${Art.STICKER_KINDS.map(k => `<button class="look-it" data-add="${k}" ${spec.stickers.length >= 10 ? 'disabled' : ''}>${stIcon(k)}</button>`).join('')}</div>
+        <label class="ws-check"><input type="checkbox" id="ws-mirror" ${spec.mirror ? 'checked' : ''}> ${t('ws_mirror')}</label>
+        ${spec.stickers.length ? `<div class="row wrap ws-mine">${spec.stickers.map((s, i) => `<button class="chip ${i === sel ? 'on' : ''}" data-sel="${i}">${i + 1}. ${s.k === 'text' ? esc(s.t || 'Aa') : t('ws_st_' + s.k)}</button>`).join('')}</div>` : ''}
+        ${st ? `<div class="ws-edit">
+          ${st.k === 'text' ? `<input class="input" id="ws-txt" maxlength="4" value="${esc(st.t || '')}" placeholder="${t('ws_text')}">` : ''}
+          <label>${t('ws_size')}<input type="range" min="4" max="40" data-p="s" value="${st.s}"></label>
+          <label>${t('ws_rotate')}<input type="range" min="-180" max="180" data-p="r" value="${st.r}"></label>
+          <div class="row"><input type="color" data-p="c" value="${st.c}"><span class="muted small">${t('ws_tap_hint')}</span><button class="btn small" id="ws-del">${Art.icon('x')}${t('ws_remove')}</button></div></div>` : `<p class="muted small">${t('ws_add_hint')}</p>`}`;
+    };
+    const refresh = () => Art.addCustom(PREV, spec, name);
+    const can = () => D.coins >= CUSTOM_PRICE.coins && (D.gems || 0) >= CUSTOM_PRICE.gems;
+    modal(`<h2>${Art.icon('wrench')} ${orig ? t('ws_edit') : t('ws_new')}</h2>
+      <canvas id="ws-cv" class="ws-cv" width="440" height="440"></canvas>
+      <input class="input" id="ws-name" maxlength="20" value="${esc(name)}" placeholder="${t('ws_name')}">
+      <div class="look-tabs ws-tabs">${['shape', 'colors', 'fx', 'gun', 'stickers'].map(k => `<button class="chip ${k === tab ? 'on' : ''}" data-tab="${k}">${t('ws_tab_' + k)}</button>`).join('')}</div>
+      <div id="ws-pane" class="ws-pane"></div>
+      ${orig ? `<button class="btn primary big" id="ws-go">${t('ws_save')}</button>`
+        : `<button class="btn gold big dual" id="ws-go" ${can() ? '' : 'disabled'}>${t('ws_build')} · ${coinHtml(CUSTOM_PRICE.coins)} + ${gemHtml(CUSTOM_PRICE.gems)}</button>
+           ${can() ? '' : `<p class="muted small">${t('ws_need', { c: CUSTOM_PRICE.coins.toLocaleString(), g: CUSTOM_PRICE.gems })}</p>`}`}
+      <button class="btn ghost" id="ws-back">${t('ws_back')}</button>`, m => {
+      const cv = m.querySelector('#ws-cv'), cx = cv.getContext('2d'), pane = m.querySelector('#ws-pane');
+      refresh();
+      const loop = () => {
+        if (!document.body.contains(cv)) return cancelAnimationFrame(raf);
+        cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, 440, 440); cx.translate(220, 210);
+        Art.drawShip(cx, PREV, 140, performance.now() / 1000, 0.8); raf = requestAnimationFrame(loop);
+      };
+      loop();
+      const draw = () => { pane.innerHTML = paneHtml(); icons(pane); };
+      draw();
+      m.querySelector('.ws-tabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x === b)); draw(); };
+      m.querySelector('#ws-name').oninput = e => { name = e.target.value; };
+      // tap the preview to move the chosen sticker there (ship units -50..50 = 140px half size)
+      cv.addEventListener('pointerdown', e => {
+        const st = spec.stickers[sel]; if (!st) { tab = 'stickers'; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x.dataset.tab === tab)); return draw(); }
+        const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * 440 - 220, py = (e.clientY - r.top) / r.height * 440 - 210;
+        st.x = Math.round(Math.max(-45, Math.min(45, px / 140 * 50))); st.y = Math.round(Math.max(-45, Math.min(45, py / 140 * 50))); refresh();
+      });
+      pane.addEventListener('input', e => {
+        const el = e.target, st = spec.stickers[sel];
+        if (el.dataset.col) spec[el.dataset.col] = el.value;
+        else if (el.id === 'ws-mirror') spec.mirror = el.checked;
+        else if (el.id === 'ws-txt' && st) st.t = el.value.replace(/[<>&"\\]/g, '').slice(0, 4);
+        if (el.id === 'ws-txt') { const ch = pane.querySelector(`[data-sel="${sel}"]`); if (ch) ch.textContent = `${sel + 1}. ${st.t || 'Aa'}`; }
+        else if (el.dataset.p && st) st[el.dataset.p] = el.type === 'range' ? +el.value : el.value;
+        refresh();
+      });
+      pane.addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b || b.disabled) return;
+        if (b.dataset.shape) spec.shape = b.dataset.shape;
+        else if (b.id === 'ws-rand') { spec.body = randHex(); spec.accent = randHex(); spec.glow = randHex(); }
+        else if ('fx' in b.dataset) spec.fx = b.dataset.fx || null;
+        else if ('aura' in b.dataset) spec.aura = b.dataset.aura || null;
+        else if (b.dataset.gun) spec.gun = b.dataset.gun;
+        else if (b.dataset.add) { spec.stickers.push({ k: b.dataset.add, x: 0, y: 0, s: b.dataset.add === 'stripe' ? 24 : 14, r: 0, c: '#ffffff', t: b.dataset.add === 'text' ? 'GG' : undefined }); sel = spec.stickers.length - 1; }
+        else if (b.dataset.sel) sel = +b.dataset.sel;
+        else if (b.id === 'ws-del') { spec.stickers.splice(sel, 1); sel = Math.min(sel, spec.stickers.length - 1); }
+        else return;
+        refresh(); draw();
+      });
+      m.querySelector('#ws-back').onclick = () => { cancelAnimationFrame(raf); workshop(); };
+      m.querySelector('#ws-go').onclick = async e => {
+        const btn = e.currentTarget; btn.disabled = true;
+        try {
+          if (orig) {
+            const r = await Net.customUpdate(user, orig.id, name, spec); registerCustom([r]);
+            toast(t('ws_saved')); cancelAnimationFrame(raf); renderMenu(); return workshop();
+          }
+          await Net.save(user, D, D.best).catch(() => {});   // coins earned a moment ago reach the server first
+          const r = await Net.customCreate(user, name, spec);
+          ['coins', 'gems', 'ships'].forEach(k => { if (r[k] != null) D[k] = r[k]; }); D.skin = r.skin;
+          registerCustom([r.ship]); save(); renderMenu(); cancelAnimationFrame(raf); closeModal();
+          Sfx.init(); Sfx.coin(); toast(t('ws_built', { x: r.ship.name })); shipAnim(r.ship.id);
+        } catch (err) { btn.disabled = false; toast(errText(err)); }
+      };
+    });
+  }
+  $('#m-workshop').addEventListener('click', () => { Sfx.init(); workshop(); });
+
   // ---------- boot ----------
   async function afterLogin() {
     if (!user || user.offline) return;
@@ -2269,6 +2420,7 @@
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onPoke, onPlaying, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
+    loadMyCustom();
     claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400); setTimeout(syncPushPrefs, 2000); setTimeout(registerDevice, 2500);
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };

@@ -62,6 +62,13 @@ The whole shop comes from Supabase, so you can change it with no new build (the 
 
 **Every purchase goes through the server** (`shop_buy`, `shop_convert`). It checks the price and the player's balance, refuses secret ships, already-owned items and maxed upgrades, and saves the result. Players in offline mode keep the shop built into the game. SQL: `supabase/shop.sql`.
 
+### Workshop: build your own ship
+In the main menu, **Workshop** lets a player design a ship: shape, three colors, an effect, an aura, the look of its shots and up to 10 stickers (with text and mirroring).
+Building one costs **1,000 coins + 100 diamonds**, paid on the server; repainting or renaming it later is free.
+- Prices and the limit per player: `shop_settings.custom_coins`, `custom_gems`, `custom_max` (Supabase).
+- Ships are kept in `custom_ships` (`supabase/custom_ships.sql`). Their look is a small description checked against fixed lists on the server, never code.
+- Built ships all hit as hard (rate 1.7, damage 3.2, 3 side shots). Friends see your ship in rooms and on your profile.
+
 ### Coupon codes and free gifts
 - **Give a coupon to one player** (`coupon_grants`): add a row with the coupon `code` and the player's `handle` (with or without @). It works **even when the coupon is disabled or expired**: it shows in that player's *Codes & gifts* and only they can redeem it, once. Optional `note` and `expires_at` (a deadline for this grant). SQL: `supabase/coupon_grants.sql`.
 Players open **Codes & gifts** from the main menu. There they can type a coupon code, or claim a free gift with one tap. A red dot on the button means a free gift is waiting.

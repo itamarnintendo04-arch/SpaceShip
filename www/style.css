@@ -444,3 +444,34 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .dev-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dev-name { flex: 1; }
 .dev-info .chip { align-self: flex-start; margin: 2px 0; }
+
+/* Workshop: build your own ship */
+.ws-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 52vh; overflow-y: auto; margin: 8px 0 12px; }
+.ws-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 16px; border: 1.5px solid rgba(255,255,255,.12); background: rgba(5,2,26,.5); color: inherit; font: inherit; }
+.ws-card.on { border-color: var(--cyan, #22d3ee); }
+.ws-card img { width: 90px; height: 90px; }
+.ws-card .row { gap: 6px; flex-wrap: wrap; }
+.ws-new { cursor: pointer; border-style: dashed; justify-content: center; min-height: 170px; }
+.ws-new:disabled { opacity: .5; cursor: default; }
+.ws-plus { font-size: 40px; line-height: 1; color: var(--cyan, #22d3ee); }
+.ws-price { display: inline-flex; gap: 4px; align-items: center; font-weight: 700; }
+.ws-price .ic, .ws-go .ic { width: 16px; height: 16px; }
+.ws-cv { display: block; width: min(220px, 60vw); height: auto; aspect-ratio: 1; margin: 0 auto 6px; border-radius: 20px; background: radial-gradient(circle, rgba(124,58,237,.25), rgba(5,2,26,.6) 70%); touch-action: none; cursor: crosshair; }
+.ws-tabs { flex-wrap: wrap; margin-top: 8px; }
+.ws-pane { min-height: 130px; max-height: 34vh; overflow-y: auto; padding: 4px 2px 8px; }
+.ws-pane .chip.on { background: var(--cyan, #22d3ee); color: #04121a; }
+.ws-pane .chip { font-size: 13px; padding: 6px 11px; }
+.ws-shapes, .ws-stk { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.ws-shapes img { width: 46px; height: 46px; }
+.ws-stk img { width: 26px; height: 26px; }
+.ws-stk .look-it { min-height: 44px; justify-content: center; }
+.look-it.on { border-color: var(--cyan, #22d3ee); background: rgba(34,211,238,.12); }
+.ws-colors { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+.ws-col { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; }
+.ws-pane input[type=color] { width: 52px; height: 40px; border: 0; padding: 0; background: none; border-radius: 10px; cursor: pointer; }
+.ws-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ws-edit label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
+.ws-edit input[type=range] { flex: 1; }
+.ws-edit .row { flex-wrap: wrap; }
+.ws-check { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 14px; font-weight: 700; }
+.ws-mine { margin: 4px 0; }
