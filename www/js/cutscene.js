@@ -7,6 +7,8 @@
 (function () {
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // canvas text follows the language's direction (Hebrew / Arabic right to left)
+  const textDir = ctx => { ctx.direction = document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr'; };
   const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
   const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
   const sfx = () => (window.SSGame && window.SSGame.Sfx) || null;
@@ -60,7 +62,7 @@
   function bigText(ctx, txt, x, y, size, color, t0, t) {
     const k = seg(t, t0, t0 + 0.25), pop = k < 1 ? 0.4 + 0.8 * k : 1 + 0.04 * Math.sin(t * 12);
     ctx.save(); ctx.translate(x, y); ctx.scale(pop, pop); ctx.rotate(-0.08);
-    ctx.font = `900 ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `900 ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; textDir(ctx);
     ctx.lineWidth = size * 0.16; ctx.strokeStyle = '#1e0b3a'; ctx.strokeText(txt, 0, 0);
     ctx.fillStyle = color; ctx.fillText(txt, 0, 0); ctx.restore();
   }
@@ -68,7 +70,7 @@
     if (!txt) return;
     ctx.save(); ctx.globalAlpha = alpha;
     const fs = Math.max(15, Math.min(22, W / 22)); ctx.font = `700 ${fs}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; textDir(ctx);
     const w = Math.min(W - 32, ctx.measureText(txt).width + 36);
     ctx.fillStyle = 'rgba(5,2,26,.72)'; roundRect(ctx, (W - w) / 2, H - 92, w, fs + 22, 14); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillText(txt, W / 2, H - 92 + (fs + 22) / 2, W - 48); ctx.restore();
@@ -196,7 +198,7 @@
         const pressed = t > 5.3, bx = cx + R * 0.35, by = cy + R * 0.42;
         ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.ellipse(bx, by + 6, R * 0.2, R * 0.08, 0, 0, TAU); ctx.fill();
         ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.ellipse(bx, by - (pressed ? 0 : R * 0.06), R * 0.18, R * 0.08, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.max(9, R * 0.07)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(T('cs_launch'), bx, by + R * 0.16);
+        ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.max(9, R * 0.07)}px system-ui, sans-serif`; ctx.textAlign = 'center'; textDir(ctx); ctx.fillText(T('cs_launch'), bx, by + R * 0.16);
         ctx.fillStyle = '#fde047'; ctx.fillText(T('cs_not_ready'), cx - R * 0.3, cy - R * 0.55);
         const fall = ease(seg(t, 4.75, 5.3)), tx = cx - R * 0.5 + (bx - cx + R * 0.5) * fall, ty = cy - R * 0.9 + (by - R * 0.3 - cy + R * 0.9) * fall;
         // upside down with the head right on the button once it lands
