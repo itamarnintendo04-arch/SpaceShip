@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpaceShip support</title>
+<meta name="theme-color" content="#05021a">
+<link rel="icon" href="/img/icon-256.png">
+<link rel="apple-touch-icon" href="/img/icon-256.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .np { min-height: 100vh; display: grid; place-items: center; padding: 68px 16px 24px; text-align: center; }
+  .nc { width: min(460px, 100%); padding: 28px 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--cyan); }
+  .nc img { border-radius: 22px; }
+  .nc .btn { width: 100%; margin-top: 10px; }
+  .nc .st { min-height: 22px; margin-top: 12px; font-weight: 700; }
+  .nc .st.ok { color: #4ade80; } .nc .st.err { color: #fb7185; }
+  .nc ol { text-align: start; color: var(--muted); }
+  .acct { display: flex; align-items: center; gap: 12px; text-align: start; padding: 12px; margin: 6px 0 4px; border-radius: 16px; background: rgba(34,211,238,.08); border: 1px solid var(--line2); }
+  .acct .av { font-size: 30px; } .acct div { flex: 1; display: flex; flex-direction: column; } .acct small { color: var(--muted); } .acct span[dir] { color: var(--cyan); font-size: 14px; }
+  .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+  .login input { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line2); background: rgba(5,2,26,.7); color: #fff; font-size: 16px; }
+  .small { font-size: 13px; }
+  [hidden] { display: none !important; }
+  .np-top { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); inset-inline-end: 14px; z-index: 30; }
+  .sup label { display: flex; flex-direction: column; gap: 6px; text-align: start; margin-top: 12px; font-weight: 600; color: var(--muted); font-size: 14px; }
+  .sup input, .sup select, .sup textarea { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line2); background: rgba(5,2,26,.7); color: #fff; font: inherit; font-size: 16px; }
+  .sup textarea { min-height: 130px; resize: vertical; }
+  .sup .btn { margin-top: 14px; }
+  .faq-mini { text-align: start; color: var(--muted); font-size: 14px; margin-top: 18px; }
+  .faq-mini b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="np-top"><div class="lang-wrap">
+  <button class="lang" id="lang" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18"/></svg><span id="lang-code">EN</span>
+  </button>
+  <ul class="lang-menu" id="lang-menu" role="listbox" hidden></ul>
+</div></div>
+<main class="np"><div class="nc">
+  <img src="/img/icon-256.png" alt="" width="84" height="84">
+  <h1 data-k="sp_title">Help & support</h1>
+  <p class="sub" data-k="sp_sub">Write to us about your account, a lost login, a bug or anything else. We answer by email.</p>
+  <form class="sup" id="f">
+    <label><span data-k="sp_topic">Topic</span><select id="topic">
+      <option value="recovery" data-k="sp_t_recovery">Recover my account</option>
+      <option value="bug" data-k="sp_t_bug">Something doesn't work</option>
+      <option value="gift" data-k="sp_t_gift">Coupons and gifts</option>
+      <option value="notifications" data-k="sp_t_notif">Notifications</option>
+      <option value="other" data-k="sp_t_other">Something else</option></select></label>
+    <label><span data-k="sp_handle">Your @name in the game</span><input id="h" dir="ltr" placeholder="@name" autocapitalize="off" spellcheck="false" maxlength="24"></label>
+    <label><span data-k="sp_email">Email for our answer</span><input id="e" type="email" dir="ltr" placeholder="you@gmail.com" maxlength="120"></label>
+    <label><span data-k="sp_device">Device name (Settings → My devices)</span><input id="d" maxlength="60"></label>
+    <label><span data-k="sp_msg">Message</span><textarea id="m" maxlength="4000"></textarea></label>
+    <button class="btn primary" type="submit" id="send" data-k="sp_send">Send</button>
+  </form>
+  <div class="st" id="st"></div>
+  <div class="faq-mini"><p><b data-k="sp_q1">Lost your account?</b> <span data-k="sp_a1">Choose “Recover my account”, write your @name and the names of devices you played on. We can see your devices and help you get back in.</span></p></div>
+  <a class="btn ghost" href="/" data-k="sp_home">SpaceShip website</a>
+</div></main>
+<script src="/i18n.js"></script>
+<script>
+
+  var L = window.SITE_I18N || {}, LANGS = window.SITE_LANGS || [], lang = 'en', q = new URLSearchParams(location.search);
+  var notifLang = (q.get('lang') || '').slice(0, 2);   // the game's language: the notifications are written in it
+  try { var v = localStorage.getItem('ss_site_lang'); if (v && L[v]) lang = v; } catch (e) {}
+  if (!L[notifLang]) notifLang = '';
+  var T = function (k, d) { return (L[lang] && L[lang][k]) || (L.en && L.en[k]) || d || k; };
+  var DEF = {};
+  function applyLang() {
+    var rtl = LANGS.some(function (l) { return l.id === lang && l.rtl; });
+    document.documentElement.lang = lang; document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-k]').forEach(function (e) { if (!(e.dataset.k in DEF)) DEF[e.dataset.k] = e.textContent; e.textContent = T(e.dataset.k, DEF[e.dataset.k]); });
+    document.getElementById('lang-code').textContent = lang.toUpperCase();
+    document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.lang === lang)); });
+    if (window.__sayAgain) window.__sayAgain();
+  }
+  var menu = document.getElementById('lang-menu'), lb = document.getElementById('lang');
+  menu.innerHTML = LANGS.map(function (l) { return '<li><button type="button" data-lang="' + l.id + '" lang="' + l.id + '" dir="' + (l.rtl ? 'rtl' : 'ltr') + '">' + l.name + '</button></li>'; }).join('');
+  var openMenu = function (on) { menu.hidden = !on; lb.setAttribute('aria-expanded', String(on)); };
+  lb.addEventListener('click', function (e) { e.stopPropagation(); openMenu(menu.hidden); });
+  menu.addEventListener('click', function (e) { var b = e.target.closest('[data-lang]'); if (!b) return; lang = b.dataset.lang; try { localStorage.setItem('ss_site_lang', lang); } catch (er) {} openMenu(false); applyLang(); });
+  document.addEventListener('click', function () { openMenu(false); });
+  applyLang();
+
+  var st = document.getElementById('st'), SB = 'https://unpzeskbzovolyqsqzna.supabase.co', KEY = 'sb_publishable_iuaATuSyhRd65ZjNdx3Opg_w1KxQdQc';
+  var lastSay = null, say = function (k, cls, extra) { lastSay = [k, cls, extra]; st.textContent = k ? T(k).replace('{n}', extra || '') : ''; st.className = 'st ' + (cls || ''); };
+  window.__sayAgain = function () { if (lastSay) say(lastSay[0], lastSay[1], lastSay[2]); };
+  if (q.get('h')) document.getElementById('h').value = '@' + q.get('h').replace(/^@/, '');
+  if (q.get('d')) document.getElementById('d').value = q.get('d');
+  if (q.get('topic')) document.getElementById('topic').value = q.get('topic');
+  if (q.get('h') || q.get('d')) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+  var ERR = { support_short: 'sp_e_short', bad_email: 'sp_e_email', support_contact: 'sp_e_contact', too_soon: 'sp_e_soon' };
+  document.getElementById('f').onsubmit = async function (ev) {
+    ev.preventDefault(); var b = document.getElementById('send'); b.disabled = true; say('np_working');
+    try {
+      var r = await fetch(SB + '/rest/v1/rpc/support_submit', { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({
+        p_handle: document.getElementById('h').value, p_email: document.getElementById('e').value, p_topic: document.getElementById('topic').value,
+        p_message: document.getElementById('m').value, p_device: document.getElementById('d').value, p_lang: lang, p_ua: navigator.userAgent }) });
+      var j = await r.json(); b.disabled = false;
+      if (!r.ok) { var code = Object.keys(ERR).find(function (k) { return String(j.message || '').indexOf(k) >= 0; }); return say(code ? ERR[code] : 'np_failed', 'err'); }
+      say('sp_done', 'ok', '#' + j.id); document.getElementById('f').reset(); document.getElementById('f').hidden = true;
+    } catch (e) { b.disabled = false; say('np_failed', 'err'); }
+  };
+</script>
+</body>
+</html>

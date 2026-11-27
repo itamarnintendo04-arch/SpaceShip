@@ -70,6 +70,11 @@
       }
       return null;
     },
+    // the player's devices (names they can change; support sees them to help recover an account)
+    deviceSeen: (u, d) => rpc('device_seen', { p_id: u.id, p_secret: u.secret, p_device: d.id, p_name: d.name, p_platform: d.platform, p_model: d.model, p_version: d.version }),
+    myDevices: u => rpc('my_devices', { p_id: u.id, p_secret: u.secret }),
+    deviceRename: (u, id, name) => rpc('device_rename', { p_id: u.id, p_secret: u.secret, p_device: id, p_name: name }),
+    deviceRemove: (u, id) => rpc('device_remove', { p_id: u.id, p_secret: u.secret, p_device: id }),
     claimCallBonus: u => rpc('claim_call_bonus', { p_id: u.id, p_secret: u.secret }),
     inviteToParty: (u, target) => rpc('invite_to_party', { p_id: u.id, p_secret: u.secret, p_target: target }),
     partyInvites: u => rpc('my_party_invites', { p_id: u.id, p_secret: u.secret }),

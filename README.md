@@ -138,6 +138,10 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
   - **Apple Passwords inside the iPhone app** needs the app linked to your website (Associated Domains). On Vercel, set `APPLE_TEAM_ID` so the site serves `/.well-known/apple-app-site-association`. In GitHub, add the repository variable `IOS_ASSOCIATED_DOMAIN` (e.g. `spaceship-game.vercel.app`). Then sign the app with a profile that has the *Associated Domains* capability. In Safari and on Android, it works without this.
 - **Sign out** removes the account from the device: its saved login key and its local data. To come back you need the email or the key file.
 
+### Devices and support
+- **My devices** (Settings): every device a player signed in on, with a name they can change (✏️) and remove (🗑️); the default name is the phone's own name / model (`@capacitor/device`) or the browser and system. 🔔 marks devices with notifications on. Table `devices`.
+- **Help & support** (Settings, and *Support* in the website footer) opens `https://<site>/support`: topic, @name, email for the answer, device name and message, in English with a language button. Requests land in `support_tickets`; **`support_view`** (Table Editor / SQL) shows each request with the player's account, email and **all their devices**, to help recover an account. Mark `status` answered / closed and write `notes`. SQL: `supabase/devices_support.sql`.
+
 ### Desktop extras
 Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard and gamepad control. Extra glow, trails and particles. F11 for full screen, P to pause.
 

@@ -569,6 +569,7 @@
         <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
       ${user.offline ? '' : `<div class="sec"><h3>🔔 ${t('push_title')}</h3><p class="muted small">${t('push_note')}</p>
         <button class="btn small primary" id="s-push">🌐 ${t('push_btn')}</button><div class="row"><small class="muted" id="s-push-st"></small><button class="chip" id="s-push-test">${t('push_test')}</button></div></div>`}
+      <div class="row wrap">${user.offline ? '' : `<button class="btn small" id="s-devices">📱 ${t('my_devices')}</button>`}<button class="btn small" id="s-support">🛟 ${t('support')}</button></div>
       ${window.Cutscene ? `<button class="btn small" id="s-watch">🎬 ${t('watch_intro')}</button>` : ''}
       <div class="sec look-ui"><h3>🖌️ ${t('ui_design')}</h3><p class="muted small">${t('ui_design_note')}</p>
         <div class="look-grid">${Object.keys(THEMES).map(id => `<button class="look-it ${(THEMES[settings.theme] ? settings.theme : 'galaxy') === id ? 'on' : ''}" data-theme-id="${id}"><span class="theme-sw" style="background:radial-gradient(circle at 70% 20%, ${THEMES[id].bg[0]}, ${THEMES[id].bg[2]})"><i style="background:linear-gradient(90deg, ${THEMES[id].g.join(', ')})"></i></span><small>${t('th_' + id)}</small></button>`).join('')}</div>
@@ -597,6 +598,8 @@
       const ps = m.querySelector('#s-push-st');
       if (ps) Net.pushStatus(user, DEVICE).then(r => { ps.textContent = r && r.this_device ? t('push_this_on') : t('push_this_off'); }).catch(() => { ps.textContent = ''; });
       on('#s-anims', () => { settings.anims = settings.anims === false; settings.intro = settings.anims; saveSettings(); openSettings(); });
+      on('#s-devices', devicesBox);
+      on('#s-support', () => { closeModal(); openSupport(); });
       on('#s-watch', () => { closeModal(); Sfx.init(); Cutscene.intro(user.data.skin, t); });
       on('#s-music', () => { settings.music = !settings.music; saveSettings(); Music.setEnabled(settings.music); Music.unlock(); openSettings(); });
       const vol = m.querySelector('#s-vol');
@@ -1392,6 +1395,53 @@
   const SITE_HOST = () => window.SS_DOMAIN || 'spaceship-site.vercel.app';
   // this device's own id: each device turns its own notifications on
   const DEVICE = (() => { let d = store.get('ss_device_id', null); if (!d) { d = 'app-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); store.set('ss_device_id', d); } return d; })();
+  // ---------- my devices ----------
+  // a readable default name: the phone's own name / model, or the browser and system
+  async function deviceInfo() {
+    let name = '', platform = NATIVE ? (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) : PLATFORM === 'desktop' ? 'desktop' : 'web', model = '';
+    try {
+      if (NATIVE && Cap.Device) { const i = await Cap.Device.getInfo(); model = [i.manufacturer, i.model].filter(Boolean).join(' '); name = i.name && !/^(iphone|ipad|localhost)$/i.test(i.name) ? i.name : (i.platform === 'ios' ? (/ipad/i.test(i.model) ? 'iPad' : 'iPhone') : model || 'Android'); }
+    } catch (e) { /* no device plugin */ }
+    if (!name) {
+      const ua = navigator.userAgent, os = /Windows/.test(ua) ? 'Windows' : /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Device';
+      const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+      name = PLATFORM === 'desktop' ? os + ' PC'.replace(/^ /, '') : br ? br + ' · ' + os : os;
+      if (PLATFORM === 'desktop' && os === 'Mac') name = 'Mac';
+      model = model || os;
+    }
+    return { id: DEVICE, name: name.slice(0, 40), platform, model: model.slice(0, 60), version: String(window.SS_VERSION || 'dev') };
+  }
+  async function registerDevice() { if (!user || user.offline) return; try { await Net.deviceSeen(user, await deviceInfo()); } catch (e) { console.warn('device', e); } }
+  function devicesBox() {
+    modal(`<h2>📱 ${t('my_devices')}</h2><p class="muted small">${t('devices_note')}</p><div id="dv-list" class="list"><div class="empty">${t('loading')}</div></div>
+      <button class="btn ghost" id="dv-x">${t('close')}</button>`, async m => {
+      m.querySelector('#dv-x').onclick = closeModal;
+      const list = m.querySelector('#dv-list');
+      const draw = async () => {
+        let ds = []; try { ds = await Net.myDevices(user) || []; } catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
+        const ic = p => p === 'ios' ? '📱' : p === 'android' ? '🤖' : p === 'desktop' ? '💻' : '🌐';
+        list.innerHTML = ds.map(d => `<div class="dev-row ${d.id === DEVICE ? 'me' : ''}"><span class="dev-ic">${ic(d.platform)}</span>
+          <div class="dev-info"><b>${esc(d.name)}</b>${d.id === DEVICE ? ` <span class="chip">${t('this_device')}</span>` : ''}
+            <small class="muted">${esc(d.model || '')}${d.version ? ' · v' + esc(d.version) : ''} · ${t('last_seen', { d: new Date(d.last).toLocaleDateString() })}${d.notifications ? ' · 🔔' : ''}</small></div>
+          <button class="icon-btn" data-dren="${esc(d.id)}" title="${esc(t('rename'))}">✏️</button>
+          ${d.id === DEVICE ? '' : `<button class="icon-btn" data-drm="${esc(d.id)}" title="${esc(t('remove'))}">🗑️</button>`}</div>`).join('') || `<div class="empty">—</div>`;
+        list.querySelectorAll('[data-dren]').forEach(b => b.onclick = () => {
+          const d = ds.find(x => x.id === b.dataset.dren), row = b.closest('.dev-row');
+          row.innerHTML = `<input class="dev-name" maxlength="40" value="${esc(d.name)}"><button class="btn small primary">${t('save')}</button>`;
+          const inp = row.querySelector('input'); inp.focus(); inp.select();
+          const go = async () => { const v = inp.value.trim(); if (!v) return; try { await Net.deviceRename(user, d.id, v); toast(t('device_renamed')); } catch (e) { toast(errText(e)); } draw(); };
+          row.querySelector('button').onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+        });
+        list.querySelectorAll('[data-drm]').forEach(b => b.onclick = async () => { try { await Net.deviceRemove(user, b.dataset.drm); } catch (e) { toast(errText(e)); } draw(); });
+      };
+      draw();
+    });
+  }
+  async function openSupport() {
+    const d = await deviceInfo().catch(() => ({ name: '' }));
+    let name = d.name; try { const mine = (await Net.myDevices(user)).find(x => x.id === DEVICE); if (mine) name = mine.name; } catch (e) {}
+    openExternal('https://' + SITE_HOST() + '/support?h=' + encodeURIComponent(user && !user.offline ? user.handle : '') + '&d=' + encodeURIComponent(name || '') + '&lang=' + I18N.lang);
+  }
   function openExternal(u) { if (NATIVE) window.open(u, '_system'); else window.open(u, '_blank'); }
   async function openSiteNotify() {
     if (!user || user.offline) return;
@@ -2191,7 +2241,7 @@
     setTimeout(askNotifications, 1500);
     Net.startPresence(user, { onInvite, onPoke, onJoinRequest, onJoinReply, onPartyMsg, ...realtime, onOnline: () => { updateOnlineBadge(); if (current === 'friends') { renderFriendsList(); if (friendTab === 'parties') renderParties(); } if (current === 'coop' && !room) renderCoopFriends(); } });
     loadFriends(); loadParties(); loadGifts(true);
-    claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400); setTimeout(syncPushPrefs, 2000);
+    claimSecretToken(); setTimeout(claimLinkGift, 1200); setTimeout(claimClubLink, 1400); setTimeout(syncPushPrefs, 2000); setTimeout(registerDevice, 2500);
   }
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();

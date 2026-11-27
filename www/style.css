@@ -436,3 +436,11 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .cs-skip { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); inset-inline-end: 14px; font: inherit; font-weight: 800; font-size: 14px;
   color: #fff; background: rgba(5, 2, 26, .55); border: 1.5px solid rgba(255, 255, 255, .35); border-radius: 999px; padding: 8px 16px; cursor: pointer; }
 .call-bonus { padding: 10px 12px; border-radius: 12px; background: rgba(250, 204, 21, .12); border: 1px dashed var(--gold); color: var(--gold); font-weight: 700; font-size: 14px; }
+
+.dev-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); }
+.dev-row.me { border-color: var(--cyan); }
+.dev-ic { font-size: 24px; }
+.dev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: start; }
+.dev-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-name { flex: 1; }
+.dev-info .chip { align-self: flex-start; margin: 2px 0; }

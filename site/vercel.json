@@ -24,6 +24,10 @@
     {
       "source": "/open",
       "destination": "/open.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/support.html"
     }
   ],
   "headers": [
