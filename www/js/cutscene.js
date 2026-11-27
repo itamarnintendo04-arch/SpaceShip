@@ -250,37 +250,83 @@
   }
 
   // ---------- 3. a jump to another world ----------
-  function warp(shipId, T = k => k, o = {}) {
-    const col = o.color || '#a78bfa', streaks = Array.from({ length: 140 }, () => ({ a: Math.random() * TAU, d: Math.random(), w: 0.5 + Math.random() * 1.5 }));
-    let rang = false;
-    return run(() => stage(4.2, (ctx, t, W, H) => {
-      const m = Math.min(W, H), s = clamp(m * 0.15, 50, 110), cx = W / 2, cy = H * 0.45;
-      ctx.fillStyle = '#05021a'; ctx.fillRect(0, 0, W, H);
-      const sp = ease(seg(t, 0.2, 2.2));                                    // speed builds up
-      if (!rang && t > 0.3) { rang = true; play('tone', 120, 1800, 2.2, 'sawtooth', 0.04); }
-      for (const st of streaks) {
-        st.d = (st.d + 0.004 + sp * 0.03) % 1;
-        const r0 = st.d * m * 0.9, r1 = r0 + 4 + sp * m * 0.25 * st.d;
-        ctx.strokeStyle = st.w > 1.4 ? col : '#e0e7ff'; ctx.globalAlpha = 0.3 + st.d * 0.7; ctx.lineWidth = st.w;
-        ctx.beginPath(); ctx.moveTo(cx + Math.cos(st.a) * r0, cy + Math.sin(st.a) * r0); ctx.lineTo(cx + Math.cos(st.a) * r1, cy + Math.sin(st.a) * r1); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      // tunnel rings in the world's colour
-      for (let i = 0; i < 6; i++) { const r = ((t * (0.4 + sp) + i / 6) % 1) * m * 0.7; ctx.strokeStyle = col; ctx.globalAlpha = 0.5 * (r / (m * 0.7)) * sp; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-      const shipShrink = t < 2.4 ? 1 : 1 - ease(seg(t, 2.4, 2.8));
-      if (shipShrink > 0) ship(ctx, shipId, cx + Math.sin(t * 20) * sp * 2, H * 0.8 - ease(seg(t, 2.2, 2.8)) * (H * 0.8 - cy), s * (0.4 + 0.6 * shipShrink), t, 0.8 + sp * 1.2);
-      if (t > 2.7 && t < 3.0) { ctx.fillStyle = `rgba(255,255,255,${1 - (t - 2.7) / 0.3})`; ctx.fillRect(0, 0, W, H); }
-      if (t > 2.7) {
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, m); g.addColorStop(0, col); g.addColorStop(1, 'rgba(5,2,26,0)');
-        ctx.globalAlpha = 0.35 * ease(seg(t, 2.7, 3.2)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
-        if (o.sub) bigText(ctx, o.sub, cx, cy - m * 0.12, clamp(m * 0.05, 15, 26), '#e0e7ff', 2.8, t);
-        bigText(ctx, o.name || '', cx, cy, clamp(m * 0.09, 24, 56), '#fff', 2.9, t);
-      }
-      if (t > 3.6) { ctx.fillStyle = `rgba(5,2,26,${ease(seg(t, 3.6, 4.2))})`; ctx.fillRect(0, 0, W, H); }
-    }, { skipText: T('cs_skip'), tapToClose: 1 }));
+  // seen from the passer-by: hyperspace into the new world, his ship runs dry, an abandoned ship drifts nearby,
+  // he jumps across, nearly misses, grabs the edge, climbs in, the old wreck lights up and flies on
+  function shipTinted(ctx, id, x, y, s, t, thrust, rot, dark) {
+    // the ship drawn on its own canvas, then darkened (an abandoned ship) as much as `dark` (0..1)
+    const S = Math.ceil(s * 4), c = shipTinted.c || (shipTinted.c = document.createElement('canvas'));
+    c.width = c.height = S; const g = c.getContext('2d'); g.clearRect(0, 0, S, S);
+    g.save(); g.translate(S / 2, S / 2); if (rot) g.rotate(rot); if (window.Art) window.Art.drawShip(g, id, s, t, thrust); g.restore();
+    if (dark > 0) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(30,34,52,${0.82 * dark})`; g.fillRect(0, 0, S, S); g.globalCompositeOperation = 'source-over'; }
+    ctx.drawImage(c, x - S / 2, y - S / 2);
   }
-
+  function warp(shipId, T = k => k, o = {}) {
+    const col = o.color || '#a78bfa', streaks = Array.from({ length: 120 }, () => ({ a: Math.random() * TAU, d: Math.random(), w: 0.5 + Math.random() * 1.5 }));
+    const dust = Array.from({ length: 50 }, () => ({ x: Math.random(), y: Math.random(), r: 0.5 + Math.random() * 2 }));
+    let rang = 0;
+    return run(() => stage(8.4, (ctx, t, W, H) => {
+      const m = Math.min(W, H), s = clamp(m * 0.15, 48, 110), k = clamp(m * 0.09, 26, 56), cy = H * 0.48;
+      // 1. hyperspace (0 - 1.3s)
+      if (t < 1.3) {
+        ctx.fillStyle = '#05021a'; ctx.fillRect(0, 0, W, H);
+        const sp = ease(seg(t, 0, 1.1)), cx = W / 2;
+        if (!rang) { rang = 1; play('tone', 120, 1800, 1.3, 'sawtooth', 0.04); }
+        for (const st of streaks) { st.d = (st.d + 0.006 + sp * 0.035) % 1; const r0 = st.d * m * 0.9, r1 = r0 + 4 + sp * m * 0.3 * st.d;
+          ctx.strokeStyle = st.w > 1.4 ? col : '#e0e7ff'; ctx.globalAlpha = 0.3 + st.d * 0.7; ctx.lineWidth = st.w;
+          ctx.beginPath(); ctx.moveTo(cx + Math.cos(st.a) * r0, cy + Math.sin(st.a) * r0); ctx.lineTo(cx + Math.cos(st.a) * r1, cy + Math.sin(st.a) * r1); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        ship(ctx, shipId, cx, H * 0.78 - sp * H * 0.25, s, t, 1.6);
+        if (t > 1.15) { ctx.fillStyle = `rgba(255,255,255,${(t - 1.15) / 0.15})`; ctx.fillRect(0, 0, W, H); }
+        return;
+      }
+      // 2. the new world: its own colours (the space changes)
+      const g = ctx.createRadialGradient(W * 0.7, H * 0.3, 0, W * 0.7, H * 0.3, m * 1.1); g.addColorStop(0, col); g.addColorStop(0.45, '#130d33'); g.addColorStop(1, '#05021a');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 0.25; ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(W * 0.75, H * 0.25, m * 0.35, m * 0.12, -0.4, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      starfield(ctx, W, H, t, t * 0.01);
+      for (const d of dust) { ctx.fillStyle = col; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(((d.x - t * 0.02) % 1 + 1) % 1 * W, d.y * H, d.r, 0, TAU); ctx.fill(); } ctx.globalAlpha = 1;
+      if (t < 1.55) { ctx.fillStyle = `rgba(255,255,255,${1 - (t - 1.3) / 0.25})`; ctx.fillRect(0, 0, W, H); }
+      // the camera follows the passer-by: it slides from his ship to the abandoned one
+      const pan = ease(seg(t, 2.6, 4.4)) * W * 0.2;
+      ctx.save(); ctx.translate(-pan, 0);
+      const ax = W * 0.24, ay = cy + Math.sin(t * 1.3) * 6;                     // his ship: out of fuel, drifting
+      const bx = W * 0.8, by = cy - s * 0.25 + Math.sin(t * 0.9 + 1) * 8;        // the abandoned ship
+      const oldGone = ease(seg(t, 4.6, 6.0));
+      if (oldGone < 1) {
+        ctx.globalAlpha = 1 - oldGone;
+        ship(ctx, shipId, ax - oldGone * W * 0.3, ay + oldGone * 40, s * 0.95, t, t < 1.9 ? 0.6 * (1 - seg(t, 1.5, 1.9)) : 0, 0.25 + oldGone * 0.6);
+        if (t > 1.6 && t < 3.2) for (let i = 0; i < 3; i++) { const a = (t * 2 + i * 0.33) % 1; ctx.fillStyle = `rgba(148,163,184,${0.5 * (1 - a)})`; ctx.beginPath(); ctx.arc(ax - s * 0.2 - a * 30, ay + s * 0.4 + a * 10, 6 + a * 14, 0, TAU); ctx.fill(); }
+        if (t < 2.6 && Math.sin(t * 9) > 0) { ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(ax + s * 0.35, ay - s * 0.35, 4, 0, TAU); ctx.fill(); }
+        ctx.globalAlpha = 1;
+      }
+      // the abandoned ship: dark and still, then it powers up in its colours
+      const power = ease(seg(t, 5.2, 6.0)), fly = ease(seg(t, 6.4, 7.6));
+      shipTinted(ctx, shipId, bx + fly * W * 0.15, by - fly * H * 0.75, s * 1.05, t, power * 1.4, -0.35 * (1 - power), 1 - power);
+      if (power > 0 && power < 1) { ctx.globalAlpha = 0.6 * (1 - power); ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(bx, by, s * (0.6 + power), 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+      if (t > 2.0 && t < 2.6) bigText(ctx, '?', bx + s * 0.1, by - s * 0.9, k * 1.1, '#fde047', 2.0, t);
+      // the passer-by: climbs out, jumps, nearly misses, grabs the edge, climbs in
+      const hx0 = ax + s * 0.15, hy0 = ay - s * 0.35, edgeX = bx - s * 0.45, edgeY = by + s * 0.2;
+      if (t > 2.3 && t < 5.0) {
+        let hx, hy, rot = 0, pose = 'walk';
+        if (t < 2.9) { hx = hx0; hy = hy0 - ease(seg(t, 2.3, 2.6)) * k * 0.5; pose = 'scared'; }                         // out of the hatch, gets ready
+        else if (t < 4.0) { const f = seg(t, 2.9, 4.0), e = f < 0.75 ? f / 0.75 * 0.9 : 0.9 + (f - 0.75) / 0.25 * 0.1;   // slows down at the end: almost not enough
+          hx = hx0 + (edgeX - hx0) * e; hy = hy0 + (edgeY + k * 1.4 - hy0) * e - Math.sin(e * Math.PI) * H * 0.16; rot = Math.sin(t * 3) * 0.2; pose = 'fly'; }
+        else if (t < 4.6) { hx = edgeX + Math.sin(t * 14) * 3 * (1 - seg(t, 4.0, 4.6)); hy = edgeY + k * 1.45; pose = 'fly'; }   // hanging by one hand
+        else { const c = ease(seg(t, 4.6, 5.0)); hx = edgeX + c * s * 0.35; hy = edgeY + k * 1.45 - c * (k * 1.45 + s * 0.15); pose = 'fly'; }
+        hero(ctx, hx, hy, k, t, pose, rot);
+        if (t > 3.75 && t < 4.05) bigText(ctx, '!!', hx + k * 0.6, hy - k * 2.2, k * 0.8, '#f87171', 3.75, t);
+        if (t >= 4.0 && t < 4.6) { ctx.strokeStyle = '#fcd9b6'; ctx.lineWidth = k * 0.11; ctx.beginPath(); ctx.moveTo(hx + k * 0.2, hy - k * 0.85); ctx.lineTo(edgeX + k * 0.1, edgeY); ctx.stroke(); }
+        if (t > 3.95 && rang < 2) { rang = 2; play('hit'); }
+      }
+      if (t > 5.2 && rang < 3) { rang = 3; play('power'); }
+      if (t > 6.4 && rang < 4) { rang = 4; play('tone', 90, 700, 1.0, 'sawtooth', 0.05); }
+      ctx.restore();
+      // the world's name
+      if (t > 6.2) { if (o.sub) bigText(ctx, o.sub, W / 2, H * 0.62, clamp(m * 0.05, 15, 26), '#e0e7ff', 6.2, t); bigText(ctx, o.name || '', W / 2, H * 0.7, clamp(m * 0.09, 24, 56), '#fff', 6.3, t); }
+      caption(ctx, t < 2.4 ? T('cs_w1') : t < 2.9 ? T('cs_w2') : t < 3.9 ? T('cs_w3') : t < 5.1 ? T('cs_w4') : t < 6.2 ? T('cs_w5') : '', W, H, 1);
+      if (t > 7.8) { ctx.fillStyle = `rgba(5,2,26,${ease(seg(t, 7.8, 8.4))})`; ctx.fillRect(0, 0, W, H); }
+    }, { skipText: T('cs_skip'), tapToClose: 1.5 }));
+  }
 
   // ---------- 0. the studio logo: ItamaRos Games ----------
   function studio() {

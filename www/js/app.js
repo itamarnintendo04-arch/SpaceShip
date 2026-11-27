@@ -1792,7 +1792,10 @@
       const lk = 'ss_lastw_' + user.id, last = store.get(lk, null);
       if (wk) store.set(lk, wk);
       const go = () => startGame(Object.assign({}, o, { _cs: 1 }));
-      if (!introDone && settings.intro !== false) { introDone = true; Sfx.init(); closeModal(); return Cutscene.intro(user.data.skin, t).then(go); }
+      // the opening plays once: the first time the player enters the first level (remembered in the account, so not again on another device)
+      const D0 = user.data, firstLevel = o.mode === 'level' && !o.secret && (o.world || 1) === 1 && o.level === 1;
+      if (!D0.introSeen && Object.keys(D0.levels || {}).length) { D0.introSeen = true; save(); }   // players who already played skip it
+      if (firstLevel && !D0.introSeen && settings.intro !== false) { D0.introSeen = true; save(); introDone = true; Sfx.init(); closeModal(); return Cutscene.intro(D0.skin, t).then(go); }
       introDone = true;
       if (wk && last && last !== wk && settings.anims !== false) {
         Sfx.init(); closeModal();
