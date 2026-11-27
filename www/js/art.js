@@ -26,7 +26,7 @@
     { id: 'glacier',  secret: true, world: 2, shape: 'crystal', body: '#e0f2fe', accent: '#0369a1', glow: '#7dd3fc', gun: { rate: 2.05, dmg: 4.4, side: 5, style: 'snow', pierce: true }, aura: 'prism' },
     { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
     { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
-    // YouTube coupon ship (code YOUTUBE): red and white with the play button
+    // YouTube coupon ship (code YOUTUBE): red and white with a simple play button
     { id: 'youtuber', secret: true, coupon: true, shape: 'arrow', decal: 'play', body: '#ef4444', accent: '#ffffff', glow: '#f87171', gun: { rate: 1.6, dmg: 2.4, side: 0, style: 'laser' }, aura: 'pulse' },
     // website ship - from the link on the SpaceShip website (it opens the app and gives this ship)
     { id: 'voyager', secret: true, coupon: true, shape: 'crystal', fx: 'cosmic', body: '#e0f2fe', accent: '#1d4ed8', glow: '#38bdf8', gun: { rate: 2, dmg: 4, side: 4, style: 'comet', pierce: true }, aura: 'trail' },
@@ -155,16 +155,13 @@
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
       ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(0, -s * 0.25, s * 0.12, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     }
-    if (k.decal === 'play') {   // the YouTuber ship: the red play button on the body and on both wings
+    if (k.decal === 'play') {   // the YouTuber ship: a simple play button on the body and on both wings
       ctx.shadowBlur = 0;
-      const badge = (bx, by, w) => {
-        const h = w * 0.7, r = h * 0.3;
-        ctx.fillStyle = '#ff0000'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1, w * 0.07);
-        ctx.beginPath(); ctx.moveTo(bx - w / 2 + r, by - h / 2); ctx.arcTo(bx + w / 2, by - h / 2, bx + w / 2, by + h / 2, r); ctx.arcTo(bx + w / 2, by + h / 2, bx - w / 2, by + h / 2, r);
-        ctx.arcTo(bx - w / 2, by + h / 2, bx - w / 2, by - h / 2, r); ctx.arcTo(bx - w / 2, by - h / 2, bx + w / 2, by - h / 2, r); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(bx - w * 0.14, by - h * 0.26); ctx.lineTo(bx + w * 0.2, by); ctx.lineTo(bx - w * 0.14, by + h * 0.26); ctx.closePath(); ctx.fill();
+      const badge = (bx, by, d) => {
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(bx, by, d / 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(bx - d * 0.14, by - d * 0.22); ctx.lineTo(bx + d * 0.24, by); ctx.lineTo(bx - d * 0.14, by + d * 0.22); ctx.closePath(); ctx.fill();
       };
-      badge(0, s * 0.3, s * 0.42); badge(-s * 0.6, s * 0.52, s * 0.26); badge(s * 0.6, s * 0.52, s * 0.26);
+      badge(0, s * 0.3, s * 0.36); badge(-s * 0.6, s * 0.53, s * 0.2); badge(s * 0.6, s * 0.53, s * 0.2);
     }
     ctx.restore();
   }
