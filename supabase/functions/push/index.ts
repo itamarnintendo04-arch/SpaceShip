@@ -39,6 +39,7 @@ async function recent(sender: string, kind: string, target: string, seconds: num
   return !!(data && data.length);
 }
 
+const lastErrors: { code: number; why: string; host: string }[] = [];
 async function deliver(profileIds: string[], make: (lang: string) => { title: string; body: string; url: string; tag: string }, device?: string) {
   if (!profileIds.length) return { sent: 0, failed: 0 };
   const k = await vapid();
@@ -54,12 +55,16 @@ async function deliver(profileIds: string[], make: (lang: string) => { title: st
       sent++; sb.from('push_subscriptions').update({ last_ok: new Date().toISOString() }).eq('endpoint', s.endpoint).then(() => {});
     } catch (e) {
       failed++;
-      const code = (e as { statusCode?: number }).statusCode;
-      if (code === 404 || code === 410) await sb.from('push_subscriptions').delete().eq('endpoint', s.endpoint);   // the browser unsubscribed
-      else console.warn('push failed', code, String(e).slice(0, 200));
+      const err = e as { statusCode?: number; body?: string; message?: string };
+      const code = err.statusCode || 0, why = String(err.body || err.message || e).slice(0, 300);
+      lastErrors.push({ code, why, host: new URL(s.endpoint).hostname });
+      console.error('push failed', code, new URL(s.endpoint).hostname, why);
+      // keep a record of what the push service answered (Supabase: push_log kind = 'error')
+      await sb.from('push_log').insert({ sender: s.profile_id, kind: 'error', target: `${code} ${new URL(s.endpoint).hostname} ${why}`.slice(0, 500) });
+      if (code === 410) await sb.from('push_subscriptions').delete().eq('endpoint', s.endpoint);   // the browser unsubscribed for good
     }
   }));
-  return { sent, failed };
+  return { sent, failed, errors: lastErrors.splice(0) };
 }
 
 async function prefsOf(ids: string[]) {
@@ -80,7 +85,8 @@ Deno.serve(async req => {
       if (!host || !PUSH_HOSTS.some(r => r.test(host)) || !p256dh || !auth) return json({ error: 'bad_subscription' }, 400);
       const { data: tok } = await sb.from('push_link_tokens').select('profile_id, device, expires_at').eq('token', String(token || '')).maybeSingle();
       if (!tok || new Date(tok.expires_at) < new Date()) return json({ error: 'link_expired' }, 403);
-      await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, device: tok.device || null, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint' });
+      const { error: upErr } = await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, device: tok.device || null, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint' });
+      if (upErr) { console.error('subscribe save', upErr); return json({ error: 'save_failed', detail: upErr.message }, 500); }
       // each device turns its own notifications on: the welcome test goes to this browser only
       const r = await deliver([tok.profile_id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' }), tok.device || undefined);
       return json({ ok: true, ...r });

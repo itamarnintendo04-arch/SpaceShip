@@ -140,7 +140,8 @@
       var r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, subscription: sub.toJSON(), lang: notifLang || lang, ua: navigator.userAgent }) });
       var d = await r.json();
       if (!r.ok) { go.disabled = false; if (d.error === 'link_expired') { tok = ''; store('ss_push_t', null); showLogin(); } return say(d.error === 'link_expired' ? 'np_expired' : 'np_failed', 'err'); }
-      say('np_done', 'ok'); go.hidden = true;
+      if (d.sent) { say('np_done', 'ok'); go.hidden = true; }
+      else { go.disabled = false; say('np_failed', 'err'); var e0 = d.errors && d.errors[0]; if (e0) st.textContent += ' (' + e0.code + ' ' + e0.host + ': ' + String(e0.why).slice(0, 80) + ')'; }
     } catch (e) { console.warn(e); go.disabled = false; say('np_failed', 'err'); }
   };
 </script>
