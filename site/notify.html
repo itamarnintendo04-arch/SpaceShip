@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpaceShip notifications</title>
+<meta name="theme-color" content="#05021a">
+<link rel="icon" href="/img/icon-256.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/img/icon-256.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .np { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; text-align: center; }
+  .nc { width: min(460px, 100%); padding: 28px 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--cyan); }
+  .nc img { border-radius: 22px; }
+  .nc .btn { width: 100%; margin-top: 10px; }
+  .nc .st { min-height: 22px; margin-top: 12px; font-weight: 700; }
+  .nc .st.ok { color: #4ade80; } .nc .st.err { color: #fb7185; }
+  .nc ol { text-align: start; color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="np"><div class="nc">
+  <img src="/img/icon-256.png" alt="" width="84" height="84">
+  <h1 data-k="np_title">SpaceShip notifications</h1>
+  <p class="sub" data-k="np_sub">Get a notification when a friend calls you to play, when your party chats or calls everyone in, even when the game is closed.</p>
+  <div id="ios" hidden><p class="sub" data-k="np_ios">On iPhone, notifications from a website work after you add it to the Home Screen:</p>
+    <ol><li data-k="np_ios1">Tap Share in Safari</li><li data-k="np_ios2">Choose “Add to Home Screen”</li><li data-k="np_ios3">Open SpaceShip from the new icon and tap the button again</li></ol></div>
+  <button class="btn primary" id="go" data-k="np_btn">Turn on notifications</button>
+  <div class="st" id="st"></div>
+  <a class="btn ghost" id="back" href="/open" data-k="np_back">Back to the game</a>
+</div></main>
+<script src="/i18n.js"></script>
+<script>
+
+  var L = window.SITE_I18N || {}, lang = 'en', q = new URLSearchParams(location.search);
+  var want = (q.get('lang') || '').slice(0, 2);
+  try { var v = localStorage.getItem('ss_site_lang'); if (want && L[want]) lang = want; else if (v && L[v]) lang = v; else { var n = (navigator.language || 'en').slice(0, 2); if (L[n]) lang = n; } } catch (e) {}
+  var T = function (k, d) { return (L[lang] && L[lang][k]) || (L.en && L.en[k]) || d || k; };
+  var rtl = (window.SITE_LANGS || []).some(function (l) { return l.id === lang && l.rtl; });
+  document.documentElement.lang = lang; document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-k]').forEach(function (e) { e.textContent = T(e.dataset.k, e.textContent); });
+
+  var st = document.getElementById('st'), go = document.getElementById('go');
+  var tok = q.get('t') || ''; try { if (tok) localStorage.setItem('ss_push_t', tok); else tok = localStorage.getItem('ss_push_t') || ''; } catch (e) {}
+  var say = function (k, cls) { st.textContent = T(k); st.className = 'st ' + (cls || ''); };
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  var standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  var ok = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if (ios && !standalone) { document.getElementById('ios').hidden = false; }
+  if (!tok) say('np_need_app', 'err');
+  else if (!ok) say(ios ? 'np_ios_short' : 'np_unsupported', 'err');
+  var b64 = function (s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; };
+  go.onclick = async function () {
+    if (!tok) return say('np_need_app', 'err');
+    if (!ok) return say(ios ? 'np_ios_short' : 'np_unsupported', 'err');
+    go.disabled = true; say('np_working');
+    try {
+      var perm = await Notification.requestPermission();
+      if (perm !== 'granted') { go.disabled = false; return say('np_denied', 'err'); }
+      var reg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+      var key = (await (await fetch('/api/push/key')).json()).key;
+      var sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+      var r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, subscription: sub.toJSON(), lang: lang, ua: navigator.userAgent }) });
+      var d = await r.json();
+      if (!r.ok) { go.disabled = false; return say(d.error === 'link_expired' ? 'np_expired' : 'np_failed', 'err'); }
+      say('np_done', 'ok'); go.hidden = true;
+    } catch (e) { console.warn(e); go.disabled = false; say('np_failed', 'err'); }
+  };
+
+</script>
+</body>
+</html>

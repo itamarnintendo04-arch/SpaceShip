@@ -57,6 +57,19 @@
     myParties: u => rpc('my_parties', { p_id: u.id, p_secret: u.secret }),
     createParty: (u, name, desc, access, logo) => rpc('create_party', { p_id: u.id, p_secret: u.secret, p_name: name, p_desc: desc, p_public: access === 'public', p_logo: logo || 'l1', p_access: access }),
     updateParty: (u, id, name, desc, access, logo) => rpc('update_party', { p_id: u.id, p_secret: u.secret, p_party: id, p_name: name, p_desc: desc, p_public: access === 'public', p_logo: logo || null, p_access: access }),
+    // notifications from the website (Web Push): the game asks the site, the site sends them
+    pushLinkToken: u => rpc('push_link_token', { p_id: u.id, p_secret: u.secret }),
+    pushStatus: u => rpc('push_status', { p_id: u.id, p_secret: u.secret }),
+    pushSetPrefs: (u, friends, muted) => rpc('push_set_prefs', { p_id: u.id, p_secret: u.secret, p_friends: friends, p_muted: muted }),
+    pushOff: u => rpc('push_unsubscribe_all', { p_id: u.id, p_secret: u.secret }),
+    async pushSend(u, kind, o = {}) {
+      const body = JSON.stringify(Object.assign({ id: u.id, secret: u.secret, kind }, o));
+      const site = 'https://' + (window.SS_DOMAIN || 'spaceship-site.vercel.app') + '/api/push/send';
+      for (const url of [site, C.SUPABASE_URL + '/functions/v1/push/send']) {
+        try { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }); return await r.json(); } catch (e) { /* try the next way */ }
+      }
+      return null;
+    },
     claimCallBonus: u => rpc('claim_call_bonus', { p_id: u.id, p_secret: u.secret }),
     inviteToParty: (u, target) => rpc('invite_to_party', { p_id: u.id, p_secret: u.secret, p_target: target }),
     partyInvites: u => rpc('my_party_invites', { p_id: u.id, p_secret: u.secret }),

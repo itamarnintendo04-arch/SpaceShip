@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Open SpaceShip</title>
+<meta name="theme-color" content="#05021a">
+<link rel="icon" href="/img/icon-256.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/img/icon-256.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .np { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; text-align: center; }
+  .nc { width: min(460px, 100%); padding: 28px 20px; border-radius: var(--r); background: var(--card); border: 1px solid var(--cyan); }
+  .nc img { border-radius: 22px; }
+  .nc .btn { width: 100%; margin-top: 10px; }
+  .nc .st { min-height: 22px; margin-top: 12px; font-weight: 700; }
+  .nc .st.ok { color: #4ade80; } .nc .st.err { color: #fb7185; }
+  .nc ol { text-align: start; color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="np"><div class="nc">
+  <img src="/img/icon-256.png" alt="" width="84" height="84">
+  <h1 data-k="op_title">Opening SpaceShip…</h1>
+  <p class="sub" data-k="op_sub">If the game didn't open, tap the button. Don't have it yet? Download it.</p>
+  <a class="btn primary" id="open" href="com.spaceship.game://open" data-k="gift_open">Open SpaceShip</a>
+  <a class="btn ghost" href="/#download" data-k="dl_now">Download</a>
+</div></main>
+<script src="/i18n.js"></script>
+<script>
+
+  var L = window.SITE_I18N || {}, lang = 'en', q = new URLSearchParams(location.search);
+  var want = (q.get('lang') || '').slice(0, 2);
+  try { var v = localStorage.getItem('ss_site_lang'); if (want && L[want]) lang = want; else if (v && L[v]) lang = v; else { var n = (navigator.language || 'en').slice(0, 2); if (L[n]) lang = n; } } catch (e) {}
+  var T = function (k, d) { return (L[lang] && L[lang][k]) || (L.en && L.en[k]) || d || k; };
+  var rtl = (window.SITE_LANGS || []).some(function (l) { return l.id === lang && l.rtl; });
+  document.documentElement.lang = lang; document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-k]').forEach(function (e) { e.textContent = T(e.dataset.k, e.textContent); });
+
+  var go = (q.get('go') || '').replace(/[^a-z]/g, ''), party = (q.get('party') || '').replace(/[^a-f0-9-]/gi, '');
+  var app = 'com.spaceship.game://open' + (go ? '?go=' + go + (party ? '&party=' + party : '') : '');
+  document.getElementById('open').href = app;
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) setTimeout(function () { location.href = app; }, 300);
+
+</script>
+</body>
+</html>

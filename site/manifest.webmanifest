@@ -1,0 +1,16 @@
+{
+  "name": "SpaceShip",
+  "short_name": "SpaceShip",
+  "start_url": "/notify",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#05021a",
+  "theme_color": "#05021a",
+  "icons": [
+    {
+      "src": "/img/icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}
