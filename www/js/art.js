@@ -27,7 +27,7 @@
     { id: 'inferno',  secret: true, world: 3, shape: 'phoenix', body: '#fdba74', accent: '#991b1b', glow: '#f97316', gun: { rate: 2.1,  dmg: 4.6, side: 5, style: 'magma', pierce: true }, aura: 'embers' },
     { id: 'eclipse',  secret: true, world: 4, shape: 'titan', fx: 'ghost', body: '#1e1036', accent: '#7c3aed', glow: '#c084fc', gun: { rate: 2.2, dmg: 4.9, side: 5, style: 'eclipse', pierce: true }, aura: 'galaxy' },
     // YouTube coupon ship (code YOUTUBE): red and white with a simple play button
-    { id: 'youtuber', secret: true, coupon: true, shape: 'arrow', decal: 'play', body: '#ef4444', accent: '#ffffff', glow: '#f87171', gun: { rate: 1.6, dmg: 2.4, side: 0, style: 'laser' }, aura: 'pulse' },
+    { id: 'youtuber', secret: true, coupon: true, shape: 'arrow', design: [{"circle": [0, 15, 9], "fill": "#ffffff"}, {"path": "M -2.5 11 L 4.3 15 L -2.5 19 Z", "fill": "#dc2626"}, {"circle": [-30, 26.5, 5], "fill": "#ffffff"}, {"path": "M -31.4 24.3 L -27.6 26.5 L -31.4 28.7 Z", "fill": "#dc2626"}, {"circle": [30, 26.5, 5], "fill": "#ffffff"}, {"path": "M 28.6 24.3 L 32.4 26.5 L 28.6 28.7 Z", "fill": "#dc2626"}], body: '#ef4444', accent: '#ffffff', glow: '#f87171', gun: { rate: 1.6, dmg: 2.4, side: 0, style: 'laser' }, aura: 'pulse' },
     // website ship - from the link on the SpaceShip website (it opens the app and gives this ship)
     { id: 'voyager', secret: true, coupon: true, shape: 'crystal', fx: 'cosmic', body: '#e0f2fe', accent: '#1d4ed8', glow: '#38bdf8', gun: { rate: 2, dmg: 4, side: 4, style: 'comet', pierce: true }, aura: 'trail' },
     // secret-token ship - from a secret token typed in the login-key sign-in: nothing can hurt it
@@ -41,6 +41,39 @@
   function path(ctx, pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); }
 
   // Draw ship centred at 0,0 pointing up; s = half size
+  // A ship's design code (shop_ships.design, editable on the server): a list of layers drawn on top of the ship.
+  // Coordinates are -50..50 across the ship (0,0 = its centre, y goes down). Each layer is one of:
+  //   { "path": "<SVG path data>", "fill": "#fff", "stroke": "#000", "width": 2, "x": 0, "y": 0, "scale": 1, "rotate": 0, "alpha": 1 }
+  //   { "circle": [cx, cy, r], ... }   { "rect": [x, y, w, h, radius], ... }   { "text": "GG", "size": 14, "font": "bold", ... }
+  // Only drawing: nothing in it can run code in the game.
+  const designCache = new Map();
+  function drawDesign(ctx, layers, s) {
+    if (!Array.isArray(layers)) return;
+    const k = s / 50;
+    ctx.save(); ctx.shadowBlur = 0;
+    for (const L of layers.slice(0, 40)) {
+      if (!L || typeof L !== 'object') continue;
+      ctx.save();
+      ctx.translate((+L.x || 0) * k, (+L.y || 0) * k); if (L.rotate) ctx.rotate(+L.rotate * Math.PI / 180);
+      const sc = (+L.scale || 1) * k; ctx.scale(sc, sc); ctx.globalAlpha = L.alpha != null ? Math.max(0, Math.min(1, +L.alpha)) : 1;
+      let shape = null;
+      if (typeof L.path === 'string' && L.path.length < 4000) {
+        if (!designCache.has(L.path)) { try { designCache.set(L.path, new Path2D(L.path)); } catch (e) { designCache.set(L.path, null); } }
+        shape = designCache.get(L.path);
+      } else if (Array.isArray(L.circle)) { shape = new Path2D(); shape.arc(+L.circle[0] || 0, +L.circle[1] || 0, Math.abs(+L.circle[2] || 0), 0, Math.PI * 2); }
+      else if (Array.isArray(L.rect)) { const [rx, ry, rw, rh, rr] = L.rect.map(Number); shape = new Path2D(); if (shape.roundRect) shape.roundRect(rx || 0, ry || 0, rw || 0, rh || 0, rr || 0); else shape.rect(rx || 0, ry || 0, rw || 0, rh || 0); }
+      if (shape) {
+        if (L.fill) { ctx.fillStyle = String(L.fill); ctx.fill(shape); }
+        if (L.stroke) { ctx.strokeStyle = String(L.stroke); ctx.lineWidth = +L.width || 1; ctx.lineJoin = 'round'; ctx.stroke(shape); }
+      } else if (typeof L.text === 'string') {
+        ctx.font = `${L.font === 'bold' ? '900 ' : ''}${+L.size || 12}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (L.stroke) { ctx.strokeStyle = String(L.stroke); ctx.lineWidth = +L.width || 1; ctx.strokeText(L.text.slice(0, 12), 0, 0); }
+        ctx.fillStyle = String(L.fill || '#fff'); ctx.fillText(L.text.slice(0, 12), 0, 0);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
   function drawShip(ctx, id, s, t, thrust = 1) {
     let k = SHIPS.find(x => x.id === id) || SHIPS[0];
     t = t || 0;
@@ -155,14 +188,7 @@
       cg.addColorStop(0, '#e0f7ff'); cg.addColorStop(1, '#0ea5e9');
       ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(0, -s * 0.25, s * 0.12, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     }
-    if (k.decal === 'play') {   // the YouTuber ship: a simple play button on the body and on both wings
-      ctx.shadowBlur = 0;
-      const badge = (bx, by, d) => {
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(bx, by, d / 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(bx - d * 0.14, by - d * 0.22); ctx.lineTo(bx + d * 0.24, by); ctx.lineTo(bx - d * 0.14, by + d * 0.22); ctx.closePath(); ctx.fill();
-      };
-      badge(0, s * 0.3, s * 0.36); badge(-s * 0.6, s * 0.53, s * 0.2); badge(s * 0.6, s * 0.53, s * 0.2);
-    }
+    if (k.design) drawDesign(ctx, k.design, s);
     ctx.restore();
   }
 

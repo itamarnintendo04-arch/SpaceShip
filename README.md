@@ -56,6 +56,7 @@ The whole shop comes from Supabase, so you can change it with no new build (the 
   - `secret` (not for sale: world ships, Cosmos, coupon ships), `world`, `coupon`
 
   **Add a row to make a new ship** from the existing parts. Give it a `name` like `{"en": "Zebra", "he": "זברה"}` and an optional `description`.
+- **`shop_ships.design`** (design code): drawing layers on top of any ship, changed on the server with no app update. A JSON list; coordinates run from -50 to 50 across the ship (0,0 is its centre, y goes down). Each layer is one of `{"path": "<SVG path>"}`, `{"circle": [cx, cy, r]}`, `{"rect": [x, y, w, h, radius]}` or `{"text": "GG", "size": 14, "font": "bold"}`, with optional `fill`, `stroke`, `width`, `x`, `y`, `scale`, `rotate`, `alpha`. Up to 40 layers. It is only drawing: nothing in it runs code in the game. Example (the YouTuber play button): `[{"circle": [0, 15, 9], "fill": "#fff"}, {"path": "M -2.5 11 L 4.3 15 L -2.5 19 Z", "fill": "#dc2626"}]`.
 - **`shop_items`**: upgrades (`costs` and optional `gems` per level), diamond powers and avatars (`costs[1]` coins or `gems[1]` diamonds), each with `active` and `sort`.
 - **`shop_settings`**: `gem_rate`, the coins for 1 diamond when converting.
 

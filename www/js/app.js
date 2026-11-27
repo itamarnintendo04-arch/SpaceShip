@@ -882,6 +882,7 @@
         gun: { rate: +r.gun.rate, dmg: +r.gun.dmg, side: +r.gun.side, style: r.gun.style, pierce: !!r.gun.pierce },
         price: r.gems > 0 ? undefined : +r.price, gems: r.gems > 0 ? +r.gems : undefined,
         secret: !!r.secret || undefined, world: r.world || undefined, coupon: !!r.coupon || undefined, hidden: !r.active || undefined, invincible: !!r.invincible || undefined });
+      if (Array.isArray(r.design) && r.design.length) s.design = r.design;   // the ship's design code from the server
       if (r.name && Object.keys(r.name).length) I18N.add('ship_' + r.id, r.name);
       if (r.description && Object.keys(r.description).length) I18N.add('shipd_' + r.id, r.description);
       if (!I18N.has('ship_' + r.id)) I18N.add('ship_' + r.id, { en: r.id[0].toUpperCase() + r.id.slice(1) });
