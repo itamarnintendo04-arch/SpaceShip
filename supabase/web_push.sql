@@ -54,3 +54,35 @@ begin
   delete from public.push_subscriptions where profile_id = p_id;
 end $$;
 grant execute on function public.push_link_token(uuid, text), public.push_status(uuid, text), public.push_set_prefs(uuid, text, boolean, uuid[]), public.push_unsubscribe_all(uuid, text) to anon, authenticated;
+
+-- per device: every device turns its own notifications on (device id from the game, or made by the site page)
+alter table public.push_subscriptions add column if not exists device text;
+alter table public.push_link_tokens add column if not exists device text;
+create index if not exists push_subscriptions_device on public.push_subscriptions(profile_id, device);
+drop function if exists public.push_link_token(uuid, text);
+create or replace function public.push_link_token(p_id uuid, p_secret text, p_device text default null) returns text
+language plpgsql security definer set search_path = '' as $$
+declare v text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+begin
+  perform public.ss_auth(p_id, p_secret);
+  delete from public.push_link_tokens where expires_at < now();
+  insert into public.push_link_tokens(token, profile_id, device, expires_at) values (v, p_id, left(p_device, 64), now() + interval '15 minutes');
+  return v;
+end $$;
+drop function if exists public.push_status(uuid, text);
+create or replace function public.push_status(p_id uuid, p_secret text, p_device text default null) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform public.ss_auth(p_id, p_secret);
+  return jsonb_build_object('devices', (select count(*) from public.push_subscriptions where profile_id = p_id),
+    'this_device', p_device is not null and exists (select 1 from public.push_subscriptions where profile_id = p_id and device = p_device),
+    'prefs', (select to_jsonb(p) - 'profile_id' from public.push_prefs p where profile_id = p_id));
+end $$;
+-- the notifications page shows which account it is connected to (public name and avatar only)
+create or replace function public.push_whoami(p_token text) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('handle', p.handle, 'name', p.name, 'avatar', p.avatar)
+  from public.push_link_tokens t join public.profiles p on p.id = t.profile_id
+  where t.token = p_token and t.expires_at > now();
+$$;
+grant execute on function public.push_link_token(uuid, text, text), public.push_status(uuid, text, text), public.push_whoami(text) to anon, authenticated;

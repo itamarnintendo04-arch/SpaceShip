@@ -39,10 +39,12 @@ async function recent(sender: string, kind: string, target: string, seconds: num
   return !!(data && data.length);
 }
 
-async function deliver(profileIds: string[], make: (lang: string) => { title: string; body: string; url: string; tag: string }) {
+async function deliver(profileIds: string[], make: (lang: string) => { title: string; body: string; url: string; tag: string }, device?: string) {
   if (!profileIds.length) return { sent: 0, failed: 0 };
   const k = await vapid();
-  const { data: subs } = await sb.from('push_subscriptions').select('endpoint, p256dh, auth, lang, profile_id').in('profile_id', profileIds);
+  let q = sb.from('push_subscriptions').select('endpoint, p256dh, auth, lang, profile_id').in('profile_id', profileIds);
+  if (device) q = q.eq('device', device);   // one device only (its own test)
+  const { data: subs } = await q;
   let sent = 0, failed = 0;
   await Promise.all((subs || []).map(async s => {
     const msg = make(s.lang || 'en');
@@ -76,10 +78,11 @@ Deno.serve(async req => {
       const ep = String(subscription?.endpoint || ''), p256dh = subscription?.keys?.p256dh, auth = subscription?.keys?.auth;
       let host = ''; try { const u = new URL(ep); if (u.protocol === 'https:') host = u.hostname; } catch (_) { /* bad url */ }
       if (!host || !PUSH_HOSTS.some(r => r.test(host)) || !p256dh || !auth) return json({ error: 'bad_subscription' }, 400);
-      const { data: tok } = await sb.from('push_link_tokens').select('profile_id, expires_at').eq('token', String(token || '')).maybeSingle();
+      const { data: tok } = await sb.from('push_link_tokens').select('profile_id, device, expires_at').eq('token', String(token || '')).maybeSingle();
       if (!tok || new Date(tok.expires_at) < new Date()) return json({ error: 'link_expired' }, 403);
-      await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint' });
-      const r = await deliver([tok.profile_id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' }));
+      await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, device: tok.device || null, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint' });
+      // each device turns its own notifications on: the welcome test goes to this browser only
+      const r = await deliver([tok.profile_id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' }), tok.device || undefined);
       return json({ ok: true, ...r });
     }
 
@@ -93,7 +96,7 @@ Deno.serve(async req => {
       const skip = new Set<string>(Array.isArray(b.skip) ? b.skip.map(String) : []);
       const log = (target: string) => sb.from('push_log').insert({ sender: id, kind, target });
 
-      if (kind === 'test') return json(await deliver([id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' })));
+      if (kind === 'test') return json(await deliver([id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' }), b.device ? String(b.device) : undefined));
 
       if (kind === 'poke' || kind === 'friend_request') {
         const target = String(b.target || '');

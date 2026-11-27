@@ -593,9 +593,9 @@
       on('#s-lang', () => { closeModal(); pickLanguage(); });
       on('#s-fnotif', () => { settings.friendNotif = settings.friendNotif === false; saveSettings(); syncPushPrefs(); openSettings(); });
       on('#s-push', () => { closeModal(); openSiteNotify(); });
-      on('#s-push-test', async () => { const r = await Net.pushSend(user, 'test'); toast(r && r.sent ? t('push_test_sent') : t('push_none'), 3500); });
+      on('#s-push-test', async () => { const r = await Net.pushSend(user, 'test', { device: DEVICE }); toast(r && r.sent ? t('push_test_sent') : t('push_none'), 3500); });
       const ps = m.querySelector('#s-push-st');
-      if (ps) Net.pushStatus(user).then(r => { ps.textContent = r && r.devices ? t('push_devices', { n: r.devices }) : t('push_off'); }).catch(() => { ps.textContent = ''; });
+      if (ps) Net.pushStatus(user, DEVICE).then(r => { ps.textContent = r && r.this_device ? t('push_this_on') : t('push_this_off'); }).catch(() => { ps.textContent = ''; });
       on('#s-anims', () => { settings.anims = settings.anims === false; settings.intro = settings.anims; saveSettings(); openSettings(); });
       on('#s-watch', () => { closeModal(); Sfx.init(); Cutscene.intro(user.data.skin, t); });
       on('#s-music', () => { settings.music = !settings.music; saveSettings(); Music.setEnabled(settings.music); Music.unlock(); openSettings(); });
@@ -1390,10 +1390,12 @@
   // the game opens the site's /notify page in the real browser with a one-time code; the browser asks for permission
   // and subscribes; from then on the site sends the notifications, even when the game is closed
   const SITE_HOST = () => window.SS_DOMAIN || 'spaceship-site.vercel.app';
+  // this device's own id: each device turns its own notifications on
+  const DEVICE = (() => { let d = store.get('ss_device_id', null); if (!d) { d = 'app-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); store.set('ss_device_id', d); } return d; })();
   function openExternal(u) { if (NATIVE) window.open(u, '_system'); else window.open(u, '_blank'); }
   async function openSiteNotify() {
     if (!user || user.offline) return;
-    try { const tok = await Net.pushLinkToken(user); openExternal('https://' + SITE_HOST() + '/notify?t=' + encodeURIComponent(tok) + '&lang=' + I18N.lang); }
+    try { const tok = await Net.pushLinkToken(user, DEVICE); openExternal('https://' + SITE_HOST() + '/notify?t=' + encodeURIComponent(tok) + '&d=' + encodeURIComponent(DEVICE) + '&lang=' + I18N.lang); }
     catch (e) { toast(errText(e)); }
   }
   // the site needs the same choices as the app: Friend notifications and muted parties
