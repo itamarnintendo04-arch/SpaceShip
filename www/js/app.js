@@ -560,11 +560,13 @@
         <button class="chip" id="s-lang">${langLabel()}</button>
         <button class="chip" id="s-sound">${settings.sound ? Art.icon('sound') + t('sound') : Art.icon('mute') + t('muted')}</button>
         <button class="chip" id="s-orient">${settings.orientation === 'landscape' ? Art.icon('rotateL') + t('mode_land') : Art.icon('rotate') + t('mode_port')}</button>
+        <button class="chip" id="s-anims">${settings.anims !== false ? '🎬 ' + t('anims_on') : '🎬 ' + t('anims_off')}</button>
         <button class="chip" id="s-music">${settings.music ? '🎵 ' + t('music_on') : '🔇 ' + t('music_off')}</button>
         ${user.offline ? '' : `<button class="chip" id="s-notif">${settings.notify ? '🔔 ' + t('updates_on') : '🔕 ' + t('updates_off')}</button>`}
       </div>
       <label class="vol ${settings.music ? '' : 'off'}">${t('music_vol')} <b id="s-vol-n">${settings.musicVol}%</b>
         <input id="s-vol" type="range" min="1" max="100" step="1" value="${settings.musicVol}" ${settings.music ? '' : 'disabled'}></label>
+      ${window.Cutscene ? `<button class="btn small" id="s-watch">🎬 ${t('watch_intro')}</button>` : ''}
       <div class="sec look-ui"><h3>🖌️ ${t('ui_design')}</h3><p class="muted small">${t('ui_design_note')}</p>
         <div class="look-grid">${Object.keys(THEMES).map(id => `<button class="look-it ${(THEMES[settings.theme] ? settings.theme : 'galaxy') === id ? 'on' : ''}" data-theme-id="${id}"><span class="theme-sw" style="background:radial-gradient(circle at 70% 20%, ${THEMES[id].bg[0]}, ${THEMES[id].bg[2]})"><i style="background:linear-gradient(90deg, ${THEMES[id].g.join(', ')})"></i></span><small>${t('th_' + id)}</small></button>`).join('')}</div>
       </div>
@@ -586,6 +588,8 @@
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#s-x', closeModal);
       on('#s-lang', () => { closeModal(); pickLanguage(); });
+      on('#s-anims', () => { settings.anims = settings.anims === false; settings.intro = settings.anims; saveSettings(); openSettings(); });
+      on('#s-watch', () => { closeModal(); Sfx.init(); Cutscene.intro(user.data.skin, t); });
       on('#s-music', () => { settings.music = !settings.music; saveSettings(); Music.setEnabled(settings.music); Music.unlock(); openSettings(); });
       const vol = m.querySelector('#s-vol');
       vol.oninput = () => { settings.musicVol = +vol.value; m.querySelector('#s-vol-n').textContent = vol.value + '%'; Music.setVolume(settings.musicVol); };
@@ -912,7 +916,7 @@
   function checkSecretShip() {
     const D = user && user.data; if (!D || D.ships.includes(SECRET_SHIP)) return false;
     const p = shopProgress(D); if (p.have < p.total) return false;
-    D.ships.push(SECRET_SHIP); D.skin = SECRET_SHIP; save();
+    D.ships.push(SECRET_SHIP); D.skin = SECRET_SHIP; save(); shipAnim(SECRET_SHIP);
     Sfx.init(); Sfx.power();
     modal(`<div class="secret-reveal"><img src="${Art.shipPreview(SECRET_SHIP, 220)}" alt=""></div>
       <h2>${t('secret_ship_title')}</h2><p>${t('secret_unlocked', { x: `<b>${t('ship_' + SECRET_SHIP)}</b>` })}</p>
@@ -925,7 +929,7 @@
     const D = user && user.data; if (!D) return;
     const got = Art.SHIPS.filter(s => s.world && !D.ships.includes(s.id) && D.levels && D.levels[lvKey(s.world, LEVELS)]);
     if (!got.length) return;
-    got.forEach(s => D.ships.push(s.id)); save();
+    got.forEach(s => { D.ships.push(s.id); shipAnim(s.id); }); save();
     toast(got.map(s => t('secret_world_done', { w: t('gal_' + s.world), x: t('ship_' + s.id) })).join(' · '), 5000);
     if (current === 'shop') renderShop();
   }
@@ -1022,11 +1026,11 @@
       if (b.dataset.gav) return serverBuy(b, 'avatar', b.dataset.gav, t('special_icon'));
       if (b.dataset.buyAv) return serverBuy(b, 'avatar', b.dataset.buyAv, t('new_icon'));
     }
-    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); renderShop(); return checkSecretShip(); }
+    if (b.dataset.gship) { const s = Art.SHIPS.find(x => x.id === b.dataset.gship); if (!payGems(s.gems)) return; D.ships.push(s.id); D.skin = s.id; shipAnim(s.id); toast(t('special_ship_t', { x: t('ship_' + s.id) })); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.gitem) { const it = GEM_ITEMS.find(x => x.id === b.dataset.gitem); if (!payGems(it.gems)) return; D.items.push(it.id); toast(t('item_yours', { x: t('it_' + it.id) })); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.gav) { const a = Art.AVATARS.find(x => x.id === b.dataset.gav); if (!payGems(a.gems)) return; D.avatars.push(a.id); user.avatar = a.id; toast(t('special_icon')); save(); renderShop(); return checkSecretShip(); }
     if (b.dataset.equip) D.skin = b.dataset.equip;
-    else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; toast(t('bought', { x: t('ship_' + s.id) })); }
+    else if (b.dataset.buyShip) { const s = Art.SHIPS.find(x => x.id === b.dataset.buyShip); if (!pay(s.price)) return; D.ships.push(s.id); D.skin = s.id; shipAnim(s.id); toast(t('bought', { x: t('ship_' + s.id) })); }
     else if (b.dataset.up) {
       const u = UPGRADES.find(x => x.id === b.dataset.up), lvl = D.up[u.id] || u.base, gc = u.gems ? u.gems[lvl - u.base] || 0 : 0;
       if (gc && (D.gems || 0) < gc) { toast(t('not_enough_gems')); return; }   // check diamonds first so coins aren't taken for nothing
@@ -1642,7 +1646,25 @@
     try { if (Cap.ScreenOrientation) return Cap.ScreenOrientation.lock({ orientation: o }); if (screen.orientation && screen.orientation.lock) screen.orientation.lock(o).catch(() => {}); } catch (e) {}
   }
   function unlockOrientation() { try { if (Cap.ScreenOrientation) Cap.ScreenOrientation.unlock(); else if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
+  // the cutscenes: the opening before the first game of each launch, a hyperspace jump when the world changes
+  let introDone = false;
+  const WARP_COL = ['#94a3b8', '#38bdf8', '#fb923c', '#c084fc'];
+  const shipAnim = id => { if (window.Cutscene && id && settings.anims !== false) Cutscene.ship(id, t, t('ship_' + id)); };
   function startGame(o) {
+    if (!o.coop && !o._cs && window.Cutscene && user) {
+      const wk = o.mode === 'level' ? (o.secret ? 's' + o.secret.w : 'g' + (o.world || 1)) : null;
+      const lk = 'ss_lastw_' + user.id, last = store.get(lk, null);
+      if (wk) store.set(lk, wk);
+      const go = () => startGame(Object.assign({}, o, { _cs: 1 }));
+      if (!introDone && settings.intro !== false) { introDone = true; Sfx.init(); closeModal(); return Cutscene.intro(user.data.skin, t).then(go); }
+      introDone = true;
+      if (wk && last && last !== wk && settings.anims !== false) {
+        Sfx.init(); closeModal();
+        const info = o.secret ? { name: t(WORLDS[o.secret.w - 1].id + '_name'), sub: t('cs_secret_world'), color: '#f0abfc' }
+          : { name: t('gal_' + (o.world || 1)), sub: t('cs_world_n', { n: o.world || 1 }), color: WARP_COL[(o.world || 1) - 1] };
+        return Cutscene.warp(user.data.skin, t, info).then(go);
+      }
+    }
     Sfx.init(); closeModal();
     if (o.coop && o.coop.room) { clearTimeout(autoT); autoT = null; o.coop.room.setMeta({ ready: false }); }
     if (game) game.destroy();
@@ -1678,7 +1700,7 @@
     game.paused = true;
     modal(`<h2>${t('paused')}</h2><button class="btn primary big" id="p-res">${t('resume')}</button><button class="btn" id="p-restart">${t('restart')}</button><button class="btn ghost" id="p-quit">${t('to_menu')}</button>`, m => {
       m.querySelector('#p-res').onclick = () => { closeModal(); game.paused = false; game.last = performance.now(); };
-      m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, local2: g.local2 }); };
+      m.querySelector('#p-restart').onclick = () => { const g = game; startGame({ mode: g.mode, level: g.level, world: g.galN, secret: g.secret, local2: g.local2, _cs: 1 }); };
       m.querySelector('#p-quit').onclick = () => { closeModal(); stopGame(); show(game ? 'menu' : 'levels', false); };
     });
   }
@@ -1725,7 +1747,7 @@
     // finishing a world (winning its level 500) gives that world's own secret ship
     let gotSecret = null;
     const wShip = r.mode === 'level' && r.win && !sec && r.level === LEVELS ? Art.SHIPS.find(s => s.world === wld) : null;
-    if (wShip && !D.ships.includes(wShip.id)) { D.ships.push(wShip.id); D.skin = wShip.id; gotSecret = wShip.id; }
+    if (wShip && !D.ships.includes(wShip.id)) { D.ships.push(wShip.id); D.skin = wShip.id; gotSecret = wShip.id; setTimeout(() => shipAnim(wShip.id), 900); }
     D.gems += gemsWon;
     if (newGal) setTimeout(() => loadGifts(true), 800);   // the new world's gift appears in Codes & gifts
     const newWorlds = (r.found || []).filter(id => !D.worlds.includes(id));
@@ -1940,7 +1962,7 @@
       <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
   function grant(r) {
     const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
-    if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; }
+    if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; shipAnim(r.ship); }
     D.worlds = D.worlds || []; if (r.world && WORLDS.some(w => w.id === r.world) && !D.worlds.includes(r.world)) D.worlds.push(r.world);
     Sfx.init(); Sfx.coin(); save();
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
@@ -2001,7 +2023,7 @@
       const r = await Net.claimSecretToken(user, tok); store.set('ss_secret_tok', null);
       if (r && (r.ship || r.world)) {
         const D = user.data; D.worlds = D.worlds || [];
-        if (r.ship && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; }
+        if (r.ship && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; shipAnim(r.ship); }
         if (r.world && !D.worlds.includes(r.world)) D.worlds.push(r.world);
         save(); setTimeout(() => celebrate({ code: '🔑', ship: r.ship, world: r.world }, t('secret_token_title')), 900);
       }
