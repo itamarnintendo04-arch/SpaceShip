@@ -281,5 +281,71 @@
     }, { skipText: T('cs_skip'), tapToClose: 1 }));
   }
 
-  window.Cutscene = { intro, ship: newShip, warp, get busy() { return !!document.querySelector('.cutscene'); } };
+
+  // ---------- 0. the studio logo: ItamaRos Games ----------
+  function studio() {
+    const dust = Array.from({ length: 90 }, () => ({ a: Math.random() * TAU, r: 0.6 + Math.random() * 0.8, s: 1 + Math.random() * 2 }));
+    const NAME = 'ItamaRos', SUB = 'GAMES';
+    let rang = false;
+    return run(() => stage(3.4, (ctx, t, W, H) => {
+      const m = Math.min(W, H), cx = W / 2, cy = H * 0.4, R = clamp(m * 0.13, 40, 90);
+      ctx.fillStyle = '#05021a'; ctx.fillRect(0, 0, W, H);
+      // star dust pulled into the emblem
+      const pull = ease(seg(t, 0, 1.0));
+      for (const d of dust) { const r = (1 - pull) * d.r * m * 0.8 + R * 1.6 * pull;
+        ctx.globalAlpha = 0.25 + 0.75 * (1 - pull * 0.6); ctx.fillStyle = '#c4b5fd';
+        ctx.fillRect(cx + Math.cos(d.a + t * 0.8) * r, cy + Math.sin(d.a + t * 0.8) * r * 0.45, d.s, d.s); }
+      ctx.globalAlpha = 1;
+      // the planet
+      const pop = ease(seg(t, 0.5, 1.0)), pr = R * (0.6 + 0.4 * pop) * (1 + 0.02 * Math.sin(t * 3));
+      if (pop > 0) {
+        const glow = ctx.createRadialGradient(cx, cy, pr * 0.5, cx, cy, pr * 2.2); glow.addColorStop(0, 'rgba(139,92,246,.45)'); glow.addColorStop(1, 'rgba(139,92,246,0)');
+        ctx.globalAlpha = pop; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, pr * 2.2, 0, TAU); ctx.fill();
+        const pg = ctx.createLinearGradient(cx - pr, cy - pr, cx + pr, cy + pr); pg.addColorStop(0, '#22d3ee'); pg.addColorStop(0.55, '#8b5cf6'); pg.addColorStop(1, '#ec4899');
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, pr, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(cx - pr * 0.35, cy - pr * 0.35, pr * 0.35, 0, TAU); ctx.fill();
+        // orbit ring (back half, planet, front half) and a little rocket flying around it
+        ctx.strokeStyle = 'rgba(253,224,71,.85)'; ctx.lineWidth = Math.max(2, R * 0.05);
+        ctx.beginPath(); ctx.ellipse(cx, cy, pr * 1.6, pr * 0.42, -0.25, Math.PI, TAU); ctx.stroke();
+        const a = t * 2.4 + 1, ox = Math.cos(a) * pr * 1.6, oy = Math.sin(a) * pr * 0.42;
+        const rx = cx + ox * Math.cos(-0.25) - oy * Math.sin(-0.25), ry = cy + ox * Math.sin(-0.25) + oy * Math.cos(-0.25);
+        if (Math.sin(a) > 0) { ship(ctx, 'falcon', rx, ry, R * 0.32, t, 0.8, a + Math.PI); }
+        ctx.beginPath(); ctx.ellipse(cx, cy, pr * 1.6, pr * 0.42, -0.25, 0, Math.PI); ctx.stroke();
+        if (Math.sin(a) <= 0) { ship(ctx, 'falcon', rx, ry, R * 0.32, t, 0.8, a + Math.PI); }
+        ctx.globalAlpha = 1;
+      }
+      if (!rang && t > 0.9) { rang = true; [523, 784, 1046].forEach((f, i) => setTimeout(() => play('tone', f, f, 0.35, 'sine', 0.05), i * 110)); }
+      // the name, letter by letter, then GAMES
+      const fs = clamp(m * 0.13, 34, 84), ty = cy + R * 2.25;
+      ctx.font = `900 ${fs}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textBaseline = 'middle'; ctx.direction = 'ltr'; ctx.textAlign = 'left';
+      const tw = ctx.measureText(NAME).width; let x = cx - tw / 2;
+      const tg = ctx.createLinearGradient(cx - tw / 2, 0, cx + tw / 2, 0); tg.addColorStop(0, '#67e8f9'); tg.addColorStop(0.5, '#a78bfa'); tg.addColorStop(1, '#f472b6');
+      for (let i = 0; i < NAME.length; i++) {
+        const ch = NAME[i], w = ctx.measureText(ch).width, k = ease(seg(t, 1.1 + i * 0.07, 1.4 + i * 0.07));
+        if (k > 0) { ctx.save(); ctx.globalAlpha = k; ctx.translate(x + w / 2, ty + (1 - k) * fs * 0.5); ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
+          ctx.shadowColor = 'rgba(168,85,247,.8)'; ctx.shadowBlur = fs * 0.35; ctx.fillStyle = tg; ctx.translate(-(x + w / 2), 0); ctx.fillText(ch, x, 0); ctx.restore(); }
+        x += w;
+      }
+      // a sweep of light over the name
+      const sw = seg(t, 2.05, 2.55);
+      if (sw > 0 && sw < 1) {   // only the letters light up: the name is drawn again with a moving white band
+        const sx = cx - tw / 2 - fs + (tw + fs * 2) * sw, lg = ctx.createLinearGradient(sx - fs * 0.5, 0, sx + fs * 0.5, 0);
+        lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,.85)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.save(); ctx.fillStyle = lg; ctx.fillText(NAME, cx - tw / 2, ty); ctx.restore(); }
+      const gk = ease(seg(t, 1.75, 2.15));
+      if (gk > 0) { const gs = fs * 0.32; ctx.save(); ctx.globalAlpha = gk; ctx.font = `800 ${gs}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = '#e0e7ff';
+        ctx.letterSpacing = (gs * (0.9 - 0.4 * gk)) + 'px'; ctx.fillText(SUB, cx + gs * 0.3, ty + fs * 0.78); ctx.restore();
+        ctx.strokeStyle = `rgba(167,139,250,${gk * 0.6})`; ctx.lineWidth = 2; const lw = tw * 0.42 * gk;
+        ctx.beginPath(); ctx.moveTo(cx - tw / 2, ty + fs * 0.78); ctx.lineTo(cx - tw / 2 + lw * 0.45, ty + fs * 0.78); ctx.moveTo(cx + tw / 2, ty + fs * 0.78); ctx.lineTo(cx + tw / 2 - lw * 0.45, ty + fs * 0.78); ctx.stroke(); }
+      if (t > 2.8) { ctx.fillStyle = `rgba(5,2,26,${ease(seg(t, 2.8, 3.4))})`; ctx.fillRect(0, 0, W, H); }
+    }, { skipText: '›', tapToClose: 0.3 }));
+  }
+
+  window.Cutscene = { studio, intro, ship: newShip, warp, get busy() { return !!document.querySelector('.cutscene'); } };
+
+  // the studio logo when the app opens, unless animations are off (Settings) or a test link skips the intro
+  try {
+    const st = JSON.parse(localStorage.getItem('ss_settings') || '{}');
+    if (st.anims !== false && !/[?&]skipintro\b/.test(location.search)) studio();
+  } catch (e) { studio(); }
 })();
