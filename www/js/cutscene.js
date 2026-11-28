@@ -3,7 +3,7 @@
 //                                    his head hits the launch button and the ship (the player's current one) takes off
 //   Cutscene.ship(ship, T, name)     a new ship: hangar, spotlight, the ship rises on a platform
 //   Cutscene.warp(ship, T, o)        moving to another world: a hyperspace jump into the world's colours
-// Every scene can be skipped (Skip button / tap). Scenes queue, so several can be asked for at once.
+// Every scene can be skipped (Skip button / tap), except the studio logo. Scenes queue, so several can be asked for at once.
 (function () {
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -18,13 +18,13 @@
   function run(scene) { const p = queue.then(scene, scene); queue = p.catch(() => {}); return p; }
 
   // a full-screen canvas with a Skip button; draw(ctx, t, W, H) until t >= dur or the player skips
-  function stage(dur, draw, { skipText = 'Skip', tapToClose = 0 } = {}) {
+  function stage(dur, draw, { skipText = 'Skip', tapToClose = 0, noSkip = false } = {}) {
     return new Promise(resolve => {
       const wrap = document.createElement('div');
       wrap.className = 'cutscene';
       const cv = document.createElement('canvas');
       const btn = document.createElement('button'); btn.className = 'cs-skip'; btn.textContent = skipText;
-      wrap.append(cv, btn); document.body.appendChild(wrap);
+      if (noSkip) wrap.append(cv); else wrap.append(cv, btn); document.body.appendChild(wrap);
       const ctx = cv.getContext('2d'); let W, H, dpr, done = false, t0 = performance.now(), raf;
       const size = () => { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; };
       size(); addEventListener('resize', size);
@@ -328,11 +328,57 @@
     }, { skipText: T('cs_skip'), tapToClose: 1.5 }));
   }
 
-  // ---------- 0. the studio logo: ItamaRos Games ----------
+  // ---------- the studio logo's music: a short original sting, timed to the animation (WebAudio, no files) ----------
+  // 0-1.0 s a rising whoosh as the star dust is pulled in, 1.0 a deep boom + chord when the planet appears,
+  // 1.1-1.6 one bright note per letter of "ItamaRos", 1.75 a wide chord for "GAMES", 2.05 a sparkle with the light sweep, fade by 3.4 s
+  function studioMusic(ac, at, out) {
+    const dest = out || ac.destination, master = ac.createGain(); master.gain.value = 0.9; master.connect(dest);
+    // a little echo for space
+    const dl = ac.createDelay(1); dl.delayTime.value = 0.18; const fb = ac.createGain(); fb.gain.value = 0.32; const wet = ac.createGain(); wet.gain.value = 0.35;
+    dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(master);
+    const env = (g, t0, a, peak, d, end = 0.0001) => { g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(peak, t0 + a); g.gain.exponentialRampToValueAtTime(end, t0 + a + d); };
+    const tone = (f, t0, dur, vol, type = 'sine', echo = true, f2) => {
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+      env(g, t0, 0.01, vol, dur); o.connect(g); g.connect(master); if (echo) g.connect(dl); o.start(t0); o.stop(t0 + dur + 0.05);
+    };
+    const noise = (t0, dur, vol, f0, f1, q = 1.2) => {
+      const n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = b; bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(f0, t0); bp.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(bp); bp.connect(g); g.connect(master); src.start(t0); src.stop(t0 + dur);
+    };
+    // 1. the whoosh and a rising shimmer while the dust gathers
+    noise(at, 1.0, 0.35, 300, 5000);
+    for (let i = 0; i < 6; i++) tone(440 * Math.pow(2, i / 6), at + 0.15 + i * 0.13, 0.25, 0.035, 'triangle');
+    // 2. the planet: a sub boom and a warm chord (A minor add9)
+    tone(110, at + 1.0, 0.9, 0.5, 'sine', false, 40);
+    noise(at + 0.98, 0.35, 0.25, 1500, 200, 0.7);
+    [220, 261.6, 329.6, 493.9].forEach((f, i) => tone(f, at + 1.0, 2.2, 0.07, i ? 'triangle' : 'sawtooth'));
+    // 3. the letters: one bright note each (I-t-a-m-a-R-o-s)
+    [659.3, 784, 880, 987.8, 880, 1046.5, 1174.7, 1318.5].forEach((f, i) => tone(f, at + 1.1 + i * 0.07, 0.35, 0.07, 'triangle'));
+    // 4. GAMES: a wide major chord that blooms (F - C - E - A)
+    [174.6, 261.6, 349.2, 440, 523.3, 659.3].forEach(f => { tone(f, at + 1.75, 1.55, 0.06, 'sine'); tone(f * 1.003, at + 1.75, 1.55, 0.03, 'triangle'); });
+    // 5. the light sweep: a quick sparkle up high
+    for (let i = 0; i < 7; i++) tone(1568 * Math.pow(2, i / 7), at + 2.05 + i * 0.06, 0.3, 0.03, 'sine');
+    master.gain.setValueAtTime(0.9, at + 2.8); master.gain.exponentialRampToValueAtTime(0.0001, at + 3.4);
+  }
+  function playStudioMusic() {
+    try {
+      const st = JSON.parse(localStorage.getItem('ss_settings') || '{}'); if (st.sound === false) return;   // sounds off in Settings: silent
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      const ac = new AC(); if (ac.state === 'suspended') ac.resume().catch(() => {});
+      studioMusic(ac, ac.currentTime + 0.05);
+      setTimeout(() => { try { ac.close(); } catch (e) {} }, 4500);
+    } catch (e) {}
+  }
+
+  // ---------- 0. the studio logo: ItamaRos Games (it plays every time the app opens and can't be skipped) ----------
   function studio() {
     const dust = Array.from({ length: 90 }, () => ({ a: Math.random() * TAU, r: 0.6 + Math.random() * 0.8, s: 1 + Math.random() * 2 }));
     const NAME = 'ItamaRos', SUB = 'GAMES';
-    let rang = false;
+    if (!window.__csT) playStudioMusic();
     return run(() => stage(3.4, (ctx, t, W, H) => {
       const m = Math.min(W, H), cx = W / 2, cy = H * 0.4, R = clamp(m * 0.13, 40, 90);
       ctx.fillStyle = '#05021a'; ctx.fillRect(0, 0, W, H);
@@ -360,7 +406,6 @@
         if (Math.sin(a) <= 0) { ship(ctx, 'falcon', rx, ry, R * 0.32, t, 0.8, a + Math.PI); }
         ctx.globalAlpha = 1;
       }
-      if (!rang && t > 0.9) { rang = true; [523, 784, 1046].forEach((f, i) => setTimeout(() => play('tone', f, f, 0.35, 'sine', 0.05), i * 110)); }
       // the name, letter by letter, then GAMES
       const fs = clamp(m * 0.13, 34, 84), ty = cy + R * 2.25;
       ctx.font = `900 ${fs}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textBaseline = 'middle'; ctx.direction = 'ltr'; ctx.textAlign = 'left';
@@ -384,14 +429,14 @@
         ctx.strokeStyle = `rgba(167,139,250,${gk * 0.6})`; ctx.lineWidth = 2; const lw = tw * 0.42 * gk;
         ctx.beginPath(); ctx.moveTo(cx - tw / 2, ty + fs * 0.78); ctx.lineTo(cx - tw / 2 + lw * 0.45, ty + fs * 0.78); ctx.moveTo(cx + tw / 2, ty + fs * 0.78); ctx.lineTo(cx + tw / 2 - lw * 0.45, ty + fs * 0.78); ctx.stroke(); }
       if (t > 2.8) { ctx.fillStyle = `rgba(5,2,26,${ease(seg(t, 2.8, 3.4))})`; ctx.fillRect(0, 0, W, H); }
-    }, { skipText: '›', tapToClose: 0.3 }));
+    }, { noSkip: true }));
   }
 
-  window.Cutscene = { studio, intro, ship: newShip, warp, get busy() { return !!document.querySelector('.cutscene'); } };
+  window.Cutscene = { studio, studioMusic, intro, ship: newShip, warp, get busy() { return !!document.querySelector('.cutscene'); } };
 
   // the studio logo when the app opens, unless animations are off (Settings) or a test link skips the intro
   try {
     const st = JSON.parse(localStorage.getItem('ss_settings') || '{}');
-    if (st.anims !== false && !/[?&]skipintro\b/.test(location.search)) studio();
+    if (!/[?&]skipintro\b/.test(location.search)) studio();   // always (even with animations off); ?skipintro is only for tests
   } catch (e) { studio(); }
 })();

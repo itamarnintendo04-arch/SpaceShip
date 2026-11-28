@@ -53,6 +53,8 @@ ipcMain.handle('ss-oauth', (event, url, redirect) => new Promise((resolve, rejec
   win.loadURL(url);
 }));
 
+// sound may start before the first click (the ItamaRos Games logo music when the app opens)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.whenReady().then(() => {
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
