@@ -532,3 +532,8 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .studio-tag small { font-size: 8px; font-weight: 800; letter-spacing: 3px; color: #e0e7ff; margin-top: 2px; }
 .wheel-btn { position: relative; }
 .menu-grid .gift-btn { grid-column: span 1; }
+/* the menu: centred when it fits, scrolls from the top when it doesn't (plain centring cut the ship off at the top) */
+.menu-body { justify-content: flex-start; }
+.menu-body::before, .menu-body::after { content: ''; margin: auto 0; }
+@media (max-height: 900px) { #m-ship { width: 104px; height: 104px; } .title { margin-top: 0; } }
+@media (max-height: 760px) { #m-ship { width: 84px; height: 84px; } }
