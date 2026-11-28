@@ -523,3 +523,12 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .ws-size-row { flex: 1; display: flex; align-items: center; gap: 8px; }
 .ws-size-row input[type=range] { flex: 1; min-width: 0; }
 .ws-size-row .icon-btn { width: 36px; height: 36px; flex: none; display: grid; place-items: center; font-size: 20px; font-weight: 900; }
+
+/* ItamaRos Games: the studio tag in the menu's top corner (its side follows the language) */
+.studio-tag { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 6px; margin: 0 0 4px; border-radius: 999px; border: 1px solid rgba(167,139,250,.35); background: rgba(20,16,52,.55); color: #fff; font: inherit; cursor: pointer; flex: none; }
+.studio-tag svg { width: 40px; height: 25px; filter: drop-shadow(0 0 6px rgba(139,92,246,.6)); }
+.studio-tag span { display: flex; flex-direction: column; line-height: 1; text-align: left; }
+.studio-tag b { font-size: 14px; font-weight: 900; background: linear-gradient(90deg, #67e8f9, #a78bfa, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.studio-tag small { font-size: 8px; font-weight: 800; letter-spacing: 3px; color: #e0e7ff; margin-top: 2px; }
+.wheel-btn { position: relative; }
+.menu-grid .gift-btn { grid-column: span 1; }

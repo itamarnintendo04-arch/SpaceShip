@@ -491,6 +491,7 @@
     updateOnlineBadge();
   }
   $('#m-me').addEventListener('click', () => editProfile());
+  $('#m-studio').addEventListener('click', () => { if (window.Cutscene && !Cutscene.busy) Cutscene.studio(); });   // watch the ItamaRos Games logo again
   $('#m-local2').addEventListener('click', () => {
     const L = user.data.levels; let o = `<option value="endless">${t('endless')}</option>`;
     for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">${t('level_n', { n })}${levelCfg(n).boss ? ' ' + t('boss_tag') : ''}</option>`;
