@@ -19,21 +19,10 @@
     return data;
   }
 
-  // CutVid accounts (email sign-in / sign-up goes to CutVid's servers)
-  let cv = null;
-  const cutvid = () => cv || (cv = window.supabase.createClient(C.CUTVID_URL, C.CUTVID_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }));
-  const cvErr = e => {
-    const m = e ? [e.code, e.message, e.status].filter(Boolean).join(' ') : '';
-    if (/otp_disabled|signups? not allowed|user_not_found/i.test(m)) return new Error('cv_no_account');
-    // CutVid could not send the email (mail server problem or its email sending limit)
-    if (/error sending|sending.*email|email_send|smtp|over_email_send_rate_limit|email rate limit|unexpected_failure|\b5\d\d\b/i.test(m)) return new Error('cv_send_failed');
-    if (/email_not_confirmed|not confirmed/i.test(m)) return new Error('e_not_confirmed');
-    if (/invalid_credentials|invalid login/i.test(m)) return new Error('e_bad_password');
-    if (/weak_password|at least 6/i.test(m)) return new Error('e_pw_short');
-    if (/rate|too many|over_email_send/i.test(m)) return new Error('too_soon');
-    if (/otp_expired|token has expired|invalid.*otp|invalid.*token/i.test(m)) return new Error('bad_code');
-    return new Error(m || 'offline');
-  };
+  // Sign in with Google: Supabase Auth of this project (PKCE). Its own client keeps the short Google session apart from the game's.
+  let ga = null;
+  const gauth = () => ga || (ga = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY, { auth: { flowType: 'pkce', persistSession: true, storageKey: 'ss-google', autoRefreshToken: false, detectSessionInUrl: false } }));
+  const grpc = async (name, args) => { const { data, error } = await gauth().rpc(name, args || {}); if (error) throw new Error(error.message || 'offline'); return data; };
 
   let lobbyMeta = { room: null }, lobbySubscribed = false;
   let lobby = null, inbox = null, online = new Set();
@@ -124,53 +113,25 @@
     presenceOf: id => { if (!lobby) return null; const v = lobby.presenceState()[id]; return v ? v[v.length - 1] : null; },
     setLobbyMeta(m) { Object.assign(lobbyMeta, m); if (lobby && lobbySubscribed) lobby.track(lobbyMeta); },
 
-    // ---- email = CutVid account ----
-    // existing CutVid account: a one-time code is emailed by CutVid (throws cv_no_account for new emails)
-    async cvEmailCode(email) { const { error } = await cutvid().auth.signInWithOtp({ email, options: { shouldCreateUser: false } }); if (error) throw cvErr(error); },
-    async cvVerifyCode(email, code) { const { data, error } = await cutvid().auth.verifyOtp({ email, token: code.trim(), type: 'email' }); if (error) throw cvErr(error); return data.session.access_token; },
-    async cvPassword(email, password) { const { data, error } = await cutvid().auth.signInWithPassword({ email, password }); if (error) throw cvErr(error); return data.session.access_token; },
-    // new CutVid account: returns the token right away, or null when CutVid first wants the email confirmed
-    async cvSignUp(email, password) {
-      const { data, error } = await cutvid().auth.signUp({ email, password, options: { emailRedirectTo: 'https://cutvid.vercel.app/apps/spaceship?confirmed=1' } });
-      if (error) throw cvErr(error);
-      return data.session ? data.session.access_token : null;
+    // ---- Sign in with Google ----
+    // the Google sign-in page address (the app opens it and gets the user back on `redirect` with ?code=)
+    async googleStart(redirect) {
+      const { data, error } = await gauth().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } } });
+      if (error || !data || !data.url) throw new Error(/provider is not enabled|unsupported provider/i.test(error && error.message || '') ? 'google_off' : 'oauth_failed');
+      return data.url;
     },
-
-    // ---- Sign in with CutVid (OAuth 2.1 + PKCE against the CutVid Supabase project) ----
-    // Returns the CutVid access token. `openAuth(url, redirect)` opens the CutVid sign-in page and
-    // resolves with the URL CutVid redirected back to (or null for a full-page web redirect).
-    async cutvidOAuth(openAuth, redirect) {
-      if (!C.CUTVID_OAUTH_CLIENT_ID) throw new Error('oauth_not_configured');
-      const b64 = a => btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      const verifier = b64(crypto.getRandomValues(new Uint8Array(32)));
-      const challenge = b64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
-      const state = b64(crypto.getRandomValues(new Uint8Array(16)));
-      try { sessionStorage.setItem('ss_oauth', JSON.stringify({ verifier, state, redirect })); localStorage.setItem('ss_oauth', JSON.stringify({ verifier, state, redirect })); } catch (e) {}
-      const url = C.CUTVID_URL + '/auth/v1/oauth/authorize?' + new URLSearchParams({
-        response_type: 'code', client_id: C.CUTVID_OAUTH_CLIENT_ID, redirect_uri: redirect,
-        code_challenge: challenge, code_challenge_method: 'S256', state, scope: 'email profile',
-      });
-      const back = await openAuth(url);
-      return back ? Net.cutvidOAuthFinish(back) : null;
-    },
-    // Finish: take the redirect URL (…?code=&state=), exchange the code for a CutVid access token.
-    async cutvidOAuthFinish(backUrl) {
+    // back from Google: exchange the code for a session (kept only until the game has its own player session)
+    async googleFinish(backUrl) {
       const q = new URL(backUrl).searchParams;
-      let saved = null;
-      try { saved = JSON.parse(sessionStorage.getItem('ss_oauth') || localStorage.getItem('ss_oauth') || 'null'); } catch (e) {}
-      try { sessionStorage.removeItem('ss_oauth'); localStorage.removeItem('ss_oauth'); } catch (e) {}
-      if (q.get('error')) throw new Error(q.get('error') === 'access_denied' ? 'oauth_denied' : 'oauth_failed');
-      if (!saved || !q.get('code') || q.get('state') !== saved.state) throw new Error('oauth_failed');
-      const r = await fetch(C.CUTVID_URL + '/auth/v1/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', apikey: C.CUTVID_KEY },
-        body: new URLSearchParams({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: saved.redirect, client_id: C.CUTVID_OAUTH_CLIENT_ID, code_verifier: saved.verifier }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.access_token) throw new Error('oauth_failed');
-      return j.access_token;
+      if (q.get('error')) throw new Error(/access_denied/.test(q.get('error')) ? 'oauth_cancelled' : 'oauth_failed');
+      const code = q.get('code'); if (!code) throw new Error('oauth_failed');
+      const { error } = await gauth().auth.exchangeCodeForSession(code);
+      if (error) throw new Error('oauth_failed');
     },
-    cutvidCall: body => fn('cutvid-auth', body),
+    googleLogin: () => grpc('google_login'),
+    googleRegister: (h, n, a) => grpc('google_register', { p_handle: h, p_name: n, p_avatar: a }),
+    googleLink: u => grpc('google_link', { p_id: u.id, p_secret: u.secret }),
+    googleDone: () => gauth().auth.signOut({ scope: 'local' }).catch(() => {}),
 
     // Presence in a global lobby + a personal inbox channel for invites
     startPresence(user, { onInvite, onOnline, onFriendAdded, onFriendRequest, onFriendAccepted, onJoin, onNews, onJoinRequest, onJoinReply, onPartyMsg, onClubInvite, onPoke, onPlaying }) {

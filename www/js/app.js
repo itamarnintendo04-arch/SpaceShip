@@ -136,7 +136,8 @@
     if (m.includes('oauth_not_configured')) return t('e_oauth_off');
     if (m.includes('oauth_denied')) return t('e_oauth_denied');
     if (m.includes('oauth_failed')) return t('e_oauth_failed');
-    if (m.includes('cutvid_unauthorized')) return t('e_cutvid_expired');
+    if (m.includes('google_used')) return t('e_google_used');
+    if (m.includes('google_off')) return t('e_google_off');
     if (m.includes('already_linked')) return t('e_already_linked');
     if (m.includes('unauthorized')) return t('e_unauthorized');
     return t('e_offline');
@@ -208,14 +209,14 @@
   }
 
   // ---------- register ----------
-  let regAvatar = 'rocket', checkT = null, handleOk = false, cvPending = null; // cvPending = {token, email}
+  let regAvatar = 'rocket', checkT = null, handleOk = false, gPending = null; // gPending = { email }: signed in with Google, now picking a name
   function renderRegister() {
     const free = Art.AVATARS.filter(a => a.price === 0);
     $('#r-avatars').innerHTML = free.map(a => `<button data-av="${a.id}" class="${a.id === regAvatar ? 'on' : ''}">${Art.avatar(a.id)}</button>`).join('');
     if (user && user.offline && !$('#r-handle').value) { $('#r-name').value = user.name; $('#r-handle').value = user.handle; checkHandle(); }
-    $('#r-cvbanner').classList.toggle('hidden', !cvPending);
-    if (cvPending) $('#r-cvbanner').innerHTML = `${Art.icon('cutvid')} ${t('cv_connected')} <b dir="ltr">${esc(cvPending.email)}</b><br>${t('cv_pick')}`;
-    $('#r-cutvid').classList.toggle('hidden', !!cvPending);
+    $('#r-cvbanner').classList.toggle('hidden', !gPending);
+    if (gPending) $('#r-cvbanner').innerHTML = `${Art.icon('google')} ${t('g_connected')} <b dir="ltr">${esc(gPending.email)}</b><br>${t('cv_pick')}`;
+    $('#r-google').classList.toggle('hidden', !!gPending);
   }
   $('#r-avatars').addEventListener('click', e => { const b = e.target.closest('[data-av]'); if (!b) return; regAvatar = b.dataset.av; renderRegister(); });
   $('#r-handle').addEventListener('input', e => {
@@ -239,12 +240,12 @@
     if (!/^[a-z0-9_.]{3,20}$/.test(h)) { st.className = 'status err'; st.textContent = errText({ message: 'bad_handle' }); return; }
     $('#r-go').disabled = true;
     try {
-      const cres = cvPending ? await Net.cutvidCall({ action: 'register', token: cvPending.token, handle: h, name, avatar: regAvatar }) : null;
-      const r = cres ? cres.profile : await Net.register(h, name, regAvatar);
-      const gameEmail = cres && cres.game_email;
+      const r = gPending ? await Net.googleRegister(h, name, regAvatar) : await Net.register(h, name, regAvatar);
+      const gameEmail = gPending ? r.email || null : null;
       const data = user && user.offline ? user.data : defData();
-      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, cutvid: cvPending ? cvPending.email : undefined, email: gameEmail || null, has_token: !!r.token && !gameEmail };
-      cvPending = null;
+      user = { id: r.id, secret: r.secret, handle: r.handle, name: r.name, avatar: r.avatar, friend_code: r.friend_code, data, google: gPending ? r.google || gPending.email : undefined, email: gameEmail, has_token: !!r.token && !gameEmail };
+      if (gPending) Net.googleDone();
+      gPending = null;
       save(); rememberAccount(user); afterLogin(); show('menu'); history = []; toast(t('welcome', { h: at(r.handle) }));
       if (!gameEmail) askEmail();
     } catch (e) {
@@ -252,9 +253,9 @@
       if (!/taken|bad_/.test(e.message)) $('#r-offline').classList.remove('hidden');
     } finally { $('#r-go').disabled = false; }
   });
-  // ---------- CutVid sign-in ----------
-  // Opens CutVid's sign-in page and resolves with the URL it redirects back to.
-  function openCutvid(url) {
+  // ---------- Sign in with Google ----------
+  // Opens a sign-in page and resolves with the URL it redirects back to.
+  function openOAuth(url) {
     if (window.SSDesktop && window.SSDesktop.oauth) return window.SSDesktop.oauth(url, SS_CONFIG.OAUTH_APP_REDIRECT); // desktop: own window
     if (NATIVE && Cap.Browser && Cap.App) return new Promise((resolve, reject) => {          // phones: system browser + deep link
       let done = false;
@@ -268,55 +269,30 @@
     location.assign(url); return new Promise(() => {}); // web: full-page redirect, finished on return
   }
   const webRedirect = () => location.origin + location.pathname;
-  async function signInWithCutvid(intent) {
+  // intent: 'login' (sign in / create a player) or 'link' (attach Google to the signed-in player)
+  async function signInWithGoogle(intent) {
     Sfx.init();
     const redirect = window.SSDesktop || NATIVE ? SS_CONFIG.OAUTH_APP_REDIRECT : webRedirect();
-    store.set('ss_cv_intent', intent);
-    toast(t('opening_cutvid'));
+    store.set('ss_g_intent', intent);
+    toast(t('opening_google'));
     try {
-      const token = await Net.cutvidOAuth(openCutvid, redirect);
-      if (token) await (intent === 'link' ? cutvidLink(token, '') : cutvidLogin(token, ''));
+      const back = await openOAuth(await Net.googleStart(redirect));
+      if (back) { await Net.googleFinish(back); await googleAfter(intent); }
     } catch (e) { if (!String(e.message).includes('oauth_cancelled')) toast(errText(e), 3500); }
   }
-  async function cutvidLogin(token, email) {
-    const res = await Net.cutvidCall({ action: 'login', token });
+  async function googleAfter(intent) {
+    store.set('ss_g_intent', null);
+    if (intent === 'link' && user && !user.offline) {
+      const res = await Net.googleLink(user); Net.googleDone();
+      user.google = res.google; store.set('ss_user', user); closeModal(); toast(t('g_linked'), 3000); return;
+    }
+    const res = await Net.googleLogin();
     closeModal();
-    if (res.profile) {
-      const r = res.profile;
-      finishLogin(r, res.game_email ? { cutvid: res.email || email, email: res.game_email, has_token: false } : { cutvid: res.email || email });
-    } else { cvPending = { token, email: res.email || email }; show('register', false); $('#r-tabs [data-rt="new"]').click(); }
+    if (res && res.new) { gPending = { email: res.email }; show('register', false); $('#r-tabs [data-rt="new"]').click(); return; }
+    Net.googleDone();
+    finishLogin(res, { google: res.google });
   }
-  async function cutvidLink(token, email) {
-    const res = await Net.cutvidCall({ action: 'link', token, id: user.id, secret: user.secret });
-    user.cutvid = res.email || email;
-    if (res.game_email) { user.email = res.game_email; user.has_token = false; }
-    store.set('ss_user', user); closeModal(); toast(t('cv_linked'), 3000);
-  }
-  // intent: 'login' (sign in / create player) or 'link' (attach CutVid to the signed-in player)
-  function cutvidModal(intent, email) {
-    modal(`<div style="width:56px;height:56px;margin:0 auto">${Art.icon('cutvid', 'av')}</div><h2>${t('cutvid_btn')}</h2>
-      <p class="muted small">${t('cv_login_note')}</p>
-      <label>${t('email_label')}<input id="cv-email" type="email" dir="ltr" autocomplete="email" value="${esc(email || '')}"></label>
-      <label>${t('password')}<input id="cv-pass" type="password" dir="ltr" autocomplete="current-password"></label>
-      <div class="status" id="cv-st"></div>
-      <button class="btn primary" id="cv-go">${t('login')}</button>
-      <button class="btn ghost" id="cv-x">${t('cancel')}</button>`, m => {
-      const st = m.querySelector('#cv-st'), go = m.querySelector('#cv-go');
-      m.querySelector('#cv-x').onclick = closeModal;
-      m.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') go.click(); });
-      (email ? m.querySelector('#cv-pass') : m.querySelector('#cv-email')).focus();
-      go.onclick = async () => {
-        const em = m.querySelector('#cv-email').value.trim().toLowerCase(), pw = m.querySelector('#cv-pass').value;
-        if (!/^\S+@\S+\.\S+$/.test(em)) { st.className = 'status err'; st.textContent = errText({ message: 'bad_email' }); return; }
-        go.disabled = true; st.className = 'status'; st.textContent = t('connecting');
-        try {
-          const tok = await Net.cvPassword(em, pw);
-          if (intent === 'link') await cutvidLink(tok, em); else await cutvidLogin(tok, em);
-        } catch (e) { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); }
-      };
-    });
-  }
-  $('#r-cutvid').addEventListener('click', () => { Sfx.init(); cutvidModal('login'); });
+  $('#r-google').addEventListener('click', () => signInWithGoogle('login'));
 
   // ---------- existing account: saved login key, @ + token, or @ + email code ----------
   function finishLogin(r, extra) {
@@ -352,18 +328,16 @@
   // Email with 6-digit codes (sent from SpaceShip's own email address).
   //   intent 'add'   — verify an email for the signed-in player
   //   intent 'login' — sign in on this device with an email that belongs to a player
-  // If our email can't be sent: a CutVid account gets a code from CutVid instead (or CutVid's sign-in page if CutVid
-  // can't send either); anyone else is asked to try again later.
+  // If our email can't be sent, the player is asked to try again later (or to sign in with Google).
   function emailFlow(intent) {
     let email = '';
     const finish = r => { if (!r || r.error) throw new Error('bad_code'); finishLogin(r); };
     let failReason = '';
-    // our email could not be sent: offer CutVid sign-in (email + password, no email needed) or trying later
-    const cutvidFallback = async e => { failReason = String((e && e.message) || ''); step('later'); };
+    // our email could not be sent: offer trying later or Google
+    const sendFallback = async e => { failReason = String((e && e.message) || ''); step('later'); };
     const sendFailed = e => /send_failed|smtp_|offline|Failed to fetch|FunctionsFetchError/i.test(String(e && e.message));
     const step = (state, msg) => {
-      // our codes are 6 digits; CutVid's own codes can be up to 8
-      const codeLen = state === 'cvcode' ? 8 : 6;
+      const codeLen = 6;
       const codeInput = `<input id="ef-code" class="code-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="${codeLen}" dir="ltr" autocomplete="one-time-code" placeholder="${'0'.repeat(6)}">`;
       const body = {
         email: `<label>${t('email_label')}<input id="ef-email" type="email" dir="ltr" autocomplete="email" placeholder="you@gmail.com" value="${esc(email)}"></label>
@@ -371,21 +345,18 @@
         code: `<p class="small">${t('email_6_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
           <p class="muted small spam-hint">📬 ${t('check_spam')}</p>
           <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
-        cvcode: `<p class="small">${Art.icon('cutvid')} ${t('cv_code_sent', { e: `<b dir="ltr">${esc(email)}</b>` })}</p>${codeInput}
-          <p class="muted small spam-hint">📬 ${t('check_spam')}</p>
-          <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
         later: `<div style="font-size:40px">⏳</div><p>${/smtp_not_configured/.test(failReason) ? t('e_smtp') : t('cv_try_later')}</p>
           <button class="btn primary" id="ef-go">${t('try_again')}</button>
-          <button class="btn cutvid" id="ef-cv">${Art.icon('cutvid')}${t('cutvid_btn')}</button>`,
+          <button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>`,
         noplayer: `<p>${t('no_player_email')}</p><button class="btn primary" id="ef-go">${t('tab_new')}</button>
-          <button class="btn cutvid" id="ef-cv">${Art.icon('cutvid')}${t('cutvid_btn')}</button>`,
+          <button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>`,
       }[state];
       modal(`<div style="font-size:40px">✉️</div><h2>${intent === 'add' ? t('add_email') : t('login_email_title')}</h2>
         ${state === 'email' && intent === 'add' ? `<p class="muted small">${t('ask_email_body')}</p>` : ''}
         ${body}<div class="status ${msg && msg.ok ? 'ok' : 'err'}" id="ef-st">${msg ? esc(msg.text) : ''}</div>
         <button class="btn ghost" id="ef-x">${t('cancel')}</button>`, m => {
         m.querySelector('#ef-x').onclick = closeModal;
-        const cvb = m.querySelector('#ef-cv'); if (cvb) cvb.onclick = () => cutvidModal(intent === 'add' ? 'link' : 'login', email);
+        const cvb = m.querySelector('#ef-cv'); if (cvb) cvb.onclick = () => { closeModal(); signInWithGoogle(intent === 'add' ? 'link' : 'login'); };
         const st = m.querySelector('#ef-st'), go = m.querySelector('#ef-go');
         const input = m.querySelector('input'); if (input) { input.focus(); input.onkeydown = e => { if (e.key === 'Enter') go.click(); }; }
         // code box: digits only (pasted spaces or dashes are dropped); our 6-digit code submits by itself
@@ -399,11 +370,11 @@
               if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('bad_email');
               if (intent === 'add') {
                 try { await Net.emailSetStart(user, email, I18N.lang); step('code'); }
-                catch (e) { if (sendFailed(e)) await cutvidFallback(e); else throw e; }
+                catch (e) { if (sendFailed(e)) await sendFallback(e); else throw e; }
               } else {
                 let r;
                 try { r = await Net.emailLoginStartByEmail(email, I18N.lang); }
-                catch (e) { if (sendFailed(e)) return cutvidFallback(e); throw e; }
+                catch (e) { if (sendFailed(e)) return sendFallback(e); throw e; }
                 if (r && r.found) step('code'); else step('noplayer'); // not a SpaceShip email: new player, or CutVid
               }
             } else if (state === 'code') {
@@ -414,9 +385,6 @@
                 user.email = em; user.has_token = false; store.set('ss_user', user); closeModal(); toast(t('email_verified'), 3000);
                 if (current === 'menu') renderMenu();
               } else finish(await Net.emailLoginConfirmByEmail(email, code));
-            } else if (state === 'cvcode') {
-              const tok = await Net.cvVerifyCode(email, m.querySelector('#ef-code').value.replace(/\D/g, ''));
-              if (intent === 'add') await cutvidLink(tok, email); else await cutvidLogin(tok, email);
             } else if (state === 'later') step('email');
             else if (state === 'noplayer') { closeModal(); $('#r-tabs [data-rt="new"]').click(); }
           } catch (e) { go.disabled = false; st.className = 'status err'; st.textContent = errText(e); }
@@ -532,7 +500,7 @@
   }
   function addAccount() {
     flushSave(); Net.stopPresence(); if (room) leaveRoom(); friends = [];
-    user = null; store.set('ss_user', null); cvPending = null; closeModal(); history = [];
+    user = null; store.set('ss_user', null); gPending = null; closeModal(); history = [];
     show('register', false); $('#r-tabs [data-rt="new"]').click();
   }
 
@@ -770,7 +738,7 @@
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
         : `<div class="small muted">${t('ask_email_body')}</div>
            <button class="btn small primary" id="p-em-add">✉️ ${t('add_email')}</button>`}</div>`}
-      ${user.offline ? '' : user.cutvid ? `<div class="cv-banner">${Art.icon('cutvid')} ${t('linked_cutvid')} <b dir="ltr">${esc(user.cutvid)}</b></div>` : `<button class="btn cutvid" id="p-cv">${Art.icon('cutvid')}${t('link_cutvid')}</button>`}
+      ${user.offline ? '' : user.google ? `<div class="cv-banner">${Art.icon('google')} ${t('linked_google')} <b dir="ltr">${esc(user.google)}</b></div>` : `<button class="btn google" id="p-cv">${Art.icon('google')}${t('link_google')}</button>`}
       <button class="btn primary" id="p-save">${t('save')}</button><button class="btn" id="p-accs">👥 ${t('accounts')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#p-em-add', () => emailFlow('add'));
@@ -793,7 +761,7 @@
       });
       m.querySelector('#p-save').onclick = () => { const n = m.querySelector('#p-name').value.trim(); if (n) { user.name = n; save(); } closeModal(); renderMenu(); };
       m.querySelector('#p-x').onclick = closeModal;
-      const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => cutvidModal('link');
+      const cvb = m.querySelector('#p-cv'); if (cvb) cvb.onclick = () => { closeModal(); signInWithGoogle('link'); };
     });
   }
 
@@ -2728,11 +2696,11 @@
   const renders = { register: renderRegister, menu: renderMenu, levels: renderLevels, shop: renderShop, friends: renderFriends, board: renderBoard, coop: renderCoop };
   icons(); I18N.apply(); $('#r-lang').innerHTML = langLabel();
   setTimeout(() => loadEvents(true), 1200);
-  // web: returning from CutVid's sign-in page (?code=…&state=…)
-  if (!NATIVE && !window.SSDesktop && /[?&]code=/.test(location.search) && /[?&]state=/.test(location.search)) {
+  // web: returning from Google's sign-in page (?code=…)
+  if (!NATIVE && !window.SSDesktop && /[?&](code|error)=/.test(location.search) && store.get('ss_g_intent', null)) {
     const back = location.href; window.history.replaceState(null, '', location.pathname);
-    const intent = store.get('ss_cv_intent', 'login'); store.set('ss_cv_intent', null);
-    Net.cutvidOAuthFinish(back).then(token => intent === 'link' && user && !user.offline ? cutvidLink(token, '') : cutvidLogin(token, '')).catch(e => toast(errText(e), 3500));
+    const intent = store.get('ss_g_intent', 'login');
+    Net.googleFinish(back).then(() => googleAfter(intent)).catch(e => { store.set('ss_g_intent', null); if (!String(e.message).includes('oauth_cancelled')) toast(errText(e), 3500); });
   }
   // ---------- loading screen: a mini level to play while the game connects to the server ----------
   function bootLoading() {

@@ -147,7 +147,7 @@ Up to 10 players in a room, each with their own ship on the same screen. Everyon
 - Every player has a name and a unique `@handle`.
 - Add an email to sign in on other devices: a **6-digit code** arrives by email. The email is a designed HTML message in the language the game is set to (all 14 languages; Hebrew and Arabic right-to-left).
 - Sign in on another device: "I have an account" → **email** → 6-digit code.
-- Sign in with **CutVid** (OAuth, or CutVid email + password inside the game).
+- **Continue with Google** (Supabase Auth of this project, PKCE): the first time it creates a new player linked to the Google account (its address becomes the player's email); later it signs that player in on any device. Profile → *Link Google* attaches Google to an existing player. Server: `supabase/google_login.sql` (`profiles.google_id`, `google_login`, `google_register`, `google_link`). **Setup:** Supabase → Authentication → Providers → Google (client ID + secret from Google Cloud), and Authentication → URL Configuration → Redirect URLs: `com.spaceship.game://oauth` (and the web address if the game runs in a browser). CutVid sign-in was removed (the CutVid server is paused).
 - Several accounts on one device, each with its own progress.
 - **Login key in the device's passwords**: Settings → *Save login key to this device*.
   - **Android**: the phone's own *Save password?* sheet (Google Password Manager, through Android Credential Manager with the `@capgo/capacitor-autofill-save-password` plugin). Signing in: *Sign in with a login key* → *Use a saved key from this device*.

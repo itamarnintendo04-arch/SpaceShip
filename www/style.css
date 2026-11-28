@@ -548,3 +548,6 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 #s-loading.ld-pic .ld-ui .title { display: none; }
 #s-loading.ld-pic .ld-bar { width: min(360px, 86%); height: 10px; }
 #s-loading.ld-pic #ld-canvas { display: none; }
+
+.btn.google { background: #fff; color: #1f2937; border-color: #e5e7eb; font-weight: 800; }
+.btn.google .ic { width: 20px; height: 20px; }
