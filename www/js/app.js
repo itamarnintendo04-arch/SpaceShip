@@ -216,7 +216,7 @@
     if (user && user.offline && !$('#r-handle').value) { $('#r-name').value = user.name; $('#r-handle').value = user.handle; checkHandle(); }
     $('#r-cvbanner').classList.toggle('hidden', !gPending);
     if (gPending) $('#r-cvbanner').innerHTML = `${Art.icon('google')} ${t('g_connected')} <b dir="ltr">${esc(gPending.email)}</b><br>${t('cv_pick')}`;
-    $('#r-google').classList.toggle('hidden', !!gPending);
+    $('#r-google').classList.toggle('hidden', !!gPending || !GOOGLE_ON); $('#r-or').classList.toggle('hidden', !GOOGLE_ON && $('#r-offline').classList.contains('hidden'));
   }
   $('#r-avatars').addEventListener('click', e => { const b = e.target.closest('[data-av]'); if (!b) return; regAvatar = b.dataset.av; renderRegister(); });
   $('#r-handle').addEventListener('input', e => {
@@ -254,6 +254,8 @@
     } finally { $('#r-go').disabled = false; }
   });
   // ---------- Sign in with Google ----------
+  // still in testing: only the development version (SpaceShip Dev) shows Google; the public version shows no sign-in button here
+  var GOOGLE_ON = !!window.SS_DEV;   // var: the sign-up screen may draw before this line runs
   // Opens a sign-in page and resolves with the URL it redirects back to.
   function openOAuth(url) {
     if (window.SSDesktop && window.SSDesktop.oauth) return window.SSDesktop.oauth(url, SS_CONFIG.OAUTH_APP_REDIRECT); // desktop: own window
@@ -347,9 +349,9 @@
           <button class="btn primary" id="ef-go">${intent === 'add' ? t('verify') : t('login')}</button>`,
         later: `<div style="font-size:40px">⏳</div><p>${/smtp_not_configured/.test(failReason) ? t('e_smtp') : t('cv_try_later')}</p>
           <button class="btn primary" id="ef-go">${t('try_again')}</button>
-          <button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>`,
+          ${GOOGLE_ON ? `<button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>` : ''}`,
         noplayer: `<p>${t('no_player_email')}</p><button class="btn primary" id="ef-go">${t('tab_new')}</button>
-          <button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>`,
+          ${GOOGLE_ON ? `<button class="btn google" id="ef-cv">${Art.icon('google')}${t('google_btn')}</button>` : ''}`,
       }[state];
       modal(`<div style="font-size:40px">✉️</div><h2>${intent === 'add' ? t('add_email') : t('login_email_title')}</h2>
         ${state === 'email' && intent === 'add' ? `<p class="muted small">${t('ask_email_body')}</p>` : ''}
@@ -738,7 +740,7 @@
         ? `<div class="small">${t('email_is')} <b dir="ltr">${esc(user.email)}</b><br><span class="muted">${t('email_device_note')}</span></div>`
         : `<div class="small muted">${t('ask_email_body')}</div>
            <button class="btn small primary" id="p-em-add">✉️ ${t('add_email')}</button>`}</div>`}
-      ${user.offline ? '' : user.google ? `<div class="cv-banner">${Art.icon('google')} ${t('linked_google')} <b dir="ltr">${esc(user.google)}</b></div>` : `<button class="btn google" id="p-cv">${Art.icon('google')}${t('link_google')}</button>`}
+      ${user.offline || !GOOGLE_ON ? '' : user.google ? `<div class="cv-banner">${Art.icon('google')} ${t('linked_google')} <b dir="ltr">${esc(user.google)}</b></div>` : `<button class="btn google" id="p-cv">${Art.icon('google')}${t('link_google')}</button>`}
       <button class="btn primary" id="p-save">${t('save')}</button><button class="btn" id="p-accs">👥 ${t('accounts')}</button>${user.offline ? '' : `<button class="btn ghost" id="p-out">${t('sign_out')}</button>`}<button class="btn ghost" id="p-x">${t('close')}</button>`, m => {
       const on = (id, f) => { const b = m.querySelector(id); if (b) b.onclick = f; };
       on('#p-em-add', () => emailFlow('add'));
