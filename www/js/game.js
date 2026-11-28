@@ -107,6 +107,36 @@
   let nextId = 1;
   const gunOf = skin => (Art.SHIPS.find(s => s.id === skin) || Art.SHIPS[0]).gun || { rate: 1, dmg: 1, side: 0, style: 'line' };
 
+  // shots are drawn once per style / colour / animation step into a small picture, then stamped:
+  // hundreds of shots on screen cost almost nothing (drawing each one with gradients every frame dropped phones to 30 fps)
+  const shotCache = new Map();
+  function shotSprite(k, t, hd, sc) {
+    const st = (k.gun && k.gun.style) || 'line', ph = Math.floor(t * 12) % 6, q = Math.round(sc * 4) / 4;
+    const key = st + '|' + k.glow + '|' + ph + '|' + (hd ? 1 : 0) + '|' + q;
+    let c = shotCache.get(key);
+    if (!c) {
+      // draw it in a roomy box (x -24..24, y -24..48), then keep only the part with pixels: smaller pictures fill faster
+      const big = document.createElement('canvas'); big.width = Math.ceil(48 * q); big.height = Math.ceil(72 * q);
+      const x = big.getContext('2d'); x.scale(q, q); x.translate(24, 24);
+      drawShot(x, { x: 0, y: 0, vx: 0, vy: -1 }, k, ph / 12, hd);
+      let x0 = big.width, y0 = big.height, x1 = -1, y1 = -1;
+      try { const d = big.getContext('2d').getImageData(0, 0, big.width, big.height).data;
+        for (let i = 3, n = 0; i < d.length; i += 4, n++) if (d[i] > 4) { const px = n % big.width, py = (n / big.width) | 0; if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; } } catch (e) { x0 = 0; y0 = 0; x1 = big.width - 1; y1 = big.height - 1; }
+      if (x1 < 0) { x0 = 0; y0 = 0; x1 = 1; y1 = 1; }
+      const w = x1 - x0 + 3, h = y1 - y0 + 3, cut = document.createElement('canvas'); cut.width = w; cut.height = h;
+      cut.getContext('2d').drawImage(big, x0 - 1, y0 - 1, w, h, 0, 0, w, h);
+      c = { c: cut, ox: (x0 - 1) / q - 24, oy: (y0 - 1) / q - 24, w: w / q, h: h / q };
+      shotCache.set(key, c); if (shotCache.size > 300) shotCache.delete(shotCache.keys().next().value);
+    }
+    return c;
+  }
+  let enemyShot = null;
+  function enemySprite(q) {
+    if (enemyShot && enemyShot.q === q) return enemyShot.c;
+    const c = document.createElement('canvas'); c.width = c.height = Math.ceil(16 * q); const x = c.getContext('2d'); x.scale(q, q);
+    x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(8, 8, 6, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(8, 8, 2.5, 0, 7); x.fill();
+    enemyShot = { q, c }; return c;
+  }
   // how a player's shot looks, by the ship's weapon style
   function drawShot(x, b, k, t, hd) {
     const st = (k.gun && k.gun.style) || 'line', c = k.glow, ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
@@ -171,6 +201,9 @@
     constructor(canvas, opts) {
       this.cv = canvas; this.cx = canvas.getContext('2d');
       this.o = opts;
+      // a device that was too slow before starts in smooth mode at once (not the desktop app, which is fast)
+      try { this.lite = !opts.hd && localStorage.getItem('ss_lite') === '1'; } catch (e) { this.lite = false; }
+      if (this.lite) try { Object.defineProperty(this.cx, 'shadowBlur', { configurable: true, get: () => 0, set: () => {} }); } catch (e) {}
       this.mode = opts.mode; // 'level' | 'endless'
       this.landscape = opts.orientation === 'landscape';
       this.coop = opts.coop || null; // {room, role}
@@ -237,7 +270,7 @@
 
     // ----- layout / input -----
     resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, this.lite ? 1.5 : 2);
       const cw = this.cv.clientWidth || innerWidth, ch = this.cv.clientHeight || innerHeight;
       this.cv.width = cw * dpr; this.cv.height = ch * dpr; this.dpr = dpr; this.cw = cw; this.ch = ch;
       const across = this.landscape ? ch : cw, fwd = this.landscape ? cw : ch;
@@ -300,12 +333,26 @@
     // ----- main loop -----
     loop(now) {
       if (this.dead) return;
-      const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
+      const raw = (now - this.last) / 1000, dt = Math.min(0.05, raw); this.last = now;
+      // smooth mode: if this device can't keep 60 fps, drop the costly effects (glow shadows, full resolution, many particles)
+      // (measured over 2.5 s of play after the first 1.5 s; below 45 fps it switches)
+      if (!this.lite && !this.paused && !this.ftDone && raw < 0.25 && this.t > 1.5) {
+        this.ftTime = (this.ftTime || 0) + raw; this.ftN = (this.ftN || 0) + 1;
+        if (this.ftTime >= 2.5) { this.ftDone = true; this.fps = this.ftN / this.ftTime; if (this.fps < 45) this.goLite(true); }
+      }
       if (!this.paused) this.update(dt);
       this.draw();
       this.raf = requestAnimationFrame(this.loop);
     }
 
+    goLite(remember) {
+      if (this.lite) return; this.lite = true;
+      if (remember) try { localStorage.setItem('ss_lite', '1'); } catch (e) {}
+      // glow shadows are the slowest thing a phone's canvas does: switch them off for this game's canvas only
+      try { Object.defineProperty(this.cx, 'shadowBlur', { configurable: true, get: () => 0, set: () => {} }); } catch (e) {}
+      if (this.parts.length > 150) this.parts.splice(0, this.parts.length - 150);
+      this.resize(); this.makeBg && this.bgC && this.makeBg();
+    }
     keyMove(dt) {
       const k = this.keys, sp = 420 * dt;
       const dir = (L, R, U, D) => [(k[R] ? 1 : 0) - (k[L] ? 1 : 0), (k[D] ? 1 : 0) - (k[U] ? 1 : 0)];
@@ -658,7 +705,7 @@
       this.parts = this.parts.filter(p => p.life > 0);
       for (const f of this.floats) { f.life -= dt; f.y -= 30 * dt; }
       this.floats = this.floats.filter(f => f.life > 0);
-      if (this.parts.length > 500) this.parts.splice(0, this.parts.length - 500);
+      const pmax = this.lite ? 150 : 500; if (this.parts.length > pmax) this.parts.splice(0, this.parts.length - pmax);
     }
 
     // ----- co-op networking -----
@@ -785,10 +832,13 @@
       }
       // bullets
       x.globalCompositeOperation = 'lighter';
+      const wm = x.getTransform(), sc = Math.max(1, Math.hypot(wm.a, wm.b)), q = Math.round(sc * 4) / 4;
+      const kOf = this.players.map(p => Art.SHIPS.find(s => s.id === p.skin) || Art.SHIPS[0]), eS = enemySprite(q);
       for (const b of this.bullets) {
-        if (b.enemy) { x.fillStyle = '#f43f5e'; x.beginPath(); x.arc(b.x, b.y, 6, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(b.x, b.y, 2.5, 0, 7); x.fill(); continue; }
-        const p = this.players[b.owner] || this.players[0];
-        drawShot(x, b, Art.SHIPS.find(s => s.id === p.skin) || Art.SHIPS[0], this.t, this.hd);
+        if (b.enemy) { x.drawImage(eS, b.x - 8, b.y - 8, 16, 16); continue; }
+        const spr = shotSprite(kOf[b.owner] || kOf[0], this.t, this.hd, sc), ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+        if (Math.abs(ang) < 0.001) x.drawImage(spr.c, b.x + spr.ox, b.y + spr.oy, spr.w, spr.h);
+        else { x.translate(b.x, b.y); x.rotate(ang); x.drawImage(spr.c, spr.ox, spr.oy, spr.w, spr.h); x.setTransform(wm); }
       }
       // particles
       for (const p of this.parts) {
