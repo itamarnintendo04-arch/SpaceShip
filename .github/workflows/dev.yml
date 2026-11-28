@@ -15,7 +15,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-dev
+  # only real dev builds share a group (a normal push, skipped here, must not cancel a running dev build)
+  group: build-dev-${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message || '', '[dev]')) && 'dev' || github.run_id }}
   cancel-in-progress: true
 
 jobs:

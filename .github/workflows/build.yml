@@ -20,7 +20,8 @@ permissions:
 # one build at a time: a newer push waits for the running build instead of racing it
 # (if several are waiting, only the newest one runs - it contains everything)
 concurrency:
-  group: build-apps
+  # a [dev] push (built by dev.yml) gets its own group, so it never cancels a waiting public build
+  group: build-apps-${{ contains(github.event.head_commit.message || '', '[dev]') && 'dev' || 'public' }}
   cancel-in-progress: false
 
 env:
