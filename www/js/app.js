@@ -2147,7 +2147,9 @@
       <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
   function grant(r) {
     const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
-    if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; shipAnim(r.ship); }
+    const giveShip = () => { if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; save(); shipAnim(r.ship); if (current === 'menu') renderMenu(); return true; } };
+    // a ship added on the server after the app loaded its ship list: load the list again, then give it
+    if (r.ship && !Art.SHIPS.some(s => s.id === r.ship)) loadCatalog().then(giveShip); else giveShip();
     D.worlds = D.worlds || []; if (r.world && WORLDS.some(w => w.id === r.world) && !D.worlds.includes(r.world)) D.worlds.push(r.world);
     Sfx.init(); Sfx.coin(); save();
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
