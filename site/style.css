@@ -191,3 +191,17 @@ details p { margin: 0 0 16px; color: var(--muted); }
 .studio small { font-size: 8px; font-weight: 800; letter-spacing: 3px; color: #e0e7ff; margin-top: 2px; }
 .copy { text-align: center; color: var(--dim); font-size: 13px; margin: -24px 16px 28px; }
 .np + .copy { margin-top: 0; }
+
+/* the version number, and the older versions list */
+.ver-tag { font-weight: 800; color: var(--cyan); margin-inline-start: 8px; }
+.ver-tag:empty { display: none; }
+.old { margin: 26px auto 0; max-width: 760px; border: 1px solid var(--line2, rgba(46,40,112,.8)); border-radius: 18px; background: rgba(15,11,48,.6); padding: 4px 16px; }
+.old summary { cursor: pointer; font-weight: 800; padding: 12px 0; list-style: none; text-align: center; color: var(--cyan); }
+.old summary::-webkit-details-marker { display: none; }
+.old summary::after { content: ' ▾'; } .old[open] summary::after { content: ' ▴'; }
+.old > .note { text-align: center; margin: 0 0 10px; }
+.old-list { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; }
+.old-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; background: rgba(5,2,26,.5); }
+.old-v { display: flex; flex-direction: column; } .old-v small { color: var(--dim); font-size: 12px; }
+.old-files { display: flex; gap: 6px; flex-wrap: wrap; }
+.old-files .btn.sm { padding: 6px 12px; font-size: 13px; }

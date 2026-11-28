@@ -25,7 +25,7 @@
     document.querySelectorAll('[data-lang]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.lang === lang)));
     document.querySelectorAll('.dl').forEach((c) => c.setAttribute('data-mine', T('mine')));
     if (device) { $('hero-dl-t').textContent = T('dl_for', NAMES[device]); }
-    links(); if (bonus) drawBonus();
+    links(); if (bonus) drawBonus(); drawOld();
   }
 
   function links() {
@@ -42,6 +42,8 @@
     // the .ipa file is always offered too when a signed link is set (for sideloading with Sideloadly / AltStore)
     const ipa = $('dl-ipa'), qi = $('q-ipa'), ipaUrl = (files.ios && files.ios.url) || fallback;
     ipa.href = qi.href = ipaUrl; ipa.title = qi.title = T('ios_unsigned'); qi.classList.toggle('soon', !!cfg && !files.ios);
+    // the version number is always shown: in the hero pill, the download section and the footer
+    if (cfg && cfg.version) document.querySelectorAll('.ver-tag').forEach(e => { e.textContent = 'v' + cfg.version; });
     if (cfg && cfg.version) $('ver-line').textContent = T('version') + ' ' + cfg.version + (cfg.published ? ' · ' + new Date(cfg.published).toLocaleDateString(lang) : '');
     if (cfg && cfg.page) $('all-rel').href = cfg.page;
     // quick download buttons under the hero, one per device
@@ -67,6 +69,21 @@
   $('yr').textContent = new Date().getFullYear();
   document.querySelectorAll('.yr').forEach(e => { e.textContent = new Date().getFullYear(); });
   apply();
+  // older versions: every earlier release, each with its files (iPhone: the .ipa only)
+  var olds = null;   // var: apply() may draw the list before this line runs
+  function drawOld() {
+    const box = $('old-list'); if (!box) return;
+    if (!olds) { box.innerHTML = `<p class="note">${T('old_loading')}</p>`; return; }
+    const rows = olds.slice(1);   // the newest is the main download above
+    if (!rows.length) { box.innerHTML = `<p class="note">${T('old_none')}</p>`; return; }
+    const btn = (f, label) => f ? `<a class="btn ghost sm" href="${f.url}" download>${label}</a>` : '';
+    box.innerHTML = rows.map(r => `<div class="old-row"><div class="old-v"><b dir="ltr">v${r.version}</b><small>${r.published ? new Date(r.published).toLocaleDateString(lang) : ''}</small></div>
+      <div class="old-files">${btn(r.files.ipa, 'iPhone IPA')}${btn(r.files.android, 'Android')}${btn(r.files.windows, 'Windows')}${btn(r.files.mac, 'macOS')}${btn(r.files.linux, 'Linux')}</div></div>`).join('');
+  }
+  $('old').addEventListener('toggle', () => {
+    if (!$('old').open || olds) return drawOld();
+    fetch('/api/releases').then(r => r.json()).then(d => { olds = d.releases || []; drawOld(); }).catch(() => { olds = []; drawOld(); });
+  });
   fetch('/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { cfg = d || { files: {} }; links(); }).catch(() => { cfg = { files: {} }; links(); });
 
   // join bonus codes, read straight from the game server (public, read-only)
