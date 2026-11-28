@@ -2,7 +2,7 @@
 // "Sign in with CutVid" (OAuth) can return to the app. Safe to run repeatedly.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-const SCHEME = 'com.spaceship.game';
+const SCHEME = process.env.SS_SCHEME || 'com.spaceship.game';   // SpaceShip Dev uses com.spaceship.game.dev
 
 const manifest = 'android/app/src/main/AndroidManifest.xml';
 if (existsSync(manifest)) {

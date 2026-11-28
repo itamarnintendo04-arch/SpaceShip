@@ -1,9 +1,10 @@
 name: Build SpaceShip Dev (private)
 
-# The private development version: "SpaceShip Dev" for iPhone, with its own app id (com.spaceship.game.dev) so it installs
-# next to the regular game, a DEV ribbon on the icon and window.SS_DEV = true (features in testing turn on only there).
-# It goes to a DRAFT release (dev-N): drafts are visible only to the repository's owner and collaborators, not to the
-# public and not on the website. Start it with [dev] in a commit message, or by hand: Actions -> Build SpaceShip Dev -> Run workflow.
+# The private development version: "SpaceShip Dev" for every device (iPhone, Android, Windows, macOS, Linux).
+# Own app id (com.spaceship.game.dev), name, link scheme and a DEV ribbon on the icon, so it installs next to the regular
+# game; window.SS_DEV = true (features in testing turn on only there). Same server and accounts as the regular game.
+# Everything goes to one DRAFT release (dev-N): drafts are visible only to the repository's owner and collaborators,
+# not to the public and not on the website. Start it with [dev] in a commit message (or Actions -> Run workflow).
 # A push with [dev] does NOT make a public release (build.yml skips it).
 on:
   push:
@@ -19,20 +20,22 @@ concurrency:
   group: build-dev-${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message || '', '[dev]')) && 'dev' || github.run_id }}
   cancel-in-progress: true
 
+env:
+  DEV_N: ${{ github.run_number }}
+  SS_SCHEME: com.spaceship.game.dev
+
 jobs:
-  ios-dev:
+  ios:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[dev]')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with: { node-version: 20, cache: npm }
-      - run: npm ci
-      - run: npm run vendor
-      - name: Mark as the development version
+      - run: npm ci && npm run vendor
+      - name: Make it SpaceShip Dev
         run: |
-          echo "window.SS_VERSION = 'dev-${{ github.run_number }}'; window.SS_DEV = true; window.SS_DOMAIN = '${{ vars.IOS_ASSOCIATED_DOMAIN || 'spaceship-site.vercel.app' }}';" > www/js/version.js
-          node -e "const f='capacitor.config.json',c=JSON.parse(require('fs').readFileSync(f));c.appId='com.spaceship.game.dev';c.appName='SpaceShip Dev';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          node scripts/dev-mark.mjs
           python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
           python3 scripts/dev-icon.py
       - run: npx cap add ios && node scripts/patch-native.mjs
@@ -47,7 +50,86 @@ jobs:
           mkdir Payload
           cp -R ios-build/Build/Products/Release-iphoneos/App.app Payload/
           zip -qr SpaceShip-Dev-iOS-unsigned.ipa Payload
-      - name: Private draft release
+      - uses: actions/upload-artifact@v4
+        with: { name: dev-ios, path: SpaceShip-Dev-iOS-unsigned.ipa, retention-days: 3 }
+
+  android:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[dev]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 17 }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - run: npm ci && npm run vendor
+      - name: Make it SpaceShip Dev
+        run: |
+          node scripts/dev-mark.mjs
+          python3 -m pip install --quiet pillow || python3 -m pip install --quiet --break-system-packages pillow
+          python3 scripts/dev-icon.py
+      - run: npx cap add android && node scripts/patch-native.mjs
+      - run: npx capacitor-assets generate --android --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
+      - name: Set version
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"dev-${{ github.run_number }}\"/" android/app/build.gradle
+      - run: npx cap sync android
+      - name: Build APK
+        run: |
+          mkdir -p ~/.android && cp android-debug.keystore ~/.android/debug.keystore
+          cd android && chmod +x gradlew
+          for i in 1 2 3 4; do ./gradlew assembleDebug --no-daemon && break; [ $i = 4 ] && exit 1; echo "retrying in $((i*60))s"; sleep $((i*60)); done
+          cp app/build/outputs/apk/debug/app-debug.apk ../SpaceShip-Dev.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: dev-android, path: SpaceShip-Dev.apk, retention-days: 3 }
+
+  desktop:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[dev]')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - shell: bash
+        run: |
+          npm ci && npm run vendor
+          node scripts/dev-mark.mjs
+          python -m pip install --quiet pillow
+          python scripts/dev-icon.py
+          npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-desktop-${{ matrix.os }}
+          retention-days: 3
+          path: |
+            dist-desktop/*.exe
+            dist-desktop/*.AppImage
+            dist-desktop/*.dmg
+
+  release:
+    needs: [ios, android, desktop]
+    if: ${{ !cancelled() && (needs.ios.result == 'success' || needs.android.result == 'success' || needs.desktop.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: files, merge-multiple: true }
+      - name: Private draft release (all devices)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: dev-${{ github.run_number }}
@@ -56,8 +138,15 @@ jobs:
           draft: true
           prerelease: true
           make_latest: false
-          files: SpaceShip-Dev-iOS-unsigned.ipa
+          files: files/*
           body: |
-            **SpaceShip Dev** (private development version, ${{ github.sha }})
+            **SpaceShip Dev ${{ github.run_number }}** (private development version, ${{ github.sha }})
             Installs next to the regular SpaceShip (app id `com.spaceship.game.dev`). Same server and accounts.
-            `SpaceShip-Dev-iOS-unsigned.ipa`: install with Sideloadly / AltStore.
+
+            | Device | File |
+            |---|---|
+            | iPhone / iPad | `SpaceShip-Dev-iOS-unsigned.ipa` (Sideloadly / AltStore) |
+            | Android | `SpaceShip-Dev.apk` |
+            | Windows | `SpaceShip-Dev-Setup-….exe` or `SpaceShip-Dev-Portable-….exe` |
+            | macOS | `SpaceShip-Dev-…-mac.dmg` |
+            | Linux | `SpaceShip-Dev-…-linux.AppImage` |

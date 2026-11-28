@@ -185,9 +185,9 @@ Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard an
 The iOS build is **unsigned**. For a signed iPhone download, sign it yourself and put the link in the website's `IOS_DOWNLOAD_URL` (below).
 
 ## Private development version (SpaceShip Dev)
-For trying out updates before players get them. A commit whose message contains **`[dev]`** (or Actions → *Build SpaceShip Dev (private)* → *Run workflow*) builds **SpaceShip Dev** for iPhone (`.github/workflows/dev.yml`) and **no public release**:
-- its own app id `com.spaceship.game.dev` and name *SpaceShip Dev*, with an orange **DEV** ribbon on the icon (`scripts/dev-icon.py`), so it installs **next to** the regular game; same server and accounts;
-- it goes to a **draft release** `dev-N` (`SpaceShip-Dev-iOS-unsigned.ipa`, install with Sideloadly / AltStore). Drafts are visible only to the repository's owner and collaborators, not to the public, not on the website;
+For trying out updates before players get them. A commit whose message contains **`[dev]`** (or Actions → *Build SpaceShip Dev (private)* → *Run workflow*) builds **SpaceShip Dev** for **every device** - iPhone, Android, Windows, macOS, Linux (`.github/workflows/dev.yml`, `scripts/dev-mark.mjs`) - and **no public release**:
+- its own app id `com.spaceship.game.dev`, name *SpaceShip Dev* and link scheme `com.spaceship.game.dev://` (Google sign-in comes back to it: add `com.spaceship.game.dev://oauth` to Supabase → Authentication → Redirect URLs), with an orange **DEV** ribbon on the icon (`scripts/dev-icon.py`), so it installs **next to** the regular game; same server and accounts;
+- it goes to one **draft release** `dev-N` with every file (`SpaceShip-Dev-iOS-unsigned.ipa`, `SpaceShip-Dev.apk`, `SpaceShip-Dev-Setup-….exe`, `…-mac.dmg`, `…-linux.AppImage`). Drafts are visible only to the repository's owner and collaborators, not to the public, not on the website;
 - `window.SS_DEV = true` there: features in testing check it and turn on only in the development version. Shipping a feature to everyone = removing its `SS_DEV` check.
 - In testing now: the **loading screen with a picture** (the 9:16 poster, a random tip at the top in the player's language, the loading bar at the bottom) instead of the mini level.
 

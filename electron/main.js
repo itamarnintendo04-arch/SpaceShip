@@ -1,7 +1,8 @@
 // SpaceShip desktop app (Windows / macOS / Linux)
 const { app, BrowserWindow, shell, ipcMain, nativeImage } = require('electron');
 
-const CUTVID_AUTH = 'https://btrwboxwbinqewgvlcal.supabase.co/auth/v1/oauth/authorize';
+// "Continue with Google" goes through the game's own Supabase Auth
+const SIGNIN_AUTH = 'https://unpzeskbzovolyqsqzna.supabase.co/auth/v1/authorize';
 const OAUTH_REDIRECT = 'com.spaceship.game://oauth';
 const path = require('path');
 
@@ -34,10 +35,10 @@ ipcMain.handle('ss-set-icon', (event, dataUrl) => {
 });
 
 ipcMain.handle('ss-oauth', (event, url, redirect) => new Promise((resolve, reject) => {
-  if (typeof url !== 'string' || !url.startsWith(CUTVID_AUTH + '?') || redirect !== OAUTH_REDIRECT) return reject(new Error('oauth_failed'));
+  if (typeof url !== 'string' || !url.startsWith(SIGNIN_AUTH + '?') || redirect !== OAUTH_REDIRECT) return reject(new Error('oauth_failed'));
   const parent = BrowserWindow.fromWebContents(event.sender);
-  const win = new BrowserWindow({ width: 480, height: 720, parent, modal: true, autoHideMenuBar: true, title: 'CutVid', backgroundColor: '#0b0c10',
-    webPreferences: { contextIsolation: true, sandbox: true, partition: 'persist:cutvid' } });
+  const win = new BrowserWindow({ width: 480, height: 720, parent, modal: true, autoHideMenuBar: true, title: 'Google', backgroundColor: '#0b0c10',
+    webPreferences: { contextIsolation: true, sandbox: true, partition: 'persist:google' } });
   // Google refuses sign-in inside apps that announce themselves as Electron.
   win.webContents.setUserAgent(win.webContents.getUserAgent().replace(/\s*Electron\/\S+/, '').replace(/\s*SpaceShip\/\S+/, ''));
   let done = false;
