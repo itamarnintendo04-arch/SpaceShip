@@ -2052,7 +2052,32 @@
   function checkUpdate() {
     if (!IS_APP || current === 'game' || current === 'loading' || !$('#modal').classList.contains('hidden')) return;
     const big = events.find(e => !canJoin(e) && Date.parse(e.ends_at) > Date.now());
-    if (big && !store.get('ss_upd_ev_' + big.id, false)) { store.set('ss_upd_ev_' + big.id, true); updateBox(big); }
+    if (big && !store.get('ss_upd_ev_' + big.id, false)) { store.set('ss_upd_ev_' + big.id, true); updateBox(big); return; }
+    checkNewVersion();
+  }
+  // a newer version on the website: offer it (once when the app opens, again at most every 30 minutes; "Later" waits a day per version)
+  let newestAt = 0, newestV = null;
+  async function checkNewVersion() {
+    if (!IS_APP || !/^\d/.test(APP_VERSION) || Date.now() - newestAt < 30 * 60000) return;
+    newestAt = Date.now();
+    try {
+      const site = String(appCfg.site_url || ('https://' + (window.SS_DOMAIN || 'spaceship-site.vercel.app'))).replace(/\/+$/, '');
+      const c = await (await fetch(site + '/api/config', { cache: 'no-store' })).json();
+      newestV = c && c.version;
+    } catch (e) { return; }
+    if (!outdated(newestV)) return;
+    const skip = store.get('ss_upd_skip', null);
+    if (skip && skip.v === newestV && skip.until > Date.now()) return;
+    if (current === 'game' || current === 'loading' || !$('#modal').classList.contains('hidden')) { newestAt = 0; return; }   // try again on the next check
+    modal(`<div class="upd-art">${Art.icon('download')}</div>
+      <h3>${t('upd_new_title')}</h3>
+      <p>${t('upd_new_body', { b: esc(newestV) })}</p>
+      <p class="muted small" dir="ltr">v${esc(APP_VERSION)} → v${esc(newestV)}</p>
+      <button class="btn primary big" id="up-go">${Art.icon('download')} ${t('upd_btn')}</button>
+      <button class="btn ghost" id="up-x">${t('upd_later')}</button>`, m => {
+      m.querySelector('#up-go').onclick = async () => { const b = m.querySelector('#up-go'); b.disabled = true; openUrl(await updateUrl()); b.disabled = false; };
+      m.querySelector('#up-x').onclick = () => { store.set('ss_upd_skip', { v: newestV, until: Date.now() + 24 * 3600e3 }); closeModal(); };
+    });
   }
   function updateBox(ev) {
     if (!ev) return;

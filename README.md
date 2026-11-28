@@ -116,6 +116,8 @@ Events run from the server. Add a row to the Supabase table **`game_events`** an
 When several events run at once, the highest multiplier applies and the diamonds add up. SQL: `supabase/events.sql`.
 
 ### App updates for big events
+**Every new version:** when the app opens (and at most every 30 minutes on the menu) it compares its version with the newest one on the website (`/api/config`). If a newer one is out, a window offers *Update now* (straight to this device's file) or *Later* (asks again a day later, per version). Not in the web copy or the development version.
+
 The app asks players to update **only when a big event needs a newer version**. Nothing else ever asks them to update.
 - Set **`game_events.min_version`** on the event: a version (e.g. `1.1.26`), or **`latest`** for the newest build on GitHub. Players on an older app see a pop-up once, *"<event> is here! Update the app to join the event"*, and an **Update to join** button on the event banner. The banner and the pop-up both show the version they have and the version they need. They don't get that event's bonus until they update. Events without `min_version` never ask anyone to update.
 - **`app_config`** (one row):
