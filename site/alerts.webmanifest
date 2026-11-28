@@ -24,5 +24,12 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.spaceship.game",
+      "url": "https://spaceship-site.vercel.app/"
+    }
   ]
 }

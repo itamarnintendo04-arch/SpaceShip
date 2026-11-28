@@ -86,3 +86,34 @@ language sql stable security definer set search_path = '' as $$
   where t.token = p_token and t.expires_at > now();
 $$;
 grant execute on function public.push_link_token(uuid, text, text), public.push_status(uuid, text, text), public.push_whoami(text) to anon, authenticated;
+
+-- several saved accounts on one browser / device (SpaceShip Alerts lets the player pick them)
+alter table public.push_subscriptions drop constraint if exists push_subscriptions_pkey;
+alter table public.push_subscriptions add primary key (endpoint, profile_id);
+create or replace function public.push_link_token(p_id uuid, p_secret text, p_device text default null) returns text
+language plpgsql security definer set search_path = '' as $$
+declare v text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+begin
+  perform public.ss_auth(p_id, p_secret);
+  delete from public.push_link_tokens where expires_at < now();
+  insert into public.push_link_tokens(token, profile_id, device, expires_at) values (v, p_id, left(p_device, 64), now() + interval '30 minutes');
+  return v;
+end $$;
+create or replace function public.push_token_state(p_token text, p_endpoint text default null) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('handle', p.handle, 'name', p.name, 'avatar', p.avatar,
+    'on', exists (select 1 from public.push_subscriptions s where s.profile_id = p.id and s.endpoint = p_endpoint))
+  from public.push_link_tokens t join public.profiles p on p.id = t.profile_id
+  where t.token = p_token and t.expires_at > now();
+$$;
+create or replace function public.push_unsubscribe(p_token text, p_endpoint text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare pid uuid;
+begin
+  select profile_id into pid from public.push_link_tokens where token = p_token and expires_at > now();
+  if pid is null then raise exception 'link_expired'; end if;
+  delete from public.push_subscriptions where profile_id = pid and endpoint = p_endpoint;
+  return true;
+end $$;
+revoke all on function public.push_token_state(text, text), public.push_unsubscribe(text, text) from public;
+grant execute on function public.push_token_state(text, text), public.push_unsubscribe(text, text) to anon, authenticated;

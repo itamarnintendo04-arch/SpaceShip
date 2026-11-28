@@ -79,15 +79,16 @@ Deno.serve(async req => {
     if (path.endsWith('/key')) return json({ key: (await vapid()).public_key });
 
     if (path.endsWith('/subscribe') && req.method === 'POST') {
-      const { token, subscription, lang, ua } = await req.json();
+      const { token, subscription, lang, ua, welcome } = await req.json();
       const ep = String(subscription?.endpoint || ''), p256dh = subscription?.keys?.p256dh, auth = subscription?.keys?.auth;
       let host = ''; try { const u = new URL(ep); if (u.protocol === 'https:') host = u.hostname; } catch (_) { /* bad url */ }
       if (!host || !PUSH_HOSTS.some(r => r.test(host)) || !p256dh || !auth) return json({ error: 'bad_subscription' }, 400);
       const { data: tok } = await sb.from('push_link_tokens').select('profile_id, device, expires_at').eq('token', String(token || '')).maybeSingle();
       if (!tok || new Date(tok.expires_at) < new Date()) return json({ error: 'link_expired' }, 403);
-      const { error: upErr } = await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, device: tok.device || null, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint' });
+      const { error: upErr } = await sb.from('push_subscriptions').upsert({ endpoint: ep, profile_id: tok.profile_id, device: tok.device || null, p256dh, auth, lang: String(lang || 'en').slice(0, 5), ua: String(ua || '').slice(0, 200) }, { onConflict: 'endpoint,profile_id' });
       if (upErr) { console.error('subscribe save', upErr); return json({ error: 'save_failed', detail: upErr.message }, 500); }
-      // each device turns its own notifications on: the welcome test goes to this browser only
+      // each device turns its own notifications on: the welcome test goes to this browser only (once, when several accounts are added together)
+      if (welcome === false) return json({ ok: true, sent: 1, quiet: true });
       const r = await deliver([tok.profile_id], l => ({ title: tx(l, 'test_title'), body: tx(l, 'test_body'), url: SITE + '/open', tag: 'ss-test' }), tok.device || undefined);
       return json({ ok: true, ...r });
     }

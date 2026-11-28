@@ -1461,8 +1461,12 @@
   function openExternal(u) { if (NATIVE) window.open(u, '_system'); else window.open(u, '_blank'); }
   async function openSiteNotify() {
     if (!user || user.offline) return;
-    try { const tok = await Net.pushLinkToken(user, DEVICE); openExternal('https://' + SITE_HOST() + '/notify?t=' + encodeURIComponent(tok) + '&d=' + encodeURIComponent(DEVICE) + '&lang=' + I18N.lang); }
-    catch (e) { toast(errText(e)); }
+    // SpaceShip Alerts opens only from here (it proves the game is on this device), with a link for every account saved on it:
+    // the player picks there which accounts get notifications (the signed-in one comes first)
+    const accs = [user, ...savedAccounts().filter(a => a.id !== user.id)].slice(0, 6);
+    const toks = (await Promise.all(accs.map(a => Net.pushLinkToken(a, DEVICE).catch(() => null)))).filter(Boolean);
+    if (!toks.length) return toast(t('need_server'));
+    openExternal('https://' + SITE_HOST() + '/notify?t=' + toks.map(encodeURIComponent).join(',') + '&d=' + encodeURIComponent(DEVICE) + '&lang=' + I18N.lang);
   }
   // the site needs the same choices as the app: Friend notifications and muted parties
   function syncPushPrefs() {

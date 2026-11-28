@@ -23,6 +23,9 @@
   .nc ol { text-align: start; color: var(--muted); }
   .acct { display: flex; align-items: center; gap: 12px; text-align: start; padding: 12px; margin: 6px 0 4px; border-radius: 16px; background: rgba(34,211,238,.08); border: 1px solid var(--line2); }
   .acct .av { font-size: 30px; } .acct div { flex: 1; display: flex; flex-direction: column; } .acct small { color: var(--muted); } .acct span[dir] { color: var(--cyan); font-size: 14px; }
+  .acct { cursor: pointer; } .acct input { width: 22px; height: 22px; accent-color: #22d3ee; flex: none; }
+  .acct .on { font-size: 12px; font-weight: 800; color: #04121a; background: #4ade80; border-radius: 999px; padding: 2px 8px; }
+  #need h2 { margin: 8px 0 4px; }
   .linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
   .login input { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line2); background: rgba(5,2,26,.7); color: #fff; font-size: 16px; }
   .small { font-size: 13px; }
@@ -41,20 +44,23 @@
   <img src="/img/alerts-192.png" alt="" width="84" height="84">
   <h1 data-k="np_title">SpaceShip notifications</h1>
   <p class="sub" data-k="np_sub">Get a notification when a friend calls you to play, when your party chats or calls everyone in, even when the game is closed.</p>
-  <div class="acct" id="acct" hidden><span class="av" id="acct-av">🚀</span><div><small data-k="np_signed_as">Signed in as</small><b id="acct-name"></b><span id="acct-h" dir="ltr"></span></div>
-    <button class="linkbtn" id="acct-x" data-k="np_switch">Switch</button></div>
-  <form id="login" class="login" hidden>
-    <p class="sub" data-k="np_login_sub">Sign in to your SpaceShip account on this device: paste your login key or choose your .slk key file.</p>
-    <input id="key" type="password" dir="ltr" placeholder="SSK1.…" autocomplete="current-password" spellcheck="false">
-    <button class="btn primary" type="submit" data-k="np_login_btn">Sign in</button>
-    <label class="btn ghost"><span data-k="np_file">Choose key file (.slk)</span><input id="file" type="file" accept=".slk,.txt,text/plain" hidden></label>
-  </form>
+  <div id="need" hidden>
+    <h2 data-k="np_need_title">Turn on from the game</h2>
+    <p class="sub" data-k="np_need_sub">SpaceShip Alerts works only with the SpaceShip game on this device. Open SpaceShip → Settings → Notifications.</p>
+    <p class="st err" id="noapp" data-k="np_not_installed" hidden>SpaceShip isn't installed on this device.</p>
+    <a class="btn primary" id="openapp" href="/open" data-k="np_open_app">Open SpaceShip</a>
+    <a class="btn ghost" href="/" data-k="np_get_app">Get SpaceShip (free)</a>
+  </div>
+  <div id="pick" hidden>
+    <p class="sub" data-k="np_choose">Which accounts get notifications on this device?</p>
+    <div id="accts"></div>
+  </div>
   <div id="ios" hidden><p class="sub" data-k="np_ios">On iPhone, notifications from a website work after you add it to the Home Screen:</p>
     <ol><li data-k="np_ios1">Tap Share in Safari</li><li data-k="np_ios2">Choose “Add to Home Screen”</li><li data-k="np_ios3">Open SpaceShip from the new icon and tap the button again</li></ol></div>
-  <button class="btn primary" id="go" data-k="np_btn" hidden>Turn on notifications</button>
+  <button class="btn primary" id="go" data-k="np_save" hidden>Save</button>
   <p class="sub small" id="each" data-k="np_each" hidden>Every device turns its own notifications on.</p>
   <div class="st" id="st"></div>
-  <a class="btn ghost" id="back" href="/open" data-k="np_back">Back to the game</a>
+  <a class="btn ghost" id="back" href="/open" data-k="np_back" hidden>Back to the game</a>
 </div></main>
 <script src="/i18n.js"></script>
 <script>
@@ -72,6 +78,7 @@
     document.getElementById('lang-code').textContent = lang.toUpperCase();
     document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.lang === lang)); });
     if (window.__sayAgain) window.__sayAgain();
+    if (window.__reRender) window.__reRender();
   }
   var menu = document.getElementById('lang-menu'), lb = document.getElementById('lang');
   menu.innerHTML = LANGS.map(function (l) { return '<li><button type="button" data-lang="' + l.id + '" lang="' + l.id + '" dir="' + (l.rtl ? 'rtl' : 'ltr') + '">' + l.name + '</button></li>'; }).join('');
@@ -90,8 +97,6 @@
   var device = q.get('d') || store('ss_push_device');
   if (!device) { device = 'web-' + Math.random().toString(36).slice(2, 12); }
   store('ss_push_device', device);
-  var tok = q.get('t') || store('ss_push_t') || '';
-  if (q.get('t')) store('ss_push_t', tok);
   if (q.get('t') || q.get('d')) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   var lastSay = null;
   var say = function (k, cls) { lastSay = [k, cls]; st.textContent = k ? T(k) : ''; st.className = 'st ' + (cls || ''); };
@@ -100,49 +105,74 @@
   var standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
   var ok = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   var AV = { rocket: '🚀', ufo: '🛸', alien: '👽', robot: '🤖', star: '⭐', cat: '🐱', fox: '🦊', dragon: '🐉', ghost: '👻', crown: '👑' };
-  function showLogin() { document.getElementById('acct').hidden = true; document.getElementById('login').hidden = false; go.hidden = true; document.getElementById('each').hidden = true; }
-  function showAccount(me) {
-    document.getElementById('login').hidden = true; document.getElementById('acct').hidden = false;
-    document.getElementById('acct-name').textContent = me.name; document.getElementById('acct-h').textContent = '@' + me.handle;
-    document.getElementById('acct-av').textContent = AV[me.avatar] || '🚀';
-    go.hidden = false; document.getElementById('each').hidden = false;
+  // SpaceShip Alerts opens only from the game: the game's link carries one token per saved account (proof the game is on this device)
+  var tokens = (q.get('t') || store('ss_push_ts') || '').split(',').filter(Boolean);
+  if (q.get('t')) store('ss_push_ts', tokens.join(','));
+  var accts = [];   // [{ tok, handle, name, avatar, on, want }]
+  var endpoint = null;
+  function needApp() {
+    document.getElementById('need').hidden = false; document.getElementById('pick').hidden = true; go.hidden = true; document.getElementById('each').hidden = true;
+    // Android Chrome can tell whether the game is installed; then only the download button makes sense
+    if (navigator.getInstalledRelatedApps) navigator.getInstalledRelatedApps().then(function (apps) {
+      if (apps && !apps.length) { document.getElementById('noapp').hidden = false; document.getElementById('openapp').hidden = true; }
+    }).catch(function () {});
+  }
+  function render() {
+    document.getElementById('need').hidden = true; document.getElementById('pick').hidden = false; document.getElementById('back').hidden = false;
+    var box = document.getElementById('accts'); box.innerHTML = '';
+    accts.forEach(function (a, i) {
+      var l = document.createElement('label'); l.className = 'acct';
+      l.innerHTML = '<input type="checkbox"' + (a.want ? ' checked' : '') + ' data-i="' + i + '"><span class="av"></span><div><b></b><span dir="ltr"></span></div>' + (a.on ? '<span class="on"></span>' : '');
+      l.querySelector('.av').textContent = AV[a.avatar] || '🚀'; l.querySelector('b').textContent = a.name; l.querySelector('[dir]').textContent = '@' + a.handle;
+      if (a.on) l.querySelector('.on').textContent = T('np_on_badge', 'On');
+      box.appendChild(l);
+    });
+    go.hidden = false; go.disabled = false; document.getElementById('each').hidden = false;
     if (ios && !standalone) document.getElementById('ios').hidden = false;
     if (!ok) say(ios ? 'np_ios_short' : 'np_unsupported', 'err');
   }
-  function check() {
-    if (!tok) return showLogin();
-    rpc('push_whoami', { p_token: tok }).then(function (me) { if (me && me.handle) showAccount(me); else { tok = ''; store('ss_push_t', null); showLogin(); } })
-      .catch(function () { showLogin(); });
+  document.getElementById('accts').addEventListener('change', function (e) { var i = e.target.dataset.i; if (i != null) accts[+i].want = e.target.checked; });
+  window.__reRender = function () { if (accts.length) render(); };
+  async function currentEndpoint() {
+    try { if (!ok) return null; var reg = await navigator.serviceWorker.getRegistration('/'); var sub = reg && await reg.pushManager.getSubscription(); return sub ? sub.endpoint : null; } catch (e) { return null; }
   }
-  // sign in on this device with the login key (or the .slk file)
-  function signIn(text) {
-    var m = /SSK1\.([A-Za-z0-9_-]{20,})/.exec(String(text || '')); if (!m) return say('np_key_bad', 'err');
-    var k; try { var s = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; k = JSON.parse(decodeURIComponent(escape(atob(s)))); } catch (e) { return say('np_key_bad', 'err'); }
-    if (!k || !k.i || !k.s) return say('np_key_bad', 'err');
-    say('np_working');
-    rpc('push_link_token', { p_id: k.i, p_secret: k.s, p_device: device }).then(function (t) { tok = t; store('ss_push_t', t); say(''); check(); })
-      .catch(function () { say('np_key_bad', 'err'); });
+  async function check() {
+    if (!tokens.length) return needApp();
+    endpoint = await currentEndpoint();
+    var res = await Promise.all(tokens.map(function (tk) { return rpc('push_token_state', { p_token: tk, p_endpoint: endpoint }).catch(function () { return null; }); }));
+    accts = [];
+    res.forEach(function (r, i) { if (r && r.handle && !accts.some(function (a) { return a.handle === r.handle; })) accts.push({ tok: tokens[i], handle: r.handle, name: r.name, avatar: r.avatar, on: !!r.on }); });
+    if (!accts.length) { tokens = []; store('ss_push_ts', null); return needApp(); }   // the links from the game ran out: open it from the game again
+    var anyOn = accts.some(function (a) { return a.on; });
+    accts.forEach(function (a, i) { a.want = anyOn ? a.on : i === 0; });   // first time: the signed-in account is ticked
+    render();
   }
-  document.getElementById('login').onsubmit = function (e) { e.preventDefault(); signIn(document.getElementById('key').value); };
-  document.getElementById('file').onchange = function (e) { var f = e.target.files[0]; if (f) f.text().then(signIn); };
-  document.getElementById('acct-x').onclick = function () { tok = ''; store('ss_push_t', null); say(''); showLogin(); };
   check();
   var b64 = function (s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; };
   go.onclick = async function () {
-    if (!tok) return showLogin();
-    if (!ok) return say(ios ? 'np_ios_short' : 'np_unsupported', 'err');
+    if (!accts.length) return needApp();
+    var add = accts.filter(function (a) { return a.want && !a.on; }), drop = accts.filter(function (a) { return !a.want && a.on; });
+    if (add.length && !ok) return say(ios ? 'np_ios_short' : 'np_unsupported', 'err');
     go.disabled = true; say('np_working');
     try {
-      var perm = await Notification.requestPermission();
-      if (perm !== 'granted') { go.disabled = false; return say('np_denied', 'err'); }
-      var reg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
-      var key = (await (await fetch('/api/push/key')).json()).key;
-      var sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
-      var r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, subscription: sub.toJSON(), lang: notifLang || lang, ua: navigator.userAgent }) });
-      var d = await r.json();
-      if (!r.ok) { go.disabled = false; if (d.error === 'link_expired') { tok = ''; store('ss_push_t', null); showLogin(); } return say(d.error === 'link_expired' ? 'np_expired' : 'np_failed', 'err'); }
-      if (d.sent) { say('np_done', 'ok'); go.hidden = true; }
-      else { go.disabled = false; say('np_failed', 'err'); var e0 = d.errors && d.errors[0]; if (e0) st.textContent += ' (' + e0.code + ' ' + e0.host + ': ' + String(e0.why).slice(0, 80) + ')'; }
+      var sub = null;
+      if (add.length) {
+        var perm = await Notification.requestPermission();
+        if (perm !== 'granted') { go.disabled = false; return say('np_denied', 'err'); }
+        var reg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+        var key = (await (await fetch('/api/push/key')).json()).key;
+        sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
+        endpoint = sub.endpoint;
+      }
+      for (var i = 0; i < add.length; i++) {   // one welcome notification, not one per account
+        var r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: add[i].tok, subscription: sub.toJSON(), lang: notifLang || lang, ua: navigator.userAgent, welcome: i === 0 }) });
+        var d = await r.json();
+        if (!r.ok) { go.disabled = false; if (d.error === 'link_expired') { tokens = []; store('ss_push_ts', null); needApp(); return say('np_expired', 'err'); } return say('np_failed', 'err'); }
+        add[i].on = true;
+      }
+      for (var j = 0; j < drop.length; j++) { await rpc('push_unsubscribe', { p_token: drop[j].tok, p_endpoint: endpoint }); drop[j].on = false; }
+      render();
+      say(accts.some(function (a) { return a.on; }) ? 'np_saved' : 'np_all_off', 'ok');
     } catch (e) { console.warn(e); go.disabled = false; say('np_failed', 'err'); }
   };
 </script>
