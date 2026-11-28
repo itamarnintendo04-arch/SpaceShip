@@ -121,6 +121,18 @@ if (existsSync(plist)) {
   }
 }
 
+// ProMotion iPhones (120 Hz): without this key iOS keeps every app at 60 fps; with it the game can run as fast as the screen
+if (existsSync(plist)) {
+  let xml = readFileSync(plist, 'utf8');
+  if (!xml.includes('CADisableMinimumFrameDurationOnPhone')) {
+    const end = xml.lastIndexOf('</dict>');
+    if (end < 0) throw new Error('Info.plist: no closing </dict>');
+    xml = xml.slice(0, end) + '\t<key>CADisableMinimumFrameDurationOnPhone</key>\n\t<true/>\n' + xml.slice(end);
+    writeFileSync(plist, xml);
+    console.log('ios: high frame rate (120 Hz) allowed');
+  }
+}
+
 // Apple Passwords (iCloud Keychain) for the login key inside the iPhone app: the app must be linked to the
 // website with an Associated Domain. Set IOS_ASSOCIATED_DOMAIN (e.g. spaceship-game.vercel.app) in the build to turn it on;
 // the website then serves /.well-known/apple-app-site-association with your APPLE_TEAM_ID.
