@@ -32,6 +32,7 @@
 <body>
 <canvas id="stars" aria-hidden="true"></canvas>
 
+<div class="studio-bar"><a class="studio" href="/" aria-label="ItamaRos Games" dir="ltr"><svg viewBox="0 0 64 40" aria-hidden="true"><defs><linearGradient id="stg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs><path d="M8 24 A24 7 -14 0 1 56 16" fill="none" stroke="#fde047" stroke-width="2.4" stroke-linecap="round" opacity=".9"/><circle cx="32" cy="20" r="12" fill="url(#stg)"/><circle cx="28" cy="16" r="4" fill="#fff" opacity=".22"/><path d="M56 16 A24 7 -14 0 1 8 24" fill="none" stroke="#fde047" stroke-width="2.4" stroke-linecap="round" opacity=".9"/><path d="M52 9 l3 -5 l1 6 z" fill="#e0f2fe"/></svg><span><b>ItamaRos</b><small>GAMES</small></span></a></div>
 <header class="nav">
   <a class="brand" href="#top"><img src="/img/icon-256.png" alt="" width="34" height="34"><span>SpaceShip</span></a>
   <nav class="links">
@@ -215,10 +216,12 @@
 
 <footer class="foot">
   <img src="/img/icon-256.png" alt="" width="28" height="28">
-  <span>SpaceShip © <span id="yr"></span></span>
+  <span>SpaceShip</span><span id="yr" hidden></span>
   <a href="/support" data-k="support_link">Support</a>
   <a href="https://github.com/itamarnintendo04-arch/SpaceShip" target="_blank" rel="noopener">GitHub</a>
 </footer>
+<p class="copy">© <span class="yr"></span> ItamaRos Games · <span data-k="rights">All rights reserved.</span></p>
+
 
 <script src="/i18n.js"></script>
 <script src="/app.js"></script>

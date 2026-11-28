@@ -202,8 +202,9 @@
   })();
   function drawMenuShip() {
     const c = $('#m-ship'), x = c.getContext('2d');
-    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, 200, 200); x.translate(100, 95);
-    Art.drawShip(x, user ? user.data.skin : 'falcon', 55, performance.now() / 1000, 0.8);
+    // room all around the ship: big stickers, gallery pictures and auras must not be cut at the canvas edge
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.translate(c.width / 2, c.height * 0.47);
+    Art.drawShip(x, user ? user.data.skin : 'falcon', 52, performance.now() / 1000, 0.8);
   }
 
   // ---------- register ----------
@@ -491,7 +492,6 @@
     updateOnlineBadge();
   }
   $('#m-me').addEventListener('click', () => editProfile());
-  $('#m-studio').addEventListener('click', () => { if (window.Cutscene && !Cutscene.busy) Cutscene.studio(); });   // watch the ItamaRos Games logo again
   $('#m-local2').addEventListener('click', () => {
     const L = user.data.levels; let o = `<option value="endless">${t('endless')}</option>`;
     for (let n = 1; n <= LEVELS; n++) if (n === 1 || L[n - 1] > 0) o += `<option value="${n}">${t('level_n', { n })}${levelCfg(n).boss ? ' ' + t('boss_tag') : ''}</option>`;

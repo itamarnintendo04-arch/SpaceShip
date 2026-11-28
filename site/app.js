@@ -65,6 +65,7 @@
   document.addEventListener('click', () => openMenu(false));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openMenu(false); });
   $('yr').textContent = new Date().getFullYear();
+  document.querySelectorAll('.yr').forEach(e => { e.textContent = new Date().getFullYear(); });
   apply();
   fetch('/api/config').then((r) => (r.ok ? r.json() : null)).then((d) => { cfg = d || { files: {} }; links(); }).catch(() => { cfg = { files: {} }; links(); });
 
