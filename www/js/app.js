@@ -2404,9 +2404,10 @@
         ${spec.stickers.length ? `<div class="row wrap ws-mine">${spec.stickers.map((s, i) => `<span class="chip st-chip ${i === sel ? 'on' : ''}"><button data-sel="${i}">${i + 1}. ${s.k === 'text' ? esc(s.t || 'Aa') : s.k === 'img' ? '📷' : t('ws_st_' + s.k)}</button><button class="st-x" data-rm="${i}" aria-label="${esc(t('ws_remove'))}">✕</button></span>`).join('')}</div>` : ''}
         ${st ? `<div class="ws-edit">
           ${st.k === 'text' ? `<input class="input" id="ws-txt" maxlength="4" value="${esc(st.t || '')}" placeholder="${t('ws_text')}">` : ''}
-          <label>${t('ws_size')}<input type="range" min="4" max="50" data-p="s" value="${st.s}"></label>
+          <div class="ws-size"><span>${t('ws_size')}</span><div class="ws-size-row" dir="ltr"><button class="icon-btn" data-sz="-4">−</button><input type="range" min="4" max="50" data-p="s" value="${st.s}"><button class="icon-btn" data-sz="4">+</button></div></div>
+          <div class="row center ws-nudge" dir="ltr"><button class="icon-btn" data-mv="-1,0">◀</button><button class="icon-btn" data-mv="0,-1">▲</button><button class="icon-btn" data-mv="0,1">▼</button><button class="icon-btn" data-mv="1,0">▶</button></div>
           <label>${t('ws_rotate')}<input type="range" min="-180" max="180" data-p="r" value="${st.r}"></label>
-          <div class="row">${st.k === 'img' ? '' : `<input type="color" data-p="c" value="${st.c}">`}<span class="muted small">${t('ws_tap_hint')}</span><button class="btn small danger" id="ws-del">${Art.icon('x')}${t('ws_remove')}</button></div></div>` : `<p class="muted small">${t('ws_add_hint')}</p>`}`;
+          <div class="row">${st.k === 'img' ? '' : `<input type="color" data-p="c" value="${st.c}">`}<span class="muted small">${t('ws_drag_hint')}</span><button class="btn small danger" id="ws-del">${Art.icon('x')}${t('ws_remove')}</button></div></div>` : `<p class="muted small">${t('ws_add_hint')}</p>`}`;
     };
     const refresh = () => Art.addCustom(PREV, spec, name);
     const can = () => D.coins >= CUSTOM_PRICE.coins && (D.gems || 0) >= CUSTOM_PRICE.gems;
@@ -2438,11 +2439,36 @@
       m.querySelector('.ws-tabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x === b)); draw(); };
       m.querySelector('#ws-name').oninput = e => { name = e.target.value; };
       // tap the preview to move the chosen sticker there (ship units -50..50 = 140px half size)
+      // on the preview: tap a sticker to pick it, drag it to move it, pinch (or the mouse wheel) to make it bigger or smaller
+      const toShip = e => { const r = cv.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width * 440 - 220) / PS * 50, y: ((e.clientY - r.top) / r.height * 440 - PY) / PS * 50 }; };
+      const lim = v => Math.round(Math.max(-45, Math.min(45, v)));
+      const syncSliders = () => { const st = spec.stickers[sel]; if (!st) return; const sz = pane.querySelector('[data-p="s"]'); if (sz) sz.value = st.s; };
+      const ptrs = new Map(); let grab = null, pinch = null;
+      const goStickers = () => { if (tab !== 'stickers') { tab = 'stickers'; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x.dataset.tab === tab)); draw(); } };
       cv.addEventListener('pointerdown', e => {
-        const st = spec.stickers[sel]; if (!st) { tab = 'stickers'; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x.dataset.tab === tab)); return draw(); }
-        const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * 440 - 220, py = (e.clientY - r.top) / r.height * 440 - PY;
-        st.x = Math.round(Math.max(-45, Math.min(45, px / PS * 50))); st.y = Math.round(Math.max(-45, Math.min(45, py / PS * 50))); refresh();
+        e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+        ptrs.set(e.pointerId, toShip(e));
+        if (ptrs.size === 2) {   // a second finger: pinch to resize the chosen sticker
+          const st = spec.stickers[sel]; if (!st) return;
+          const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: st.s }; grab = null; return;
+        }
+        const q = toShip(e);
+        // the sticker under the finger (the mirrored copy counts too); otherwise the chosen one jumps here
+        let hit = -1, best = 1e9;
+        spec.stickers.forEach((st, i) => { for (const sx of spec.mirror ? [st.x, -st.x] : [st.x]) { const d = Math.hypot(q.x - sx, q.y - st.y); if (d < Math.max(8, st.s * 0.6) && d < best) { best = d; hit = i; } } });
+        if (hit >= 0) { if (hit !== sel) { sel = hit; goStickers(); draw(); } const st = spec.stickers[sel]; const mx = spec.mirror && Math.abs(q.x + st.x) < Math.abs(q.x - st.x) ? -1 : 1; grab = { dx: q.x - st.x * mx, dy: q.y - st.y, mx }; return; }
+        const st = spec.stickers[sel]; if (!st) { goStickers(); return; }
+        st.x = lim(q.x); st.y = lim(q.y); grab = { dx: 0, dy: 0, mx: 1 }; refresh();
       });
+      cv.addEventListener('pointermove', e => {
+        if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, toShip(e));
+        const st = spec.stickers[sel]; if (!st) return;
+        if (pinch && ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; st.s = Math.round(Math.max(4, Math.min(50, pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d))); syncSliders(); refresh(); return; }
+        if (grab) { const q = toShip(e); st.x = lim((q.x - grab.dx) * grab.mx); st.y = lim(q.y - grab.dy); refresh(); }
+      });
+      const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) grab = null; };
+      cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+      cv.addEventListener('wheel', e => { const st = spec.stickers[sel]; if (!st) return; e.preventDefault(); st.s = Math.max(4, Math.min(50, st.s + (e.deltaY < 0 ? 2 : -2))); syncSliders(); refresh(); }, { passive: false });
       // a picture from the gallery becomes a sticker (made small on the phone first: up to 128 px)
       pane.addEventListener('change', async e => {
         if (e.target.id !== 'ws-file' || !e.target.files || !e.target.files[0]) return;
@@ -2470,6 +2496,8 @@
         else if (b.dataset.add) { spec.stickers.push({ k: b.dataset.add, x: 0, y: 0, s: b.dataset.add === 'stripe' ? 24 : 14, r: 0, c: '#ffffff', t: b.dataset.add === 'text' ? 'GG' : undefined }); sel = spec.stickers.length - 1; }
         else if (b.dataset.sel) sel = +b.dataset.sel;
         else if (b.id === 'ws-del') { spec.stickers.splice(sel, 1); sel = Math.min(sel, spec.stickers.length - 1); }
+        else if (b.dataset.sz && spec.stickers[sel]) { const st = spec.stickers[sel]; st.s = Math.max(4, Math.min(50, st.s + +b.dataset.sz)); syncSliders(); refresh(); return; }
+        else if (b.dataset.mv && spec.stickers[sel]) { const st = spec.stickers[sel], [dx, dy] = b.dataset.mv.split(',').map(Number); st.x = lim(st.x + dx * 3); st.y = lim(st.y + dy * 3); refresh(); return; }
         else if (b.dataset.rm) { const i = +b.dataset.rm; spec.stickers.splice(i, 1); if (sel >= i) sel = Math.max(spec.stickers.length ? 0 : -1, sel - 1); }
         else if (b.id === 'ws-gal') { pane.querySelector('#ws-file').click(); return; }
         else return;
