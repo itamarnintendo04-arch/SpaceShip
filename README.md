@@ -182,6 +182,13 @@ Two players on one computer (WASD + arrows, or two gamepads). Mouse, keyboard an
 
 The iOS build is **unsigned**. For a signed iPhone download, sign it yourself and put the link in the website's `IOS_DOWNLOAD_URL` (below).
 
+## Private development version (SpaceShip Dev)
+For trying out updates before players get them. A commit whose message contains **`[dev]`** (or Actions → *Build SpaceShip Dev (private)* → *Run workflow*) builds **SpaceShip Dev** for iPhone (`.github/workflows/dev.yml`) and **no public release**:
+- its own app id `com.spaceship.game.dev` and name *SpaceShip Dev*, with an orange **DEV** ribbon on the icon (`scripts/dev-icon.py`), so it installs **next to** the regular game; same server and accounts;
+- it goes to a **draft release** `dev-N` (`SpaceShip-Dev-iOS-unsigned.ipa`, install with Sideloadly / AltStore). Drafts are visible only to the repository's owner and collaborators, not to the public, not on the website;
+- `window.SS_DEV = true` there: features in testing check it and turn on only in the development version. Shipping a feature to everyone = removing its `SS_DEV` check.
+- In testing now: the **loading screen with a picture** (the 9:16 poster, a random tip at the top in the player's language, the loading bar at the bottom) instead of the mini level.
+
 ## Website
 
 **Google (free):** the site has a search title and description, share cards (Open Graph, `img/og.jpg`), `VideoGame` structured data, `robots.txt` and `sitemap.xml`; helper pages (`/notify`, `/open`, `/gift`, `/club`) are kept out of search. To ask Google to index it: Google Search Console → *Add property* → *URL prefix* `https://spaceship-site.vercel.app/` → verify with the *HTML tag* (paste it in `site/index.html` where the comment says) → *Sitemaps* → `sitemap.xml`.

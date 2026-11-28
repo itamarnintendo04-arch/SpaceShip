@@ -1,0 +1,62 @@
+name: Build SpaceShip Dev (private)
+
+# The private development version: "SpaceShip Dev" for iPhone, with its own app id (com.spaceship.game.dev) so it installs
+# next to the regular game, a DEV ribbon on the icon and window.SS_DEV = true (features in testing turn on only there).
+# It goes to a DRAFT release (dev-N): drafts are visible only to the repository's owner and collaborators, not to the
+# public and not on the website. Start it with [dev] in a commit message, or by hand: Actions -> Build SpaceShip Dev -> Run workflow.
+# A push with [dev] does NOT make a public release (build.yml skips it).
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['site/**', 'supabase/**', '**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-dev
+  cancel-in-progress: true
+
+jobs:
+  ios-dev:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[dev]')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run vendor
+      - name: Mark as the development version
+        run: |
+          echo "window.SS_VERSION = 'dev-${{ github.run_number }}'; window.SS_DEV = true; window.SS_DOMAIN = '${{ vars.IOS_ASSOCIATED_DOMAIN || 'spaceship-site.vercel.app' }}';" > www/js/version.js
+          node -e "const f='capacitor.config.json',c=JSON.parse(require('fs').readFileSync(f));c.appId='com.spaceship.game.dev';c.appName='SpaceShip Dev';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
+          python3 scripts/dev-icon.py
+      - run: npx cap add ios && node scripts/patch-native.mjs
+      - run: npx capacitor-assets generate --ios --iconBackgroundColor '#05021a' --splashBackgroundColor '#05021a'
+      - run: npx cap sync ios
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios-build \
+            MARKETING_VERSION=0.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir Payload
+          cp -R ios-build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr SpaceShip-Dev-iOS-unsigned.ipa Payload
+      - name: Private draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ github.run_number }}
+          name: SpaceShip Dev ${{ github.run_number }} (private)
+          target_commitish: ${{ github.sha }}
+          draft: true
+          prerelease: true
+          make_latest: false
+          files: SpaceShip-Dev-iOS-unsigned.ipa
+          body: |
+            **SpaceShip Dev** (private development version, ${{ github.sha }})
+            Installs next to the regular SpaceShip (app id `com.spaceship.game.dev`). Same server and accounts.
+            `SpaceShip-Dev-iOS-unsigned.ipa`: install with Sideloadly / AltStore.

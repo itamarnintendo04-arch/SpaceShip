@@ -28,6 +28,8 @@ env:
 
 jobs:
   release:
+    # a commit with [dev] builds only the private development version (dev.yml), not a public release
+    if: ${{ !contains(github.event.head_commit.message || '', '[dev]') }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}

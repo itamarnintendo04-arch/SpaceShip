@@ -2742,7 +2742,11 @@
     let ready = false;
     const fill = p => { $('#ld-fill').style.width = p + '%'; };
     $('#ld-text').textContent = t('ld_hint'); fill(10);
-    setTimeout(() => {
+    // development version (SpaceShip Dev): the 9:16 picture with a random tip instead of the mini level
+    const art = !!window.SS_DEV;
+    $('#s-loading').classList.toggle('ld-pic', art); $('#ld-art').classList.toggle('hidden', !art);
+    if (art) { const n = 1 + Math.floor(Math.random() * 9); $('#ld-tip-t').textContent = '💡 ' + t('ld_tip_t'); $('#ld-tip').textContent = t('ld_tip' + n); $('#ld-text').textContent = ''; }
+    if (!art) setTimeout(() => {
       if (current !== 'loading') return;
       const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
       loadingGame = new Game($('#ld-canvas'), {

@@ -16,6 +16,9 @@
   <!-- Loading: a mini level to play while the game connects -->
   <section id="s-loading" class="screen game">
     <canvas id="ld-canvas"></canvas>
+    <!-- development version: a 9:16 picture with a tip at the top and the loading bar at the bottom (instead of the mini level) -->
+    <div class="ld-art hidden" id="ld-art"><img class="ld-blur" src="img/loading-9x16.jpg" alt=""><img class="ld-main" src="img/loading-9x16.jpg" alt="">
+      <div class="ld-tip"><b id="ld-tip-t"></b><span id="ld-tip"></span></div></div>
     <div class="ld-ui">
       <h1 class="title">SpaceShip</h1>
       <div class="ld-bar"><i id="ld-fill"></i></div>
