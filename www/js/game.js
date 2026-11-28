@@ -336,7 +336,8 @@
       this.shake = Math.max(0, this.shake - dt * 30);
       for (const L of this.stars) for (const s of L) { s.y += s.v * dt * (this.boss ? 0.5 : 1); if (s.y > 1) { s.y -= 1; s.x = Math.random(); } }
       this.keyMove(dt);
-      // local ship follows target smoothly
+      // every ship glides to its target: the local one follows the finger, the others follow what the network says
+      for (const me of this.players) if (!me.local && !me.gone) { const k = Math.min(1, dt * 14); me.x += (me.tx - me.x) * k; me.y += (me.ty - me.y) * k; }
       for (const me of this.players) if (me.local) {
         me.x += (me.tx - me.x) * Math.min(1, dt * 18); me.y += (me.ty - me.y) * Math.min(1, dt * 18);
         if (this.hd && me.alive && Math.random() < 0.7) this.parts.push({ x: me.x + rnd(-4, 4), y: me.y + 26, vx: rnd(-15, 15), vy: rnd(120, 200), life: 0.35, max: 0.35, sz: rnd(2, 4), c: (Art.SHIPS.find(q => q.id === me.skin) || Art.SHIPS[0]).glow });
@@ -450,7 +451,7 @@
       if (this.over) { this.endT -= dt; if (this.endT <= 0 && !this.ended) { this.ended = true; this.o.onEnd(this.result); } }
 
       // co-op sync (host)
-      if (this.coop) { this.netT -= dt; if (this.netT <= 0) { this.netT = 1 / 12; this.sendState(); } }
+      if (this.coop) { this.netT -= dt; if (this.netT <= 0) { this.netT = 1 / 15; this.sendState(); } }
     }
 
     // ----- entities -----
@@ -676,7 +677,8 @@
       this.coop.room.send('st', st);
     }
     onNet(ev, p) {
-      if (ev === 'in' && !this.isGuest) { const g = this.players.find(q => q.id === p.id && !q.local); if (g) { g.tx = g.x = clamp(p.x, 0, W); g.ty = g.y = clamp(p.y, 0, this.H); } }
+      if (ev === 'in' && !this.isGuest) { const g = this.players.find(q => q.id === p.id && !q.local); if (g) { g.tx = clamp(p.x, 0, W); g.ty = clamp(p.y, 0, this.H); g.gone = false;
+        if (Math.abs(g.tx - g.x) + Math.abs(g.ty - g.y) > 400) { g.x = g.tx; g.y = g.ty; } } }
       else if (ev === 'st' && this.isGuest) this.applyState(p);
     }
     applyState(st) {
@@ -695,7 +697,7 @@
         const p = this.players[i]; if (!p) return;
         if (p.lives > a[0] || p.shield > a[1]) { this.shake = 8; if (p.local) Sfx.hit(); }
         p.lives = a[0]; p.shield = a[1]; p.inv = a[2]; p.alive = !!a[3]; p.rapid = a[6]; p.triple = a[7];
-        if (!p.local) { p.x = a[4]; p.y = a[5]; }
+        if (!p.local) { p.tx = a[4]; p.ty = a[5]; if (Math.abs(p.tx - p.x) + Math.abs(p.ty - p.y) > 400) { p.x = p.tx; p.y = p.ty; } }
       });
       if (st.c > this.coins) Sfx.coin();
       this.score = st.s; this.coins = st.c; this.kills = st.kl; this.cfg.goal = st.g; this.cfg.n = st.n; this.cfg.hue = st.hue;
@@ -709,7 +711,7 @@
       for (const b of this.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; }
       for (const p of this.players) if (p.alive && !this.over) { p.fireCd -= dt; if (p.local && p.fireCd <= 0) { Sfx.shoot(); p.fireCd = 0.17; } }
       this.netT -= dt;
-      if (this.netT <= 0) { this.netT = 1 / 15; this.coop.room.send('in', { id: this.me.id, x: Math.round(this.me.x), y: Math.round(this.me.y) }); }
+      if (this.netT <= 0) { this.netT = 1 / 20; this.coop.room.send('in', { id: this.me.id, x: Math.round(this.me.x), y: Math.round(this.me.y) }); }
     }
 
     // ----- drawing -----
@@ -973,5 +975,5 @@
   }
   function roundRect(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
 
-  window.SSGame = { GALAXIES, Game, Sfx, levelCfg, WORLDS };
+  window.SSGame = { GALAXIES, Game, Sfx, levelCfg, WORLDS, drawShot };
 })();

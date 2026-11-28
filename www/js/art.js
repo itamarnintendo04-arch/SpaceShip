@@ -46,7 +46,7 @@
   //   { "path": "<SVG path data>", "fill": "#fff", "stroke": "#000", "width": 2, "x": 0, "y": 0, "scale": 1, "rotate": 0, "alpha": 1 }
   //   { "circle": [cx, cy, r], ... }   { "rect": [x, y, w, h, radius], ... }   { "text": "GG", "size": 14, "font": "bold", ... }
   // Only drawing: nothing in it can run code in the game.
-  const designCache = new Map();
+  const designCache = new Map(), imgCache = new Map();
   function drawDesign(ctx, layers, s) {
     if (!Array.isArray(layers)) return;
     const k = s / 50;
@@ -65,6 +65,9 @@
       if (shape) {
         if (L.fill) { ctx.fillStyle = String(L.fill); ctx.fill(shape); }
         if (L.stroke) { ctx.strokeStyle = String(L.stroke); ctx.lineWidth = +L.width || 1; ctx.lineJoin = 'round'; ctx.stroke(shape); }
+      } else if (typeof L.img === 'string' && /^data:image\/(png|webp|jpeg);base64,/.test(L.img)) {   // a picture from the player's gallery
+        let im = imgCache.get(L.img); if (!im) { im = new Image(); im.src = L.img; imgCache.set(L.img, im); }
+        if (im.complete && im.naturalWidth) { const q = 20 / Math.max(im.naturalWidth, im.naturalHeight), w = im.naturalWidth * q, h = im.naturalHeight * q; ctx.drawImage(im, -w / 2, -h / 2, w, h); }
       } else if (typeof L.text === 'string') {
         ctx.font = `${L.font === 'bold' ? '900 ' : ''}${+L.size || 12}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         if (L.stroke) { ctx.strokeStyle = String(L.stroke); ctx.lineWidth = +L.width || 1; ctx.strokeText(L.text.slice(0, 12), 0, 0); }
@@ -301,6 +304,7 @@
   const CUSTOM_GUN = { rate: 1.7, dmg: 3.2, side: 3 };   // every built ship shoots as hard; only the look of the shot changes
   function stickerLayers(st, flip) {
     const sc = (+st.s || 12) / 20, x = (flip ? -1 : 1) * (+st.x || 0), r = (flip ? -1 : 1) * (+st.r || 0);
+    if (st.k === 'img') return st.d ? [{ img: st.d, x, y: +st.y || 0, rotate: r, scale: sc, flip: !!flip }] : [];
     if (st.k === 'text') return st.t ? [{ text: String(st.t).slice(0, 4), size: +st.s || 12, font: 'bold', fill: st.c, stroke: 'rgba(0,0,0,.45)', width: 1.5, x, y: +st.y || 0, rotate: r }] : [];
     return (STICKERS[st.k] || []).map(L => {
       const o = Object.assign({}, L, { x, y: +st.y || 0, rotate: r, scale: sc, flip: flip && st.k === 'wing' });

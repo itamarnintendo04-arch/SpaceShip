@@ -1655,29 +1655,46 @@
   function openRoom(code, role) {
     if (user.offline) return toast(t('need_server'));
     if (room) leaveRoom(true);
-    let foundHost = false, joinedAt = Date.now();
+    let foundHost = false, joinedAt = Date.now(), hostGoneT = null;
+    const leftT = {};   // someone who vanished from the room: wait a moment, they may only be updating their info or reconnecting
+    const hostHere = () => room && room.members.some(m => m.role === 'host');
+    // the host is really gone only if it stays missing for a few seconds (a presence update shows it leaving and coming back)
+    const checkHost = () => {
+      if (role !== 'guest' || !room || hostGoneT) return;
+      hostGoneT = setTimeout(() => {
+        hostGoneT = null; if (!room || room.code !== code || hostHere()) return;
+        if (game) endGameAbrupt(t('host_left')); else { toast(t('host_left')); leaveRoom(); }
+      }, 6000);
+    };
     room = Net.room(code, role, Object.assign(meInfo(), { ready: false, joined: joinedAt }), {
       onSync: members => {
         const others = members.filter(m => m.id !== user.id), host = members.find(m => m.role === 'host');
         if (role === 'guest') {
-          if (host) foundHost = true;
+          if (host) { foundHost = true; clearTimeout(hostGoneT); hostGoneT = null; }
           if (others.length >= ROOM_MAX && !members.some(m => m.id === user.id && m.joined === joinedAt)) { toast(t('room_full')); leaveRoom(); return; }
-          if (foundHost && !host && !game) { toast(t('host_left')); leaveRoom(); return; }
+          if (foundHost && !host) checkHost();
         }
+        Object.keys(leftT).forEach(id => { if (members.some(m => m.id === id)) { clearTimeout(leftT[id]); delete leftT[id]; } });
         if (current === 'coop') renderLobby();
       },
-      onJoin: m => { if (m.id !== user.id) { Sfx.init(); Sfx.power(); toast(t('in_room', { h: at(m.handle) })); } },
+      onJoin: m => { if (m.id === user.id) return; if (leftT[m.id]) { clearTimeout(leftT[m.id]); delete leftT[m.id]; return; } Sfx.init(); Sfx.power(); toast(t('in_room', { h: at(m.handle) })); },
       onLeave: id => {
         if (!room) return;
-        const wasHost = role === 'guest' && !room.members.some(m => m.role === 'host');
-        if (game) { if (wasHost) endGameAbrupt(t('host_left')); else game.dropPlayer(id); }
-        else if (wasHost) { toast(t('host_left')); leaveRoom(); return; }
-        else toast(t('friend_left_room'));
-        if (current === 'coop') renderLobby();
+        if (role === 'guest' && !hostHere()) return checkHost();
+        clearTimeout(leftT[id]);
+        leftT[id] = setTimeout(() => {
+          delete leftT[id]; if (!room || room.members.some(m => m.id === id)) return;
+          if (game) game.dropPlayer(id); else toast(t('friend_left_room'));
+          if (current === 'coop') renderLobby();
+        }, 5000);
       },
       onMessage: (ev, p) => {
         if (ev === 'start' && role === 'guest') startGame({ mode: p.mode, level: p.level, world: p.world || 1, secret: p.secret, H: p.H, coop: { room, role: 'guest' }, roster: p.roster });
         else if (ev === 'end' && role === 'guest' && game) { const r = p; setTimeout(() => game && onGameEnd(r), 200); }
+        else if (ev === 'bye' && p && p.id) {   // a player pressed Leave: no need to wait
+          if (p.host && role === 'guest') { clearTimeout(hostGoneT); hostGoneT = null; if (game) endGameAbrupt(t('host_left')); else { toast(t('host_left')); leaveRoom(); } }
+          else if (game) game.dropPlayer(p.id); else { toast(t('friend_left_room')); if (current === 'coop') renderLobby(); }
+        }
         else if (game) game.onNet(ev, p);
       },
       onError: () => toast(t('room_conn')),
@@ -1689,7 +1706,7 @@
     if (current !== 'coop') show('coop'); else renderCoop();
   }
   function leaveRoom(quiet) {
-    if (room) { room.send('bye', {}); room.leave(); }
+    if (room) { room.send('bye', { id: user.id, host: room.role === 'host' }); room.leave(); }
     room = null; Net.setLobbyMeta({ room: null });
     if (!quiet && current === 'coop') renderCoop();
   }
@@ -2316,6 +2333,21 @@
   const randHex = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
   const newSpec = () => ({ shape: 'arrow', body: '#e0f2fe', accent: '#7c3aed', glow: '#22d3ee', aura: 'pulse', fx: null, gun: 'laser', mirror: true, stickers: [{ k: 'star', x: 0, y: 18, s: 14, r: 0, c: '#fde047' }] });
 
+  function shrinkImage(file, max) {
+    return new Promise((res, rej) => {
+      if (!/^image\//.test(file.type)) return rej(new Error('type'));
+      const url = URL.createObjectURL(file), im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, max / Math.max(im.width, im.height)), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k));
+        const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); URL.revokeObjectURL(url);
+        let d = c.toDataURL('image/webp', 0.8); if (!/^data:image\/webp/.test(d)) d = c.toDataURL('image/png');
+        if (d.length > 80000) d = c.toDataURL('image/jpeg', 0.7);
+        d.length > 80000 ? rej(new Error('big')) : res(d);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad')); };
+      im.src = url;
+    });
+  }
   function workshop() {
     if (!user || user.offline) return toast(t('ws_online'));
     const D = user.data;
@@ -2344,6 +2376,7 @@
     const D = user.data, orig = id && Art.SHIPS.find(s => s.id === id);
     const spec = JSON.parse(JSON.stringify(orig ? orig.spec : newSpec()));
     let name = orig ? orig.name : t('ws_default_name'), sel = spec.stickers.length ? 0 : -1, tab = 'shape', raf = 0;
+    const PY = 280, PS = 118;   // where the ship sits in the preview, and its half size (the shots fly above it)
     const PREV = '__ws';
     const chips = (arr, cur, attr, label) => arr.map(v => `<button class="chip ${cur === v ? 'on' : ''}" data-${attr}="${v ?? ''}">${label(v)}</button>`).join('');
     const shapeImgs = {}; Art.CUSTOM_SHAPES.forEach(sh => { Art.addCustom(PREV, Object.assign({}, spec, { shape: sh, stickers: [], aura: null, fx: null })); shapeImgs[sh] = Art.shipPreview(PREV, 64); });
@@ -2365,13 +2398,15 @@
         <div class="lbl">✨ ${t('rare_title')}</div><div class="ws-stk rare-row">${Art.RARE_STICKERS.map(k => ownedRare().includes(k)
           ? `<button class="look-it rare-on" data-add="${k}" ${spec.stickers.length >= 10 ? 'disabled' : ''}>${stIcon(k)}</button>`
           : `<button class="look-it locked" disabled title="${esc(t('rare_locked'))}">🔒</button>`).join('')}</div>
+        <div class="row wrap center"><button class="btn small" id="ws-gal" ${spec.stickers.length >= 10 || spec.stickers.filter(q => q.k === 'img').length >= 2 ? 'disabled' : ''}>📷 ${t('ws_gallery')}</button>
+          <input type="file" id="ws-file" accept="image/*" hidden></div>
         <label class="ws-check"><input type="checkbox" id="ws-mirror" ${spec.mirror ? 'checked' : ''}> ${t('ws_mirror')}</label>
-        ${spec.stickers.length ? `<div class="row wrap ws-mine">${spec.stickers.map((s, i) => `<button class="chip ${i === sel ? 'on' : ''}" data-sel="${i}">${i + 1}. ${s.k === 'text' ? esc(s.t || 'Aa') : t('ws_st_' + s.k)}</button>`).join('')}</div>` : ''}
+        ${spec.stickers.length ? `<div class="row wrap ws-mine">${spec.stickers.map((s, i) => `<span class="chip st-chip ${i === sel ? 'on' : ''}"><button data-sel="${i}">${i + 1}. ${s.k === 'text' ? esc(s.t || 'Aa') : s.k === 'img' ? '📷' : t('ws_st_' + s.k)}</button><button class="st-x" data-rm="${i}" aria-label="${esc(t('ws_remove'))}">✕</button></span>`).join('')}</div>` : ''}
         ${st ? `<div class="ws-edit">
           ${st.k === 'text' ? `<input class="input" id="ws-txt" maxlength="4" value="${esc(st.t || '')}" placeholder="${t('ws_text')}">` : ''}
-          <label>${t('ws_size')}<input type="range" min="4" max="40" data-p="s" value="${st.s}"></label>
+          <label>${t('ws_size')}<input type="range" min="4" max="50" data-p="s" value="${st.s}"></label>
           <label>${t('ws_rotate')}<input type="range" min="-180" max="180" data-p="r" value="${st.r}"></label>
-          <div class="row"><input type="color" data-p="c" value="${st.c}"><span class="muted small">${t('ws_tap_hint')}</span><button class="btn small" id="ws-del">${Art.icon('x')}${t('ws_remove')}</button></div></div>` : `<p class="muted small">${t('ws_add_hint')}</p>`}`;
+          <div class="row">${st.k === 'img' ? '' : `<input type="color" data-p="c" value="${st.c}">`}<span class="muted small">${t('ws_tap_hint')}</span><button class="btn small danger" id="ws-del">${Art.icon('x')}${t('ws_remove')}</button></div></div>` : `<p class="muted small">${t('ws_add_hint')}</p>`}`;
     };
     const refresh = () => Art.addCustom(PREV, spec, name);
     const can = () => D.coins >= CUSTOM_PRICE.coins && (D.gems || 0) >= CUSTOM_PRICE.gems;
@@ -2388,8 +2423,14 @@
       refresh();
       const loop = () => {
         if (!document.body.contains(cv)) return cancelAnimationFrame(raf);
-        cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, 440, 440); cx.translate(220, 210);
-        Art.drawShip(cx, PREV, 140, performance.now() / 1000, 0.8); raf = requestAnimationFrame(loop);
+        const now = performance.now() / 1000, k = Art.SHIPS.find(q => q.id === PREV);
+        cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, 440, 440); cx.translate(220, PY);
+        // the shots, as they look in the game (three streams, like a built ship fires)
+        if (k && window.SSGame && SSGame.drawShot) { cx.save(); cx.scale(2.4, 2.4); cx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 4; i++) { const a = (now * 1.6 + i / 4) % 1, y = -PS / 2.4 - 6 - a * 95;
+            for (const [dx, va] of [[0, 0], [-12, -0.3], [12, 0.3]]) { const yy = dx ? y + 6 : y; SSGame.drawShot(cx, { x: dx + Math.sin(va) * a * 60, y: yy, vx: Math.sin(va) * 820, vy: -Math.cos(va) * 820 }, k, now, true); } }
+          cx.restore(); }
+        Art.drawShip(cx, PREV, PS, now, 0.8); raf = requestAnimationFrame(loop);
       };
       loop();
       const draw = () => { pane.innerHTML = paneHtml(); icons(pane); };
@@ -2399,8 +2440,16 @@
       // tap the preview to move the chosen sticker there (ship units -50..50 = 140px half size)
       cv.addEventListener('pointerdown', e => {
         const st = spec.stickers[sel]; if (!st) { tab = 'stickers'; m.querySelectorAll('.ws-tabs .chip').forEach(x => x.classList.toggle('on', x.dataset.tab === tab)); return draw(); }
-        const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * 440 - 220, py = (e.clientY - r.top) / r.height * 440 - 210;
-        st.x = Math.round(Math.max(-45, Math.min(45, px / 140 * 50))); st.y = Math.round(Math.max(-45, Math.min(45, py / 140 * 50))); refresh();
+        const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * 440 - 220, py = (e.clientY - r.top) / r.height * 440 - PY;
+        st.x = Math.round(Math.max(-45, Math.min(45, px / PS * 50))); st.y = Math.round(Math.max(-45, Math.min(45, py / PS * 50))); refresh();
+      });
+      // a picture from the gallery becomes a sticker (made small on the phone first: up to 128 px)
+      pane.addEventListener('change', async e => {
+        if (e.target.id !== 'ws-file' || !e.target.files || !e.target.files[0]) return;
+        try {
+          const d = await shrinkImage(e.target.files[0], 128);
+          spec.stickers.push({ k: 'img', d, x: 0, y: 0, s: 30, r: 0, c: '#ffffff' }); sel = spec.stickers.length - 1; refresh(); draw();
+        } catch (err) { toast(t('ws_img_bad')); }
       });
       pane.addEventListener('input', e => {
         const el = e.target, st = spec.stickers[sel];
@@ -2421,6 +2470,8 @@
         else if (b.dataset.add) { spec.stickers.push({ k: b.dataset.add, x: 0, y: 0, s: b.dataset.add === 'stripe' ? 24 : 14, r: 0, c: '#ffffff', t: b.dataset.add === 'text' ? 'GG' : undefined }); sel = spec.stickers.length - 1; }
         else if (b.dataset.sel) sel = +b.dataset.sel;
         else if (b.id === 'ws-del') { spec.stickers.splice(sel, 1); sel = Math.min(sel, spec.stickers.length - 1); }
+        else if (b.dataset.rm) { const i = +b.dataset.rm; spec.stickers.splice(i, 1); if (sel >= i) sel = Math.max(spec.stickers.length ? 0 : -1, sel - 1); }
+        else if (b.id === 'ws-gal') { pane.querySelector('#ws-file').click(); return; }
         else return;
         refresh(); draw();
       });

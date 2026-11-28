@@ -25,7 +25,7 @@ $$;
 
 create or replace function public.ss_custom_clean(p jsonb) returns jsonb
 language plpgsql immutable set search_path = '' as $$
-declare out_st jsonb := '[]'::jsonb; st jsonb; k text; col text; n integer := 0;
+declare out_st jsonb := '[]'::jsonb; st jsonb; k text; col text; n integer := 0; nimg integer := 0; img text;
   hex constant text := '^#[0-9a-fA-F]{6}$';
 begin
   if p is null or jsonb_typeof(p) <> 'object' then p := '{}'::jsonb; end if;
@@ -34,16 +34,24 @@ begin
       exit when n >= 10;
       continue when jsonb_typeof(st) <> 'object';
       k := st->>'k';
-      continue when k is null or not (k = any (array['star','heart','bolt','dot','ring','stripe','play','diamond','flame','skull','wing','text'] || public.ss_rare_stickers()));
+      continue when k is null or not (k = any (array['star','heart','bolt','dot','ring','stripe','play','diamond','flame','skull','wing','text','img'] || public.ss_rare_stickers()));
+      -- a picture from the player's gallery: only a small png/webp/jpeg image, at most 2 per ship
+      img := null;
+      if k = 'img' then
+        img := st->>'d';
+        continue when nimg >= 2 or img is null or length(img) > 80000 or img !~ '^data:image/(png|webp|jpeg);base64,[A-Za-z0-9+/]+=*$';
+        nimg := nimg + 1;
+      end if;
       col := coalesce(st->>'c', '#ffffff'); if col !~ hex then col := '#ffffff'; end if;
       out_st := out_st || jsonb_build_object(
         'k', k,
         'x', greatest(-45, least(45, coalesce(case when jsonb_typeof(st->'x') = 'number' then (st->>'x')::numeric end, 0))),
         'y', greatest(-45, least(45, coalesce(case when jsonb_typeof(st->'y') = 'number' then (st->>'y')::numeric end, 0))),
-        's', greatest(4, least(40, coalesce(case when jsonb_typeof(st->'s') = 'number' then (st->>'s')::numeric end, 12))),
+        's', greatest(4, least(50, coalesce(case when jsonb_typeof(st->'s') = 'number' then (st->>'s')::numeric end, 12))),
         'r', greatest(-180, least(180, coalesce(case when jsonb_typeof(st->'r') = 'number' then (st->>'r')::numeric end, 0))),
         'c', col,
-        't', case when k = 'text' then left(regexp_replace(coalesce(st->>'t', ''), '[<>&"\\]', '', 'g'), 4) else null end);
+        't', case when k = 'text' then left(regexp_replace(coalesce(st->>'t', ''), '[<>&"\\]', '', 'g'), 4) else null end,
+        'd', img);
       n := n + 1;
     end loop;
   end if;

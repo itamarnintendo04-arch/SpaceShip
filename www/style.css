@@ -513,3 +513,8 @@ html[dir="ltr"] [data-back] .ic { transform: scaleX(-1); }
 .arena-prize { display: inline-flex; gap: 6px; align-items: center; font-weight: 900; font-size: 18px; color: #fde047; }
 .arena-prize .ic, .arena-won .ic { width: 18px; height: 18px; }
 .arena-won { color: #fde047; display: flex; gap: 6px; align-items: center; justify-content: center; }
+/* Workshop: sticker chips with a remove button */
+.st-chip { padding: 0; gap: 0; overflow: hidden; }
+.st-chip button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 6px 10px; }
+.st-chip .st-x { padding: 6px 10px; border-inline-start: 1.5px solid rgba(255,255,255,.18); color: #fda4af; font-weight: 900; }
+.st-chip.on .st-x { color: #7f1d1d; border-color: rgba(4,18,26,.25); }
