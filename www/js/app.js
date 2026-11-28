@@ -2134,7 +2134,12 @@
     welcomeGift();
   }
   const worldName = id => { const w = WORLDS.find(x => x.id === id); return w ? t(w.id + '_name') : id; };
-  const rewardHtml = r => (r.world ? `<span class="rw rw-world">${Art.icon('secret')} ${worldName(r.world)}</span>` : '') + (r.ship ? `<span class="rw rw-ship"><img src="${Art.shipPreview(r.ship, 120)}" alt="">${t('ship_' + r.ship)}</span>` : '')
+  // a coupon can give several ships (ships) and a designed ship (design before claiming, custom after)
+  const rewardShips = r => [...new Set([r.ship, ...(Array.isArray(r.ships) ? r.ships : [])].filter(Boolean))];
+  const designHtml = r => { const d = r.custom || r.design; if (!d || !d.spec) return '';
+    const id = r.custom ? r.custom.id : '__gift_' + r.code; Art.addCustom(id, d.spec, d.name);
+    return `<span class="rw rw-ship"><img src="${Art.shipPreview(id, 120)}" alt="">${esc(d.name || '')}</span>`; };
+  const rewardHtml = r => (r.world ? `<span class="rw rw-world">${Art.icon('secret')} ${worldName(r.world)}</span>` : '') + rewardShips(r).map(id => `<span class="rw rw-ship"><img src="${Art.shipPreview(id, 120)}" alt="">${t('ship_' + id)}</span>`).join('') + designHtml(r)
     + (r.coins ? `<span class="rw">${coinHtml(r.coins)}</span>` : '') + (r.gems ? `<span class="rw gemc">${gemHtml(r.gems)}</span>` : '');
   const worldOfGift = g => { const m = /^WORLD([2-4])$/i.exec(g.code || ''); return m ? +m[1] : 0; };
   const giftNote = g => worldOfGift(g) ? `${galIcons[worldOfGift(g) - 1]} ${t('world_gift', { w: t('gal_' + worldOfGift(g)) })}` : g.note ? esc(g.note) : '';
@@ -2142,9 +2147,14 @@
       <button class="btn small primary" data-claim="${esc(g.code)}">${t('claim')}</button></div>`).join('') : `<p class="muted center">${t('no_gifts')}</p>`;
   function grant(r) {
     const D = user.data; D.coins += Number(r.coins) || 0; D.gems = (D.gems || 0) + (Number(r.gems) || 0);
-    const giveShip = () => { if (r.ship && Art.SHIPS.some(s => s.id === r.ship) && !D.ships.includes(r.ship)) { D.ships.push(r.ship); D.skin = r.ship; save(); shipAnim(r.ship); if (current === 'menu') renderMenu(); return true; } };
+    const ids = rewardShips(r);
+    // the designed ship: the server made a copy for this player
+    if (r.custom && r.custom.id) { registerCustom([r.custom]); if (!D.ships.includes(r.custom.id)) D.ships.push(r.custom.id); ids.push(r.custom.id); }
+    const giveShip = () => { let last = null;
+      ids.forEach(id => { if (Art.SHIPS.some(s => s.id === id) && !D.ships.includes(id)) D.ships.push(id); if (D.ships.includes(id)) last = id; });
+      if (last) { D.skin = last; save(); shipAnim(last); if (current === 'menu') renderMenu(); return true; } };
     // a ship added on the server after the app loaded its ship list: load the list again, then give it
-    if (r.ship && !Art.SHIPS.some(s => s.id === r.ship)) loadCatalog().then(giveShip); else giveShip();
+    if (ids.some(id => !Art.SHIPS.some(s => s.id === id))) loadCatalog().then(giveShip); else giveShip();
     D.worlds = D.worlds || []; if (r.world && WORLDS.some(w => w.id === r.world) && !D.worlds.includes(r.world)) D.worlds.push(r.world);
     Sfx.init(); Sfx.coin(); save();
     document.querySelectorAll('[data-coins]').forEach(e => { e.innerHTML = walletHtml(D); });
@@ -2253,7 +2263,7 @@
       <h2>${title ? esc(title) : welcome ? t('welcome_gift_title') : wg ? `${galIcons[wg - 1]} ${t('world_gift', { w: t('gal_' + wg) })}` : t('coupon_win_title')}</h2>
       ${welcome || wg ? '' : `<div class="cele-code" dir="ltr">${esc(r.code)}</div>`}
       <p>${t('coupon_win_body')}</p>
-      <div class="welcome-rw cele-rw">${rewardHtml(r)}</div>
+      <div class="welcome-rw cele-rw">${rewardHtml(r)}</div>${r.note && !welcome && !wg ? `<p class="muted small" dir="auto">${esc(r.note)}</p>` : ''}
       <button class="btn primary big" id="ce-ok">${t('coupon_win_ok')}</button>`, m => { m.querySelector('#ce-ok').onclick = closeModal; });
   }
   function couponBox() {

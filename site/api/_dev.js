@@ -33,4 +33,16 @@ async function admin(req) {
 }
 const origin = req => 'https://' + (req.headers['x-forwarded-host'] || req.headers.host);
 const configured = () => !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
-module.exports = { REPO, COOKIE, seal, open, cookies, setCookie, gh, admin, origin, configured };
+// the game's database, for the coupon maker: functions that only work with the /dev key
+const SB_URL = 'https://unpzeskbzovolyqsqzna.supabase.co', SB_KEY = 'sb_publishable_iuaATuSyhRd65ZjNdx3Opg_w1KxQdQc';
+const devKey = () => process.env.SS_DEV_KEY || crypto.createHmac('sha256', process.env.GITHUB_CLIENT_SECRET || '').update('ss-dev-db-key').digest('base64url');
+async function rpc(fn, args) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ p_key: devKey() }, args || {})) });
+  const d = await r.json().catch(() => null);
+  if (!r.ok) { const e = new Error((d && d.message) || 'db_error'); e.status = r.status; throw e; }
+  return d;
+}
+const readBody = req => new Promise(ok => { if (req.body !== undefined) return ok(typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body);
+  let b = ''; req.on('data', c => { b += c; if (b.length > 200000) req.destroy(); }); req.on('end', () => { try { ok(JSON.parse(b || '{}')); } catch (e) { ok({}); } }); });
+module.exports = { REPO, COOKIE, seal, open, cookies, setCookie, gh, admin, origin, configured, rpc, devKey, readBody };

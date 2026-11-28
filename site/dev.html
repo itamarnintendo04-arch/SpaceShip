@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="/style.css">
 <style>
   .dv { min-height: 100vh; display: flex; justify-content: center; padding: 40px 16px; }
-  .dc { width: min(680px, 100%); }
+  .dc { width: min(760px, 100%); }
   .dh { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
   .dh img { width: 64px; height: 64px; border-radius: 16px; }
   .dh h1 { margin: 0; font-size: 28px; } .dh .tag { background: #ea580c; color: #fff; font-weight: 900; font-size: 12px; padding: 3px 9px; border-radius: 999px; margin-inline-start: 8px; vertical-align: middle; }
@@ -20,14 +20,60 @@
   .gh svg { width: 22px; height: 22px; fill: #fff; }
   .me { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 14px; color: var(--muted); }
   .me img { width: 30px; height: 30px; border-radius: 50%; vertical-align: middle; margin-inline-end: 8px; }
-  .build { padding: 16px; border-radius: 18px; background: rgba(15,11,48,.7); border: 1px solid var(--line2, rgba(46,40,112,.8)); margin-bottom: 10px; }
+  .build, .cp, .card2 { padding: 16px; border-radius: 18px; background: rgba(15,11,48,.7); border: 1px solid var(--line2, rgba(46,40,112,.8)); margin-bottom: 10px; }
   .build.new { border-color: #ea580c; }
   .build h3 { margin: 0 0 4px; display: flex; gap: 8px; align-items: center; } .build small { color: var(--dim); }
   .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .files a { padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(167,139,250,.45); color: #fff; text-decoration: none; font-weight: 700; font-size: 14px; background: rgba(5,2,26,.5); }
   .files a small { color: var(--dim); font-weight: 500; margin-inline-start: 6px; }
-  .err { color: #fb7185; font-weight: 700; }
+  .err { color: #fb7185; font-weight: 700; } .ok { color: #4ade80; font-weight: 700; }
   [hidden] { display: none !important; }
+  /* tabs */
+  .tabs2 { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tabs2 button { flex: 1; padding: 11px; border-radius: 14px; border: 1px solid var(--line2); background: rgba(15,11,48,.7); color: var(--muted); font: inherit; font-weight: 800; cursor: pointer; }
+  .tabs2 button.on { background: linear-gradient(135deg, #7c3aed, #ea580c); color: #fff; border-color: transparent; }
+  /* coupon maker */
+  .card2 h2 { margin: 0 0 12px; font-size: 20px; } .card2 h3 { margin: 16px 0 8px; font-size: 15px; color: var(--muted); }
+  .row2 { display: flex; gap: 10px; flex-wrap: wrap; } .row2 > label { flex: 1 1 150px; }
+  label.f { display: block; font-size: 13px; color: var(--dim); font-weight: 700; }
+  .f input, .f textarea, .f select, .in { width: 100%; margin-top: 5px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); background: rgba(5,2,26,.6); color: #fff; font: inherit; font-size: 15px; box-sizing: border-box; }
+  .f textarea { min-height: 70px; resize: vertical; }
+  .hint { font-size: 12px; color: var(--dim); margin-top: 4px; }
+  .ships { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; max-height: 330px; overflow: auto; padding: 2px; }
+  .sh { border: 2px solid transparent; border-radius: 14px; background: rgba(5,2,26,.55); padding: 6px 4px; text-align: center; cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 700; }
+  .sh img { width: 60px; height: 60px; display: block; margin: 0 auto 2px; }
+  .sh.on { border-color: #fde047; color: #fff; background: rgba(253,224,71,.12); }
+  .chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip2 { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line2); background: rgba(5,2,26,.55); color: var(--muted); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+  .chip2.on { background: #7c3aed; border-color: #a78bfa; color: #fff; }
+  .chip2 img { width: 18px; height: 18px; vertical-align: middle; margin-inline-end: 4px; }
+  .acc { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .acc label { display: block; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line2); background: rgba(5,2,26,.55); cursor: pointer; }
+  .acc label:has(input:checked) { border-color: #fde047; background: rgba(253,224,71,.1); }
+  .acc b { display: block; } .acc small { color: var(--dim); font-size: 12px; } .acc input { display: none; }
+  .go { width: 100%; margin-top: 16px; padding: 14px; border-radius: 16px; border: 0; background: linear-gradient(135deg, #7c3aed, #ea580c); color: #fff; font: inherit; font-size: 17px; font-weight: 900; cursor: pointer; }
+  .go:disabled { opacity: .5; }
+  .sm { padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line2); background: rgba(124,58,237,.35); color: #fff; font: inherit; font-weight: 800; cursor: pointer; font-size: 13px; }
+  .sm.red { background: rgba(244,63,94,.25); }
+  /* designer */
+  .des { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 620px) { .des { grid-template-columns: 1fr; } }
+  .prev { position: sticky; top: 10px; text-align: center; border-radius: 18px; background: radial-gradient(circle, #1e1b4b, #05021a 70%); padding: 10px; }
+  .prev img { width: 180px; height: 180px; }
+  .stk { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 10px; border-radius: 14px; background: rgba(5,2,26,.5); margin-bottom: 8px; font-size: 12px; color: var(--dim); }
+  .stk .top { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
+  .stk input[type=range] { width: 100%; }
+  /* coupon list */
+  .cp > h3 { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: ui-monospace, monospace; }
+  .badge2 { font-family: system-ui, sans-serif; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #334155; color: #fff; }
+  .badge2.code { background: #2563eb; } .badge2.gift { background: #16a34a; } .badge2.players { background: #9333ea; } .badge2.off { background: #475569; }
+  .rw2 { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: center; }
+  .rw2 span { padding: 4px 10px; border-radius: 999px; background: rgba(5,2,26,.6); font-weight: 800; font-size: 13px; }
+  .rw2 img { width: 34px; height: 34px; }
+  .cp .note { color: var(--muted); font-size: 14px; white-space: pre-wrap; margin: 4px 0; }
+  .cp .meta { color: var(--dim); font-size: 12px; }
+  .edit { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line2); }
+  .search { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -40,31 +86,63 @@
   </div>
   <div id="list" hidden>
     <div class="me"><span id="me"></span><a href="/api/dev/logout" id="out" style="color:var(--muted)"></a></div>
-    <div id="builds"></div>
+    <div class="tabs2"><button data-tab="builds" class="on" id="tb-builds"></button><button data-tab="coupons" id="tb-coupons"></button></div>
+    <div id="pane-builds"><div id="builds"></div></div>
+    <div id="pane-coupons" hidden>
+      <div class="card2" id="maker"></div>
+      <h2 id="all-t" style="margin:22px 0 10px"></h2>
+      <input class="in search" id="cp-search">
+      <div id="cps"></div>
+    </div>
   </div>
 </div></main>
+<script src="/js/art.js"></script>
+<script src="/js/ship-names.js"></script>
 <script>
-  // the admin page for SpaceShip Dev (private development builds); English or Hebrew, like the rest of the site
+  // the admin page for SpaceShip Dev: private development builds, and the coupon maker. English or Hebrew, like the rest of the site
   var he = /^he/.test((localStorage.getItem('ss_site_lang') || navigator.language || ''));
   var T = he ? {
-    sub: 'גרסת הפיתוח הפרטית · רק למנהלי הריפו', gate: 'כדי להוריד את גרסת הפיתוח צריך להתחבר עם חשבון GitHub שמוגדר כמנהל (Admin) בריפו של SpaceShip.',
+    sub: 'גרסת הפיתוח הפרטית · רק למנהלי הריפו', gate: 'כדי להיכנס לאזור הפיתוח צריך להתחבר עם חשבון GitHub שמוגדר כמנהל (Admin) בריפו של SpaceShip.',
     gh: 'התחברות עם GitHub', denied: 'לחשבון {x} אין הרשאת מנהל בריפו.', error: 'ההתחברות נכשלה, נסו שוב.', setup: 'ההתחברות עם GitHub עוד לא הוגדרה באתר (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET ב-Vercel).',
-    me: 'מחובר כ-{x}', out: 'התנתקות', none: 'אין עדיין גרסאות פיתוח.', newest: 'החדשה', loading: 'טוען…'
+    me: 'מחובר כ-{x}', out: 'התנתקות', none: 'אין עדיין גרסאות פיתוח.', newest: 'החדשה', loading: 'טוען…',
+    t_builds: '📦 גרסאות פיתוח', t_coupons: '🎁 קופונים', maker: 'קופון חדש', all: 'כל הקופונים', search: 'חיפוש קופון או שחקן…',
+    code: 'קוד', random: 'אקראי', coins: 'מטבעות', gems: 'יהלומים', amt_hint: 'אפשר לכתוב 5K, 2M, 1B, 1T', note: 'הודעה לשחקן (לא חובה)', max: 'מספר מימושים (ריק = בלי הגבלה)',
+    ships: 'חלליות קיימות', ships_hint: 'אפשר לבחור כמה שרוצים', picked: 'נבחרו: {n}', design: 'עיצוב חללית חדשה', design_on: 'להוסיף חללית בעיצוב שלי', design_hint: 'כל שחקן שמממש מקבל עותק משלו של החללית.',
+    d_name: 'שם החללית', shape: 'צורה', c_body: 'גוף', c_accent: 'צבע משני', c_glow: 'זוהר', aura: 'הילה', fx: 'אפקט', gun: 'סוג ירייה', mirror: 'מראה (סטיקרים בשני הצדדים)', none_o: 'בלי',
+    stickers: 'סטיקרים (עד 10)', add_st: '+ סטיקר', st_text: 'טקסט', x: 'ימינה/שמאלה', y: 'למעלה/למטה', size: 'גודל', rot: 'סיבוב', del: 'מחיקה',
+    access: 'סוג הרשאה', a_code: 'כל מי שיודע את הקוד', a_code_d: 'מקלידים את הקוד במשחק', a_gift: 'מתנה לכולם', a_gift_d: 'מופיע לכל השחקנים בקודים ומתנות', a_players: 'רק שחקנים שבחרתי', a_players_d: 'רק להם, עם ההודעה', a_off: 'כבוי', a_off_d: 'אף אחד לא יכול לממש',
+    players: 'שחקנים שמקבלים', players_hint: 'השחקנים שנבחרו רואים אותו בקודים ומתנות שלהם, בכל סוג הרשאה.', p_search: 'חיפוש שחקן…',
+    create: 'יצירת קופון', creating: 'יוצר…', created: 'הקופון {x} נוצר! ✓', save: 'שמירה', saved: 'נשמר ✓', edit_t: 'אפשר לשנות רק את סוג ההרשאה ואת השחקנים',
+    uses: 'מומש {n} פעמים', of: 'מתוך {n}', by: 'מימשו: {x}', made: 'נוצר {x}', no_cp: 'אין קופונים.', empty: 'הקופון ריק: צריך לתת לפחות משהו אחד',
+    e_bad_code: 'קוד לא תקין: 2-32 תווים, אותיות באנגלית, מספרים, - או _', e_code_taken: 'הקוד הזה כבר קיים', e_no_player: 'אין שחקן כזה: {x}', e_bad_amount: 'כמות לא תקינה', e_dev_denied: 'השרת עוד לא מכיר את המפתח של האתר (צריך לפתוח את /api/dev/claim פעם אחת)', e_other: 'שגיאה: {x}'
   } : {
-    sub: 'The private development version · repository admins only', gate: 'To download the development version, sign in with a GitHub account that is an Admin of the SpaceShip repository.',
+    sub: 'The private development area · repository admins only', gate: 'To enter the development area, sign in with a GitHub account that is an Admin of the SpaceShip repository.',
     gh: 'Sign in with GitHub', denied: 'The account {x} is not an admin of the repository.', error: 'Sign-in failed, please try again.', setup: 'GitHub sign-in is not set up on the website yet (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET in Vercel).',
-    me: 'Signed in as {x}', out: 'Sign out', none: 'No development builds yet.', newest: 'newest', loading: 'Loading…'
+    me: 'Signed in as {x}', out: 'Sign out', none: 'No development builds yet.', newest: 'newest', loading: 'Loading…',
+    t_builds: '📦 Dev builds', t_coupons: '🎁 Coupons', maker: 'New coupon', all: 'All coupons', search: 'Search a coupon or a player…',
+    code: 'Code', random: 'Random', coins: 'Coins', gems: 'Diamonds', amt_hint: 'You can write 5K, 2M, 1B, 1T', note: 'Message to the player (optional)', max: 'Number of uses (empty = no limit)',
+    ships: 'Existing ships', ships_hint: 'Pick as many as you like', picked: 'Picked: {n}', design: 'Design a new ship', design_on: 'Add a ship I design', design_hint: 'Every player who redeems it gets their own copy of the ship.',
+    d_name: 'Ship name', shape: 'Shape', c_body: 'Body', c_accent: 'Accent', c_glow: 'Glow', aura: 'Aura', fx: 'Effect', gun: 'Shot', mirror: 'Mirror (stickers on both sides)', none_o: 'None',
+    stickers: 'Stickers (up to 10)', add_st: '+ Sticker', st_text: 'Text', x: 'Left/right', y: 'Up/down', size: 'Size', rot: 'Rotate', del: 'Remove',
+    access: 'Access', a_code: 'Anyone with the code', a_code_d: 'They type the code in the game', a_gift: 'A gift for everyone', a_gift_d: 'Shows up for every player in Codes & gifts', a_players: 'Only players I choose', a_players_d: 'Only them, with the message', a_off: 'Off', a_off_d: 'Nobody can redeem it',
+    players: 'Players who get it', players_hint: 'The chosen players see it in their Codes & gifts, whatever the access.', p_search: 'Search a player…',
+    create: 'Create coupon', creating: 'Creating…', created: 'Coupon {x} created! ✓', save: 'Save', saved: 'Saved ✓', edit_t: 'Only the access and the players can change',
+    uses: 'Redeemed {n} times', of: 'of {n}', by: 'Redeemed by: {x}', made: 'Created {x}', no_cp: 'No coupons.', empty: 'The coupon is empty: give at least one thing',
+    e_bad_code: 'Bad code: 2-32 characters, English letters, numbers, - or _', e_code_taken: 'This code already exists', e_no_player: 'No such player: {x}', e_bad_amount: 'Bad amount', e_dev_denied: 'The database does not know the website key yet (open /api/dev/claim once)', e_other: 'Error: {x}'
   };
   if (he) { document.documentElement.lang = 'he'; document.documentElement.dir = 'rtl'; }
   var $ = function (id) { return document.getElementById(id); };
-  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var tr = function (k, o) { var s = T[k] || k; for (var x in o || {}) s = s.split('{' + x + '}').join(o[x]); return s; };
   $('sub').textContent = T.sub; $('gate-t').textContent = T.gate; $('gh-t').textContent = T.gh; $('out').textContent = T.out;
+  $('tb-builds').textContent = T.t_builds; $('tb-coupons').textContent = T.t_coupons; $('all-t').textContent = T.all; $('cp-search').placeholder = T.search;
   var q = new URLSearchParams(location.search);
   function gate(msg) { $('gate').hidden = false; $('list').hidden = true; if (msg) { $('gate-err').hidden = false; $('gate-err').textContent = msg; } }
   if (q.get('denied') != null) gate(T.denied.replace('{x}', '@' + q.get('denied')));
   else if (q.get('error')) gate(T.error);
   else if (q.get('setup')) gate(T.setup);
-  if (location.search) history.replaceState(null, '', '/dev');
+  var startTab = location.pathname.indexOf('/coupons') > 0 || location.hash === '#coupons' ? 'coupons' : 'builds';
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash);
   var KIND = [[/\.ipa$/i, 'iPhone'], [/\.apk$/i, 'Android'], [/setup.*\.exe$/i, 'Windows'], [/portable.*\.exe$/i, 'Windows Portable'], [/\.dmg$/i, 'macOS'], [/\.appimage$/i, 'Linux']];
   var kind = function (n) { for (var i = 0; i < KIND.length; i++) if (KIND[i][0].test(n)) return KIND[i][1]; return n; };
   var mb = function (b) { return (b / 1048576).toFixed(b > 1e8 ? 0 : 1) + ' MB'; };
@@ -79,7 +157,200 @@
         '<small>' + new Date(b.at).toLocaleString(he ? 'he' : 'en') + '</small><div class="files">' +
         b.files.map(function (f) { return '<a href="/api/dev/download?id=' + f.id + '">' + esc(kind(f.name)) + ' <small>' + mb(f.size) + '</small></a>'; }).join('') + '</div></div>';
     }).join('') : '<p>' + T.none + '</p>';
+    tab(startTab);
   }).catch(function () { gate(T.error); });
+
+  // ---------- tabs ----------
+  var couponsLoaded = false;
+  function tab(t) {
+    document.querySelectorAll('.tabs2 button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+    $('pane-builds').hidden = t !== 'builds'; $('pane-coupons').hidden = t !== 'coupons';
+    history.replaceState(null, '', t === 'coupons' ? '/dev#coupons' : '/dev');
+    if (t === 'coupons' && !couponsLoaded) { couponsLoaded = true; loadShips().then(loadCoupons); }
+  }
+  document.querySelectorAll('.tabs2 button').forEach(function (b) { b.onclick = function () { tab(b.dataset.tab); }; });
+
+  // ---------- ships: the game's own drawing, plus the shop's ships from the server ----------
+  var SB = 'https://unpzeskbzovolyqsqzna.supabase.co', SBK = 'sb_publishable_iuaATuSyhRd65ZjNdx3Opg_w1KxQdQc', names = {};
+  function shipName(id) { var n = names[id] || (window.SHIP_NAMES || {})[id]; return n ? (he && n.he) || n.en || id : id.charAt(0).toUpperCase() + id.slice(1); }
+  function loadShips() {
+    return fetch(SB + '/rest/v1/rpc/shop_catalog', { method: 'POST', headers: { apikey: SBK, Authorization: 'Bearer ' + SBK, 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function (r) { return r.json(); }).then(function (cat) {
+        var order = {};
+        (cat && cat.ships || []).forEach(function (r) {
+          order[r.id] = r.sort;
+          var s = Art.SHIPS.find(function (x) { return x.id === r.id; }); if (!s) { s = { id: r.id }; Art.SHIPS.push(s); }
+          Object.assign(s, { shape: r.shape, body: r.body, accent: r.accent, glow: r.glow, aura: r.aura || undefined, fx: r.fx || undefined,
+            gun: { rate: +r.gun.rate, dmg: +r.gun.dmg, side: +r.gun.side, style: r.gun.style } });
+          if (Array.isArray(r.design) && r.design.length) s.design = r.design;
+          if (r.name && Object.keys(r.name).length) names[r.id] = r.name;
+        });
+        Art.SHIPS.sort(function (a, b) { return (order[a.id] != null ? order[a.id] : 1e6) - (order[b.id] != null ? order[b.id] : 1e6); });
+      }).catch(function () {}).then(drawMaker);
+  }
+  var shipList = function () { return Art.SHIPS.filter(function (s) { return !s.custom && s.id.indexOf('__') !== 0; }); };
+  var imgCache = {};
+  function shipImg(id, px) { var k = id + ':' + (px || 72); if (!imgCache[k]) { try { imgCache[k] = Art.shipPreview(id, px || 72); } catch (e) { imgCache[k] = ''; } } return imgCache[k]; }
+
+  // ---------- amounts: 5K, 2M, 1B, 1T ----------
+  function parseAmt(v) {
+    var m = /^\s*([\d.,]+)\s*([kmbt]?)\s*$/i.exec(String(v || '0')); if (!m) return NaN;
+    var n = parseFloat(m[1].replace(/,/g, '')); return Math.round(n * ({ '': 1, k: 1e3, m: 1e6, b: 1e9, t: 1e12 })[m[2].toLowerCase()]);
+  }
+  function fmt(n) { n = Number(n) || 0; if (Math.abs(n) < 1e6) return n.toLocaleString(); try { return new Intl.NumberFormat(he ? 'he' : 'en', { notation: 'compact', maximumFractionDigits: 1 }).format(n); } catch (e) { return String(n); } }
+
+  // ---------- the coupon maker ----------
+  var players = [], coupons = [];
+  var form = { ships: [], players: [], access: 'code', designOn: false, pq: '' };
+  var spec = { shape: 'arrow', body: '#d7e3ff', accent: '#3b82f6', glow: '#60a5fa', aura: null, fx: null, gun: 'laser', mirror: true, stickers: [] };
+  var ACCESS = ['code', 'gift', 'players', 'off'];
+  function opts(list, cur, label) { return list.map(function (v) { return '<option value="' + (v == null ? '' : v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v == null ? T.none_o : label ? label(v) : v) + '</option>'; }).join(''); }
+  function playerChips(sel, query, attr) {
+    var ql = (query || '').toLowerCase().replace(/^@/, '');
+    return players.filter(function (p) { return !ql || p.handle.toLowerCase().indexOf(ql) >= 0 || String(p.name || '').toLowerCase().indexOf(ql) >= 0 || sel.indexOf(p.handle) >= 0; })
+      .map(function (p) { return '<button type="button" class="chip2' + (sel.indexOf(p.handle) >= 0 ? ' on' : '') + '" ' + attr + '="' + esc(p.handle) + '">' + esc(p.name) + ' <span style="opacity:.7" dir="ltr">@' + esc(p.handle) + '</span></button>'; }).join('');
+  }
+  function accessBoxes(name, cur) {
+    return '<div class="acc">' + ACCESS.map(function (a) { return '<label><input type="radio" name="' + name + '" value="' + a + '"' + (a === cur ? ' checked' : '') + '><b>' + T['a_' + a] + '</b><small>' + T['a_' + a + '_d'] + '</small></label>'; }).join('') + '</div>';
+  }
+  function designPreview() { Art.addCustom('__dev', spec, $('d-name') ? $('d-name').value : ''); try { return Art.shipPreview('__dev', 180); } catch (e) { return ''; } }
+  function stickerRow(st, i) {
+    var kinds = Art.STICKER_KINDS.concat(Art.RARE_STICKERS || []);
+    if (kinds.indexOf('text') < 0) kinds.push('text');
+    var rng = function (k, min, max, label) { return '<label>' + label + '<input type="range" min="' + min + '" max="' + max + '" value="' + (+st[k] || 0) + '" data-st="' + i + '" data-k="' + k + '"></label>'; };
+    return '<div class="stk"><div class="top"><select class="in" style="margin:0;flex:1" data-st="' + i + '" data-k="k">' + opts(kinds, st.k, function (v) { return v === 'text' ? T.st_text : v; }) + '</select>' +
+      '<input type="color" value="' + st.c + '" data-st="' + i + '" data-k="c">' +
+      (st.k === 'text' ? '<input class="in" style="margin:0;width:70px" maxlength="4" value="' + esc(st.t || '') + '" data-st="' + i + '" data-k="t">' : '') +
+      '<button type="button" class="sm red" data-stdel="' + i + '">' + T.del + '</button></div>' +
+      rng('x', -45, 45, T.x) + rng('y', -45, 45, T.y) + rng('s', 4, 40, T.size) + rng('r', -180, 180, T.rot) + '</div>';
+  }
+  function drawMaker() {
+    var el = $('maker');
+    el.innerHTML = '<h2>✨ ' + T.maker + '</h2>' +
+      '<div class="row2"><label class="f">' + T.code + '<div style="display:flex;gap:6px"><input id="m-code" maxlength="32" dir="ltr" autocapitalize="characters" style="text-transform:uppercase"><button type="button" class="sm" id="m-rand" style="margin-top:5px">' + T.random + '</button></div></label>' +
+      '<label class="f">' + T.max + '<input id="m-max" type="number" min="1" dir="ltr"></label></div>' +
+      '<div class="row2" style="margin-top:10px"><label class="f">🪙 ' + T.coins + '<input id="m-coins" dir="ltr" placeholder="0"></label><label class="f">💎 ' + T.gems + '<input id="m-gems" dir="ltr" placeholder="0"></label></div>' +
+      '<div class="hint" id="m-amt">' + T.amt_hint + '</div>' +
+      '<label class="f" style="margin-top:10px">' + T.note + '<textarea id="m-note" maxlength="300" dir="auto"></textarea></label>' +
+      '<h3>🚀 ' + T.ships + ' <small id="m-picked" style="font-weight:500"></small></h3><div class="hint" style="margin:-4px 0 8px">' + T.ships_hint + '</div>' +
+      '<div class="ships" id="m-ships">' + shipList().map(function (s) { return '<div class="sh" data-ship="' + esc(s.id) + '"><img src="' + shipImg(s.id) + '" alt="">' + esc(shipName(s.id)) + '</div>'; }).join('') + '</div>' +
+      '<h3>🎨 ' + T.design + '</h3><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="m-des-on"> ' + T.design_on + '</label><div class="hint">' + T.design_hint + '</div>' +
+      '<div id="m-des" hidden style="margin-top:10px"></div>' +
+      '<h3>🔐 ' + T.access + '</h3>' + accessBoxes('m-access', form.access) +
+      '<h3>👥 ' + T.players + '</h3><div class="hint" style="margin:-4px 0 8px">' + T.players_hint + '</div>' +
+      '<input class="in search" id="m-psearch" placeholder="' + esc(T.p_search) + '"><div class="chips2" id="m-players"></div>' +
+      '<button class="go" id="m-go">🎁 ' + T.create + '</button><p id="m-st" style="text-align:center"></p>';
+    var amt = function () { var c = parseAmt($('m-coins').value), g = parseAmt($('m-gems').value); $('m-amt').textContent = (isNaN(c) || isNaN(g)) ? T.e_bad_amount : ('🪙 ' + c.toLocaleString() + ' · 💎 ' + g.toLocaleString()); $('m-amt').className = 'hint' + ((isNaN(c) || isNaN(g)) ? ' err' : ''); };
+    $('m-coins').oninput = amt; $('m-gems').oninput = amt;
+    $('m-rand').onclick = function () { var a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = ''; for (var i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; $('m-code').value = s; };
+    var picked = function () { $('m-picked').textContent = form.ships.length ? tr('picked', { n: form.ships.length }) : ''; };
+    $('m-ships').onclick = function (e) { var b = e.target.closest('[data-ship]'); if (!b) return; var id = b.dataset.ship, i = form.ships.indexOf(id);
+      if (i >= 0) form.ships.splice(i, 1); else form.ships.push(id); b.classList.toggle('on', i < 0); picked(); };
+    $('m-des-on').onchange = function () { form.designOn = this.checked; $('m-des').hidden = !this.checked; if (this.checked) drawDesigner(); };
+    el.querySelectorAll('input[name=m-access]').forEach(function (r) { r.onchange = function () { form.access = r.value; }; });
+    var drawP = function () { $('m-players').innerHTML = playerChips(form.players, form.pq, 'data-mp'); };
+    $('m-psearch').oninput = function () { form.pq = this.value; drawP(); };
+    $('m-players').onclick = function (e) { var b = e.target.closest('[data-mp]'); if (!b) return; var h = b.dataset.mp, i = form.players.indexOf(h); if (i >= 0) form.players.splice(i, 1); else form.players.push(h); drawP(); };
+    drawP();
+    $('m-go').onclick = create;
+  }
+  function drawDesigner() {
+    var d = $('m-des'), colors = [['body', T.c_body], ['accent', T.c_accent], ['glow', T.c_glow]];
+    d.innerHTML = '<div class="des"><div class="prev"><img id="d-prev" alt=""></div><div>' +
+      '<label class="f">' + T.d_name + '<input id="d-name" maxlength="20" dir="auto" value="' + esc($('d-name') ? $('d-name').value : 'Gift ship') + '"></label>' +
+      '<h3>' + T.shape + '</h3><div class="chips2" id="d-shapes">' + Art.CUSTOM_SHAPES.map(function (s) { return '<button type="button" class="chip2' + (s === spec.shape ? ' on' : '') + '" data-shape="' + s + '">' + s + '</button>'; }).join('') + '</div>' +
+      '<div class="row2" style="margin-top:10px">' + colors.map(function (c) { return '<label class="f">' + c[1] + '<input type="color" data-col="' + c[0] + '" value="' + spec[c[0]] + '" style="height:42px;padding:4px"></label>'; }).join('') + '</div>' +
+      '<div class="row2" style="margin-top:10px"><label class="f">' + T.aura + '<select id="d-aura">' + opts([null].concat(Art.CUSTOM_AURAS), spec.aura) + '</select></label>' +
+      '<label class="f">' + T.fx + '<select id="d-fx">' + opts([null].concat(Art.CUSTOM_FX), spec.fx) + '</select></label>' +
+      '<label class="f">' + T.gun + '<select id="d-gun">' + opts(Art.CUSTOM_GUNS, spec.gun) + '</select></label></div>' +
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;cursor:pointer"><input type="checkbox" id="d-mirror"' + (spec.mirror ? ' checked' : '') + '> ' + T.mirror + '</label>' +
+      '<h3>' + T.stickers + ' <button type="button" class="sm" id="d-add">' + T.add_st + '</button></h3><div id="d-st">' + spec.stickers.map(stickerRow).join('') + '</div>' +
+      '</div></div>';
+    var refresh = function () { $('d-prev').src = designPreview(); };
+    $('d-shapes').onclick = function (e) { var b = e.target.closest('[data-shape]'); if (!b) return; spec.shape = b.dataset.shape; d.querySelectorAll('[data-shape]').forEach(function (x) { x.classList.toggle('on', x === b); }); refresh(); };
+    d.querySelectorAll('[data-col]').forEach(function (i) { i.oninput = function () { spec[i.dataset.col] = i.value; refresh(); }; });
+    $('d-aura').onchange = function () { spec.aura = this.value || null; refresh(); };
+    $('d-fx').onchange = function () { spec.fx = this.value || null; refresh(); };
+    $('d-gun').onchange = function () { spec.gun = this.value; refresh(); };
+    $('d-mirror').onchange = function () { spec.mirror = this.checked; refresh(); };
+    $('d-name').oninput = refresh;
+    $('d-add').onclick = function () { if (spec.stickers.length >= 10) return; spec.stickers.push({ k: 'star', x: 14, y: 6, s: 12, r: 0, c: '#fde047' }); drawDesigner(); };
+    var st = $('d-st');
+    st.oninput = function (e) { var t = e.target, i = t.dataset.st; if (i == null) return; var k = t.dataset.k; spec.stickers[i][k] = (k === 'c' || k === 't' || k === 'k') ? t.value : +t.value; refresh(); };
+    st.onchange = function (e) { if (e.target.dataset.k === 'k') drawDesigner(); };
+    st.onclick = function (e) { var b = e.target.closest('[data-stdel]'); if (!b) return; spec.stickers.splice(+b.dataset.stdel, 1); drawDesigner(); };
+    refresh();
+  }
+  function errMsg(e) {
+    var m = String(e || ''); var p = /no_player:(.*)/.exec(m);
+    if (p) return tr('e_no_player', { x: '@' + p[1] });
+    var k = { bad_code: 'e_bad_code', code_taken: 'e_code_taken', bad_amount: 'e_bad_amount', empty_coupon: 'empty', dev_denied: 'e_dev_denied' };
+    for (var x in k) if (m.indexOf(x) >= 0) return T[k[x]];
+    return tr('e_other', { x: m });
+  }
+  function api(method, body) {
+    return fetch('/api/dev/coupons', { method: method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-SS-Dev': '1' }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (r.status === 401) { gate(); throw new Error('sign_in'); } if (!r.ok) throw new Error(d.error || r.status); return d; }); });
+  }
+  function create() {
+    var st = $('m-st'), go = $('m-go'), coins = parseAmt($('m-coins').value), gems = parseAmt($('m-gems').value);
+    if (isNaN(coins) || isNaN(gems)) { st.className = 'err'; st.textContent = T.e_bad_amount; return; }
+    var body = { code: $('m-code').value.trim().toUpperCase(), coins: coins, gems: gems, ships: form.ships, note: $('m-note').value,
+      max_uses: +$('m-max').value || null, access: form.access, players: form.players };
+    if (form.designOn) { body.design = JSON.parse(JSON.stringify(spec)); body.design_name = $('d-name').value; }
+    go.disabled = true; st.className = ''; st.textContent = T.creating;
+    api('POST', body).then(function (r) {
+      st.className = 'ok'; st.textContent = tr('created', { x: r.code });
+      form.ships = []; form.players = []; form.designOn = false; spec.stickers = [];
+      setTimeout(function () { drawMaker(); $('m-st').className = 'ok'; $('m-st').textContent = tr('created', { x: r.code }); }, 50);
+      loadCoupons();
+    }).catch(function (e) { st.className = 'err'; st.textContent = errMsg(e.message); }).then(function () { go.disabled = false; });
+  }
+
+  // ---------- every coupon (only the access and the players can change) ----------
+  function loadCoupons() {
+    $('cps').innerHTML = '<p style="color:var(--muted)">' + T.loading + '</p>';
+    return api('GET').then(function (d) { players = d.players || []; coupons = d.coupons || []; if ($('m-players')) $('m-players').innerHTML = playerChips(form.players, form.pq, 'data-mp'); drawCoupons(); })
+      .catch(function (e) { $('cps').innerHTML = '<p class="err">' + esc(errMsg(e.message)) + '</p>'; });
+  }
+  var edits = {};   // code -> { access, players, pq }
+  function couponCard(c) {
+    var e = edits[c.code] || (edits[c.code] = { access: c.access, players: (c.players || []).slice(), pq: '' });
+    var ships = (c.ships && c.ships.length ? c.ships : c.ship ? [c.ship] : []);
+    var des = '';
+    if (c.design) { Art.addCustom('__cp_' + c.code, c.design, c.design_name); try { des = '<img src="' + Art.shipPreview('__cp_' + c.code, 72) + '" title="' + esc(c.design_name) + '" alt="">🎨 ' + esc(c.design_name || ''); } catch (x) {} }
+    return '<div class="cp" data-cp="' + esc(c.code) + '"><h3>' + esc(c.code) + ' <span class="badge2 ' + c.access + '">' + T['a_' + c.access] + '</span></h3>' +
+      '<div class="rw2">' + (c.coins ? '<span>🪙 ' + fmt(c.coins) + '</span>' : '') + (c.gems ? '<span>💎 ' + fmt(c.gems) + '</span>' : '') +
+        (c.world ? '<span>🌌 ' + esc(c.world) + '</span>' : '') + ships.map(function (s) { return '<img src="' + shipImg(s, 72) + '" title="' + esc(shipName(s)) + '" alt="">'; }).join('') + des + '</div>' +
+      (c.note ? '<div class="note" dir="auto">' + esc(c.note) + '</div>' : '') +
+      '<div class="meta">' + tr('uses', { n: c.uses || 0 }) + (c.max_uses ? ' ' + tr('of', { n: c.max_uses }) : '') + ' · ' + tr('made', { x: new Date(c.created_at).toLocaleDateString(he ? 'he' : 'en') }) +
+        (c.redeemed && c.redeemed.length ? '<br>' + tr('by', { x: c.redeemed.map(function (h) { return '@' + esc(h); }).join(', ') }) : '') + '</div>' +
+      '<div class="edit"><div class="hint" style="margin-bottom:8px">✏️ ' + T.edit_t + '</div>' + accessBoxes('a-' + c.code, e.access) +
+        '<h3>👥 ' + T.players + '</h3><input class="in search" data-pq="' + esc(c.code) + '" placeholder="' + esc(T.p_search) + '" value="' + esc(e.pq) + '"><div class="chips2" data-plist="' + esc(c.code) + '">' + playerChips(e.players, e.pq, 'data-cpp') + '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><button class="sm" data-save="' + esc(c.code) + '">' + T.save + '</button><span data-st2="' + esc(c.code) + '"></span></div></div></div>';
+  }
+  function drawCoupons() {
+    var ql = $('cp-search').value.trim().toLowerCase().replace(/^@/, '');
+    var list = coupons.filter(function (c) { return !ql || c.code.toLowerCase().indexOf(ql) >= 0 || (c.players || []).concat(c.redeemed || []).some(function (h) { return h.toLowerCase().indexOf(ql) >= 0; }) || String(c.note || '').toLowerCase().indexOf(ql) >= 0; });
+    $('cps').innerHTML = list.length ? list.map(couponCard).join('') : '<p style="color:var(--muted)">' + T.no_cp + '</p>';
+  }
+  $('cp-search').oninput = drawCoupons;
+  var cps = $('cps');
+  cps.addEventListener('change', function (ev) { var t = ev.target; if (t.type === 'radio' && t.name.indexOf('a-') === 0) { edits[t.name.slice(2)].access = t.value; } });
+  cps.addEventListener('input', function (ev) { var t = ev.target; if (!t.dataset.pq) return; var code = t.dataset.pq; edits[code].pq = t.value;
+    cps.querySelector('[data-plist="' + CSS.escape(code) + '"]').innerHTML = playerChips(edits[code].players, t.value, 'data-cpp'); });
+  cps.addEventListener('click', function (ev) {
+    var p = ev.target.closest('[data-cpp]');
+    if (p) { var code = p.closest('[data-cp]').dataset.cp, e = edits[code], h = p.dataset.cpp, i = e.players.indexOf(h); if (i >= 0) e.players.splice(i, 1); else e.players.push(h); p.classList.toggle('on', i < 0); return; }
+    var s = ev.target.closest('[data-save]'); if (!s) return;
+    var c = s.dataset.save, ed = edits[c], st = cps.querySelector('[data-st2="' + CSS.escape(c) + '"]');
+    s.disabled = true; st.className = ''; st.textContent = '…';
+    api('PATCH', { code: c, access: ed.access, players: ed.players }).then(function () {
+      var cp = coupons.find(function (x) { return x.code === c; }); cp.access = ed.access; cp.players = ed.players.slice();
+      st.className = 'ok'; st.textContent = T.saved;
+      var b = cps.querySelector('[data-cp="' + CSS.escape(c) + '"] .badge2'); b.className = 'badge2 ' + ed.access; b.textContent = T['a_' + ed.access];
+    }).catch(function (e) { st.className = 'err'; st.textContent = errMsg(e.message); }).then(function () { s.disabled = false; });
+  });
 </script>
 </body>
 </html>

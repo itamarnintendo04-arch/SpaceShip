@@ -32,6 +32,10 @@
     {
       "source": "/dev",
       "destination": "/dev.html"
+    },
+    {
+      "source": "/dev/coupons",
+      "destination": "/dev.html"
     }
   ],
   "headers": [
