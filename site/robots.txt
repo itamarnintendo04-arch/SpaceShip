@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /dev
 Disallow: /notify
 Disallow: /open
 Disallow: /gift

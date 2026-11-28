@@ -191,6 +191,10 @@ For trying out updates before players get them. A commit whose message contains 
 - `window.SS_DEV = true` there: features in testing check it and turn on only in the development version. Shipping a feature to everyone = removing its `SS_DEV` check.
 - In testing now: the **loading screen with a picture** (the 9:16 poster, a random tip at the top in the player's language, the loading bar at the bottom) instead of the mini level.
 
+## SpaceShip Dev downloads on the website (/dev)
+`https://spaceship-site.vercel.app/dev` lists every SpaceShip Dev build (the private draft releases `dev-N`) with its files, **only for a GitHub account that is an Admin of this repository** (checked with GitHub on every request; files are downloaded through the site because drafts are private). `site/dev.html`, `site/api/_dev.js`, `site/api/dev/*`.
+**Setup (once):** GitHub → Settings → Developer settings → OAuth Apps → *New OAuth App*: Homepage `https://spaceship-site.vercel.app`, Authorization callback URL `https://spaceship-site.vercel.app/api/dev/callback`. Then in Vercel (project spaceship-site) → Settings → Environment Variables add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` and redeploy. The sign-in cookie is encrypted with a key made from the client secret.
+
 ## Website
 
 **Google (free):** the site has a search title and description, share cards (Open Graph, `img/og.jpg`), `VideoGame` structured data, `robots.txt` and `sitemap.xml`; helper pages (`/notify`, `/open`, `/gift`, `/club`) are kept out of search. To ask Google to index it: Google Search Console → *Add property* → *URL prefix* `https://spaceship-site.vercel.app/` → verify with the *HTML tag* (paste it in `site/index.html` where the comment says) → *Sitemaps* → `sitemap.xml`.

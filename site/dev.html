@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpaceShip Dev</title>
+<meta name="theme-color" content="#05021a">
+<link rel="icon" href="/img/icon-256.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .dv { min-height: 100vh; display: flex; justify-content: center; padding: 40px 16px; }
+  .dc { width: min(680px, 100%); }
+  .dh { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .dh img { width: 64px; height: 64px; border-radius: 16px; }
+  .dh h1 { margin: 0; font-size: 28px; } .dh .tag { background: #ea580c; color: #fff; font-weight: 900; font-size: 12px; padding: 3px 9px; border-radius: 999px; margin-inline-start: 8px; vertical-align: middle; }
+  .box { padding: 22px; border-radius: 20px; background: var(--card); border: 1px solid var(--line2, rgba(46,40,112,.8)); text-align: center; }
+  .box p { color: var(--muted); }
+  .gh { display: inline-flex; align-items: center; gap: 10px; background: #24292f; color: #fff; border: 1px solid #57606a; padding: 12px 22px; border-radius: 14px; font-weight: 800; text-decoration: none; }
+  .gh svg { width: 22px; height: 22px; fill: #fff; }
+  .me { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 14px; color: var(--muted); }
+  .me img { width: 30px; height: 30px; border-radius: 50%; vertical-align: middle; margin-inline-end: 8px; }
+  .build { padding: 16px; border-radius: 18px; background: rgba(15,11,48,.7); border: 1px solid var(--line2, rgba(46,40,112,.8)); margin-bottom: 10px; }
+  .build.new { border-color: #ea580c; }
+  .build h3 { margin: 0 0 4px; display: flex; gap: 8px; align-items: center; } .build small { color: var(--dim); }
+  .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .files a { padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(167,139,250,.45); color: #fff; text-decoration: none; font-weight: 700; font-size: 14px; background: rgba(5,2,26,.5); }
+  .files a small { color: var(--dim); font-weight: 500; margin-inline-start: 6px; }
+  .err { color: #fb7185; font-weight: 700; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="dv"><div class="dc">
+  <div class="dh"><img src="/img/icon-256.png" alt=""><div><h1>SpaceShip <span class="tag">DEV</span></h1><small id="sub" style="color:var(--muted)"></small></div></div>
+  <div class="box" id="gate" hidden>
+    <p id="gate-t"></p>
+    <a class="gh" href="/api/dev/login"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span id="gh-t"></span></a>
+    <p class="err" id="gate-err" hidden></p>
+  </div>
+  <div id="list" hidden>
+    <div class="me"><span id="me"></span><a href="/api/dev/logout" id="out" style="color:var(--muted)"></a></div>
+    <div id="builds"></div>
+  </div>
+</div></main>
+<script>
+  // the admin page for SpaceShip Dev (private development builds); English or Hebrew, like the rest of the site
+  var he = /^he/.test((localStorage.getItem('ss_site_lang') || navigator.language || ''));
+  var T = he ? {
+    sub: 'גרסת הפיתוח הפרטית · רק למנהלי הריפו', gate: 'כדי להוריד את גרסת הפיתוח צריך להתחבר עם חשבון GitHub שמוגדר כמנהל (Admin) בריפו של SpaceShip.',
+    gh: 'התחברות עם GitHub', denied: 'לחשבון {x} אין הרשאת מנהל בריפו.', error: 'ההתחברות נכשלה, נסו שוב.', setup: 'ההתחברות עם GitHub עוד לא הוגדרה באתר (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET ב-Vercel).',
+    me: 'מחובר כ-{x}', out: 'התנתקות', none: 'אין עדיין גרסאות פיתוח.', newest: 'החדשה', loading: 'טוען…'
+  } : {
+    sub: 'The private development version · repository admins only', gate: 'To download the development version, sign in with a GitHub account that is an Admin of the SpaceShip repository.',
+    gh: 'Sign in with GitHub', denied: 'The account {x} is not an admin of the repository.', error: 'Sign-in failed, please try again.', setup: 'GitHub sign-in is not set up on the website yet (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET in Vercel).',
+    me: 'Signed in as {x}', out: 'Sign out', none: 'No development builds yet.', newest: 'newest', loading: 'Loading…'
+  };
+  if (he) { document.documentElement.lang = 'he'; document.documentElement.dir = 'rtl'; }
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  $('sub').textContent = T.sub; $('gate-t').textContent = T.gate; $('gh-t').textContent = T.gh; $('out').textContent = T.out;
+  var q = new URLSearchParams(location.search);
+  function gate(msg) { $('gate').hidden = false; $('list').hidden = true; if (msg) { $('gate-err').hidden = false; $('gate-err').textContent = msg; } }
+  if (q.get('denied') != null) gate(T.denied.replace('{x}', '@' + q.get('denied')));
+  else if (q.get('error')) gate(T.error);
+  else if (q.get('setup')) gate(T.setup);
+  if (location.search) history.replaceState(null, '', '/dev');
+  var KIND = [[/\.ipa$/i, 'iPhone'], [/\.apk$/i, 'Android'], [/setup.*\.exe$/i, 'Windows'], [/portable.*\.exe$/i, 'Windows Portable'], [/\.dmg$/i, 'macOS'], [/\.appimage$/i, 'Linux']];
+  var kind = function (n) { for (var i = 0; i < KIND.length; i++) if (KIND[i][0].test(n)) return KIND[i][1]; return n; };
+  var mb = function (b) { return (b / 1048576).toFixed(b > 1e8 ? 0 : 1) + ' MB'; };
+  if ($('gate').hidden) fetch('/api/dev/files', { credentials: 'same-origin' }).then(function (r) { return r.json().then(function (d) { return [r.status, d]; }); }).then(function (x) {
+    var st = x[0], d = x[1];
+    if (st === 503) return gate(T.setup);
+    if (st !== 200) return gate();
+    $('list').hidden = false; $('gate').hidden = true;
+    $('me').innerHTML = (d.user.avatar ? '<img src="' + esc(d.user.avatar) + '" alt="">' : '') + esc(T.me.replace('{x}', '@' + d.user.login));
+    $('builds').innerHTML = d.builds.length ? d.builds.map(function (b, i) {
+      return '<div class="build' + (i ? '' : ' new') + '"><h3>' + esc(b.tag) + (i ? '' : ' <span class="tag" style="background:#ea580c;color:#fff;font-size:11px;padding:2px 8px;border-radius:999px">' + T.newest + '</span>') + '</h3>' +
+        '<small>' + new Date(b.at).toLocaleString(he ? 'he' : 'en') + '</small><div class="files">' +
+        b.files.map(function (f) { return '<a href="/api/dev/download?id=' + f.id + '">' + esc(kind(f.name)) + ' <small>' + mb(f.size) + '</small></a>'; }).join('') + '</div></div>';
+    }).join('') : '<p>' + T.none + '</p>';
+  }).catch(function () { gate(T.error); });
+</script>
+</body>
+</html>
